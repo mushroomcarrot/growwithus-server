@@ -8,6 +8,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @Slf4j
@@ -43,6 +44,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(ErrorCode.INVALID_PARAMETER.getHttpStatus())
                 .body(GlobalResponse.error(ErrorCode.INVALID_PARAMETER));
+    }
+
+    // multipart 최대 크기(spring.servlet.multipart) 초과
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<GlobalResponse<?>> handleMaxUploadSizeExceededException(MaxUploadSizeExceededException e) {
+        log.warn("[handleMaxUploadSizeExceededException] 업로드 크기 제한 초과: {}", e.getMessage());
+
+        return ResponseEntity
+                .status(ErrorCode.FILE_NOT_SUPPORTED.getHttpStatus())
+                .body(GlobalResponse.error(ErrorCode.FILE_NOT_SUPPORTED));
     }
 
     // 매핑된 컨트롤러가 없는 경로

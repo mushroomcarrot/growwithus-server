@@ -27,6 +27,7 @@ Java 21, Spring Boot 4.1, Gradle, MariaDB, Redis, JWT (jjwt 0.12.x), Swagger
 
 1. `./gradlew compileJava`: 컴파일 확인
 2. `./gradlew build`는 DB 없이 실패한다 (`contextLoads`가 실제 MariaDB 연결 필요). DB 없이 빌드하려면 `./gradlew build -x test`
+3. DB 없이 도는 단위 테스트: `./gradlew test --tests 'community.likelion.growwithusserver.common.*'`
 
 ## 권한
 
@@ -45,6 +46,7 @@ Java 21, Spring Boot 4.1, Gradle, MariaDB, Redis, JWT (jjwt 0.12.x), Swagger
 3. 로그는 `[메서드명] 한국어 설명: {}` 형식
 4. 현재 사용자는 컨트롤러에서 `SecurityUtil.getUsername()`으로 가져와 서비스에 넘긴다
 5. API 경로는 `docs/api-spec.md` 그대로 쓴다. `/api/v1` 같은 접두어를 붙이지 않는다
+6. 페이지네이션, 파일 업로드, 외부 ID, 날짜 형식, 외부 API 호출, 배치는 `common`의 공통 모듈을 쓴다. 도메인마다 새로 만들지 않는다
 
 ## Git
 

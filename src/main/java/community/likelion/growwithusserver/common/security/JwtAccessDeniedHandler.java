@@ -4,7 +4,6 @@ import tools.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import community.likelion.growwithusserver.common.response.ErrorCode;
-import community.likelion.growwithusserver.common.response.GlobalResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
@@ -25,11 +24,7 @@ public class JwtAccessDeniedHandler implements AccessDeniedHandler {
     public void handle(HttpServletRequest request, HttpServletResponse response, AccessDeniedException accessDeniedException) throws IOException {
         // 역할을 아직 고르지 않은 사용자(USER)는 역할 선택 화면으로 보내도록 다른 코드를 준다
         ErrorCode errorCode = isRoleNotSelected() ? ErrorCode.ROLE_NOT_SELECTED : ErrorCode.ACCESS_DENIED;
-
-        response.setContentType("application/json;charset=UTF-8");
-        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-        GlobalResponse<?> errorResponse = GlobalResponse.error(errorCode);
-        response.getWriter().write(objectMapper.writeValueAsString(errorResponse));
+        SecurityErrorWriter.write(response, objectMapper, errorCode);
     }
 
     private boolean isRoleNotSelected() {
