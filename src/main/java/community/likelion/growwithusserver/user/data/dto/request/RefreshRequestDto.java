@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ReissueRequestDto {
+public class RefreshRequestDto {
     @NotBlank
     private String refreshToken;
 }

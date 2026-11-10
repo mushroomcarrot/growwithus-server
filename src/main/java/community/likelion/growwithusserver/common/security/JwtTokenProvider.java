@@ -59,10 +59,10 @@ public class JwtTokenProvider {
         this.userRepository = userRepository;
     }
 
-    private String createToken(String email, String authorities, Date expireDate) {
-        log.info("[createToken] 새 JWT 발급 됨: {}", email);
+    private String createToken(String username, String authorities, Date expireDate) {
+        log.info("[createToken] 새 JWT 발급 됨: {}", username);
         JwtBuilder builder = Jwts.builder()
-                .subject(email)
+                .subject(username)
                 .expiration(expireDate)
                 .signWith(key, Jwts.SIG.HS256);
 
@@ -94,6 +94,7 @@ public class JwtTokenProvider {
         return AuthenticationToken.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
+                .expiresIn(ACCESS_TOKEN_EXPIRE_TIME / 1000)
                 .build();
     }
 
@@ -149,7 +150,7 @@ public class JwtTokenProvider {
         Collection<? extends GrantedAuthority> authorities;
 
         if (authClaim == null || authClaim.toString().isEmpty()) {
-            authorities = userRepository.findByEmail(claims.getSubject())
+            authorities = userRepository.findByUsername(claims.getSubject())
                     .map(user -> List.of(new SimpleGrantedAuthority(user.getRole().getValue())))
                     .orElse(List.of());
         } else {

@@ -2,7 +2,7 @@
 
 > 코드의 현재 상태를 그대로 기록한 문서다. 기능을 추가하거나 바꾸면 이 문서도 함께 갱신한다 ([development-guide.md](development-guide.md#문서-갱신-규칙)).
 >
-> 마지막 갱신: 2026-11-09, JVM 기본 시간대 Asia/Seoul 고정, .env.example 추가 및 .env 로딩
+> 마지막 갱신: 2026-11-11, 인증 및 사용자 API를 명세에 맞춤 (아이디 로그인, 역할 선택, nextStep, 경로 접두어 제거), product 예제 도메인 삭제
 
 ## 한눈에 보기
 
@@ -39,60 +39,82 @@ community.likelion.growwithusserver/
 │   │   ├── JwtTokenProvider        # 토큰 발급, 검증, 블랙리스트, Redis RT 저장
 │   │   ├── JwtAuthenticationFilter # Authorization 헤더를 읽어 SecurityContext에 등록
 │   │   ├── JwtAuthenticationEntryPoint  # 401 응답 (C4011)
-│   │   ├── JwtAccessDeniedHandler  # 403 응답 (C403)
-│   │   ├── SecurityUtil            # getUsername(): 현재 사용자 이메일
-│   │   ├── AuthenticationToken     # {accessToken, refreshToken}
+│   │   ├── JwtAccessDeniedHandler  # 403 응답 (C403, 역할 미선택 사용자는 C4031)
+│   │   ├── SecurityUtil            # getUsername(): 현재 사용자 로그인 아이디
+│   │   ├── AuthenticationToken     # {accessToken, refreshToken, expiresIn}
 │   │   └── exception/
 │   │       ├── TokenInvalidException        # C4013
 │   │       └── AuthenticationInfoException  # C4011, SecurityUtil.getUsername() 실패 시
 │   └── swagger/
 │       └── SwaggerConfiguration    # OpenAPI 정보 + bearerAuth 스킴
-├── user/                           # 회원 / 인증 도메인
-│   ├── controller/AuthController
-│   ├── service/AuthService
-│   └── data/
-│       ├── dto/request/   SignUpRequestDto, SignInRequestDto, ReissueRequestDto
-│       ├── dto/response/  TokenResponseDto
-│       ├── entity/        User (implements UserDetails)
-│       ├── enums/         UserRole
-│       ├── exception/     EmailDuplicationException, PasswordInvalidException, UserNotFoundException
-│       └── repository/    UserRepository
-└── product/                        # 예제 도메인 (구조 참고용, 필드는 자리표시자)
-    ├── controller/ProductController
-    ├── service/ProductService
+└── user/                           # 회원 / 인증 도메인
+    ├── controller/    AuthController (/auth), UserController (/users)
+    ├── service/       AuthService (가입, 로그인, 재발급, 로그아웃), UserService (사용자 조회, nextStep, 토큰 발급, 역할, 푸시 토큰)
     └── data/
-        ├── dto/           ProductRequestDto, ProductResponseDto
-        ├── entity/        Product
-        ├── exception/     ProductNotFoundException
-        └── repository/    ProductRepository
+        ├── dto/request/   SignUpRequestDto, LoginRequestDto, RefreshRequestDto, RoleChangeRequestDto, PushTokenRequestDto
+        ├── dto/response/  AuthResponseDto, TokenRefreshResponseDto, UsernameCheckResponseDto, UserMeResponseDto, RoleChangeResponseDto
+        ├── entity/        User (implements UserDetails), PushToken
+        ├── enums/         UserRole, NextStep, PushPlatform
+        ├── exception/     UsernameDuplicationException, PasswordInvalidException, UserNotFoundException, RoleNotAllowedException
+        └── repository/    UserRepository, PushTokenRepository
 ```
 
 ## API
 
-모든 응답은 `GlobalResponse<T>`로 감싸진다.
+모든 응답은 `GlobalResponse<T>`로 감싸진다. 경로는 명세(`api-spec.md`)대로 접두어 없이 쓴다 (`/api/v1` 없음, 2026-11-11 결정).
 
 | Method | Path | 권한 | 요청 | 응답 `data` | 설명 |
 | --- | --- | --- | --- | --- | --- |
-| POST | `/api/v1/auth/signup` | 공개 | `SignUpRequestDto` | `TokenResponseDto` | 회원가입 후 바로 토큰 발급 |
-| POST | `/api/v1/auth/signin` | 공개 | `SignInRequestDto` | `TokenResponseDto` | 로그인 |
-| POST | `/api/v1/auth/reissue` | 공개 | `ReissueRequestDto` | `TokenResponseDto` | RT로 AT, RT 재발급 (RT 로테이션) |
-| POST | `/api/v1/auth/logout` | 인증 | 헤더 `Authorization: Bearer <AT>` | `null` | AT, RT 블랙리스트 등록 및 RT 삭제 |
-| POST | `/api/v1/product` | OWNER, MANAGER (+ADMIN) | `ProductRequestDto` | `null` | 예제: 현재 사용자 소유로 생성 |
-| GET | `/api/v1/product?id={id}` | OWNER, MANAGER (+ADMIN) | 쿼리 `id` | `ProductResponseDto` | 예제: 단건 조회 |
+| POST | `/auth/signup` | 공개 | `SignUpRequestDto` | `AuthResponseDto` | 회원가입 후 바로 토큰 발급. 역할은 `USER`, `nextStep=ROLE_SELECT` |
+| GET | `/auth/username-check?username={아이디}` | 공개 | 쿼리 `username` | `UsernameCheckResponseDto` | 아이디 중복 확인 |
+| POST | `/auth/login` | 공개 | `LoginRequestDto` | `AuthResponseDto` | 로그인, `nextStep`으로 이동 화면 안내 |
+| POST | `/auth/refresh` | 공개 | `RefreshRequestDto` | `TokenRefreshResponseDto` | RT로 AT, RT 재발급 (RT 로테이션) |
+| POST | `/auth/logout` | USER, OWNER, CARETAKER | 헤더 `Authorization: Bearer <AT>` | `null` | AT, RT 블랙리스트 등록 및 RT 삭제 |
+| GET | `/users/me` | USER, OWNER, CARETAKER | 없음 | `UserMeResponseDto` | 내 정보, 역할, `nextStep` |
+| PUT | `/users/me/role` | USER, OWNER, CARETAKER | `RoleChangeRequestDto` | `RoleChangeResponseDto` | 역할 선택 및 변경. 이전 토큰을 무효로 만들고 새 토큰 발급 |
+| POST | `/users/me/push-tokens` | USER, OWNER, CARETAKER | `PushTokenRequestDto` | `null` | 푸시 토큰 등록. 같은 토큰이면 사용자와 플랫폼만 갱신 |
 
-공개 경로 (`permitAll`): `/api/v1/auth/signin`, `/api/v1/auth/signup`, `/api/v1/auth/reissue`, `/swagger-ui/**`, `/v3/api-docs/**`, `/swagger-resources/**`, `/webjars/**`.
-그 외 모든 경로는 `.anyRequest().authenticated()`이다. 로그인만 되어 있으면 권한 무관하게 접근 가능.
+### 경로별 권한 (`SecurityConfiguration`)
+
+`api-spec.md` 4장의 권한 열을 그대로 옮겼다. 아직 컨트롤러가 없는 도메인의 경로도 미리 매핑해 두었으므로, 새 도메인은 명세와 권한이 다를 때만 이 표와 코드를 고친다. 위에서부터 먼저 맞는 규칙이 적용된다.
+
+| 순서 | 경로 | 권한 |
+| --- | --- | --- |
+| 1 | `/swagger-ui/**`, `/v3/api-docs/**`, `/swagger-resources/**`, `/webjars/**` | 공개 |
+| 2 | POST `/auth/signup`, `/auth/login`, `/auth/refresh`, GET `/auth/username-check` | 공개 |
+| 3 | `/auth/logout` | USER, OWNER, CARETAKER |
+| 4 | `/users/me/badges` | OWNER |
+| 5 | `/users/me/**` | USER, OWNER, CARETAKER |
+| 6 | `/farms/*/plots/**` | USER, OWNER |
+| 7 | `/farms/**`, `/crops/**` | USER, OWNER, CARETAKER |
+| 8 | POST `/owners/me/profile` | USER, OWNER |
+| 9 | `/owners/**` | OWNER |
+| 10 | POST `/caretakers/me/profile` | USER, CARETAKER |
+| 11 | `/caretakers/**` | CARETAKER |
+| 12 | `/tts` | USER, CARETAKER |
+| 13 | `/caretaker/**`, `/gardens/*/stage-checks` | CARETAKER |
+| 14 | `/gardens/**`, `/care-logs/**`, `/events/**`, `/leagues/**`, `/quests/**`, `/quizzes/**`, `/visits/**` | OWNER |
+| 15 | `/notifications/**` | OWNER, CARETAKER |
+| 16 | 그 외 모든 경로 | 인증만 필요 |
+
+ADMIN은 RoleHierarchy로 위 모든 권한을 갖는다. `/internal/**`, `/demo/**`는 아직 매핑하지 않았다 (공통 모듈 작업에서 추가).
 
 ### DTO
 
 | DTO | 필드 |
 | --- | --- |
-| `SignUpRequestDto` | `email` (`@NotBlank @Email`), `name` (`@NotBlank`), `password` (`@NotBlank @Size(8~64)`), `role` (`@NotNull UserRole`) |
-| `SignInRequestDto` | `email` (`@NotBlank @Email`), `password` (`@NotBlank`) |
-| `ReissueRequestDto` | `refreshToken` |
-| `TokenResponseDto` | `accessToken`, `refreshToken`, `email`, `name` (조립은 `AuthService.createTokenResponse` 한 곳에서만) |
-| `ProductRequestDto` | `name`, `description` (`@NotBlank`), 자리표시자 |
-| `ProductResponseDto` | `id`, `name`, `description`, `createdAt`, 자리표시자 |
+| `SignUpRequestDto` | `name` (`@NotBlank @Size(max=20)`), `username` (`@NotBlank`, 영문 소문자와 숫자 4~20자), `password` (`@NotBlank @Size(8~64)`) |
+| `LoginRequestDto` | `username`, `password` (`@NotBlank`) |
+| `RefreshRequestDto` | `refreshToken` (`@NotBlank`) |
+| `RoleChangeRequestDto` | `role` (`@NotNull UserRole`, `OWNER`와 `CARETAKER`만 허용) |
+| `PushTokenRequestDto` | `token` (`@NotBlank @Size(max=512)`), `platform` (`@NotNull PushPlatform`: `ANDROID`, `IOS`) |
+| `AuthResponseDto` | `userId`, `accessToken`, `refreshToken`, `expiresIn` (초), `role`, `nextStep` (조립은 `AuthService.createAuthResponse` 한 곳에서만) |
+| `TokenRefreshResponseDto` | `accessToken`, `refreshToken`, `expiresIn` (초) |
+| `UsernameCheckResponseDto` | `username`, `available` |
+| `UserMeResponseDto` | `userId`, `name`, `username`, `role`, `nextStep`, `owner` (`nickname`, `district`, `gardenId`), `caretaker` (`caretakerId`, `name`, `farmId`, `avatarUrl`) |
+| `RoleChangeResponseDto` | `role`, `accessToken`, `refreshToken`, `nextStep` |
+
+`userId`는 `usr_` 접두어에 PK를 붙인 문자열이다 (예: `usr_12`, `User.getPublicId()`).
 
 ### 응답 형식
 
@@ -106,49 +128,70 @@ community.likelion.growwithusserver/
 
 ## 권한
 
-| `UserRole` | authority | 의미 (기획안 3.5) |
+| `UserRole` | authority | 의미 |
 | --- | --- | --- |
-| `ADMIN` | `ROLE_ADMIN` | 서비스 관리자 |
+| `USER` | `ROLE_USER` | 가입 직후, 역할 선택 전 |
 | `OWNER` | `ROLE_OWNER` | 텃밭 주인 (도시민) |
-| `MANAGER` | `ROLE_MANAGER` | 텃밭 관리사 (어르신) |
+| `CARETAKER` | `ROLE_CARETAKER` | 텃밭 관리사 (어르신) |
+| `ADMIN` | `ROLE_ADMIN` | 서비스 관리자 |
 
-- **RoleHierarchy** (`SecurityConfiguration.roleHierarchy()`): `ROLE_ADMIN > ROLE_OWNER`, `ROLE_ADMIN > ROLE_MANAGER`. OWNER와 MANAGER는 서로 포함하지 않는다.
-- **역할 결정:** 회원가입 요청의 `role` 값을 그대로 저장한다. 기본값 없음.
+- **RoleHierarchy** (`SecurityConfiguration.roleHierarchy()`): `ROLE_ADMIN > ROLE_OWNER`, `ROLE_ADMIN > ROLE_CARETAKER`, `ROLE_ADMIN > ROLE_USER`. USER, OWNER, CARETAKER는 서로 포함하지 않는다. 그래서 명세의 "USER, OWNER"처럼 일부만 허용하는 경로를 `hasAnyRole`로 그대로 표현한다.
+- **역할 결정:** 가입 직후는 `USER`. `PUT /users/me/role`로 `OWNER` 또는 `CARETAKER`를 고른다. `USER`, `ADMIN`으로는 바꿀 수 없다 (C002). ADMIN 계정은 가입 경로가 없어 DB에서 직접 `role`을 바꿔 만든다.
+- **역할 변경:** 역할이 실제로 바뀌면 `profileRegistered`를 false로 되돌린다. 이전 AT, RT는 블랙리스트에 올리고 새 역할이 담긴 토큰을 발급한다.
+- **역할 미선택 접근:** `USER`가 OWNER나 CARETAKER 전용 경로에 접근하면 403 `C4031`을 준다 (그 외 권한 부족은 `C403`).
 - `hasRole("OWNER")`처럼 `ROLE_` 접두사 없이 쓴다.
+
+### nextStep
+
+`UserService.resolveNextStep(User)` 한 곳에서만 계산하고 signup, login, `/users/me`, 역할 변경이 함께 쓴다.
+
+| 상태 | nextStep |
+| --- | --- |
+| `USER` | `ROLE_SELECT` |
+| `OWNER`, `profileRegistered=false` | `PROFILE_OWNER` |
+| `OWNER`, `profileRegistered=true` | `OWNER_HOME` |
+| `CARETAKER`, `profileRegistered=false` | `PROFILE_CARE` |
+| `CARETAKER`, `profileRegistered=true` | `CARE_TODAY` |
+| `ADMIN` | `null` |
 
 ## 인증 흐름
 
 ```
-[signup / signin]
-  1. AuthService.createAuthentication(user)
+[signup / login / 역할 변경]
+  1. UserService.issueToken(user)
   2. JwtTokenProvider.generateToken()
-    ├─ AT: subject=email, claim "authorities"="ROLE_XXX", 만료 1시간
-    ├─ RT: subject=email, claim 없음, 만료 7일
-    └─ Redis SET refresh:{email} = RT (TTL = RT 만료)
+    ├─ AT: subject=username, claim "authorities"="ROLE_XXX", 만료 1시간
+    ├─ RT: subject=username, claim 없음, 만료 7일
+    └─ Redis SET refresh:{username} = RT (TTL = RT 만료)
 
 [인증된 요청]
   JwtAuthenticationFilter
     1. Authorization: Bearer <AT> 헤더에서 AT 추출
     2. validateToken (서명, 만료, 블랙리스트 검사)
     3. getAuthentication: claim "authorities" 사용, 없으면 DB에서 role 조회, 사용자도 없으면 권한 없음
-    4. SecurityContext 등록 (principal username = email)
+    4. SecurityContext 등록 (principal username = 로그인 아이디)
 
-[reissue]
+[refresh]
   1. RT 검증
-  2. Redis의 refresh:{email}과 일치 확인
+  2. Redis의 refresh:{username}과 일치 확인
   3. AT, RT 새로 발급 (이전 RT는 덮어써져 즉시 무효)
 
 [logout]
   1. AT 검증
-  2. Redis refresh:{email}의 RT를 블랙리스트 등록 후 삭제
+  2. Redis refresh:{username}의 RT를 블랙리스트 등록 후 삭제
   3. AT 블랙리스트 등록
+
+[역할 변경 (PUT /users/me/role)]
+  1. 역할 저장, 역할이 바뀌었으면 profileRegistered=false
+  2. logout과 같은 방식으로 이전 AT, RT 무효화
+  3. 새 역할로 AT, RT 발급
 ```
 
 ### Redis 키
 
 | 키 | 값 | TTL |
 | --- | --- | --- |
-| `refresh:{email}` | Refresh Token | RT 만료 시간 |
+| `refresh:{username}` | Refresh Token | RT 만료 시간 |
 | `blacklist:{token}` | `"logout"` | 해당 토큰의 남은 만료 시간 |
 
 ## 엔티티
@@ -158,32 +201,41 @@ community.likelion.growwithusserver/
 | 필드 | 타입 | 제약 |
 | --- | --- | --- |
 | `id` | Long | PK, IDENTITY |
-| `email` | String | not null, unique |
-| `name` | String | not null |
+| `username` | String | not null, unique, 20자. 로그인 아이디 |
+| `name` | String | not null, 20자 |
 | `password` | String | not null, BCrypt |
 | `role` | `UserRole` | not null, `EnumType.STRING` |
+| `profileRegistered` | boolean | not null, 기본 false. 현재 역할의 프로필 등록 여부 |
 | `registeredAt` | LocalDateTime | updatable=false, `AuthService.signUp`에서 직접 채움 |
 | `modifiedAt` | LocalDateTime | `@UpdateTimestamp` |
 
-`UserDetails` 구현, `getUsername()`은 email 반환.
+`UserDetails` 구현, `getUsername()`은 로그인 아이디 반환. `getPublicId()`는 `usr_{id}`.
 
-### `Product` (`product` 테이블), 예제
+### `PushToken` (`push_token` 테이블)
 
-`id`, `name`, `description`, `user` (`@ManyToOne`, `user_id` not null), `createdAt`
+| 필드 | 타입 | 제약 |
+| --- | --- | --- |
+| `id` | Long | PK, IDENTITY |
+| `token` | String | not null, unique, 512자 |
+| `platform` | `PushPlatform` | not null, `EnumType.STRING` |
+| `user` | `User` | `@ManyToOne(LAZY)`, `user_id` not null |
+| `createdAt` | LocalDateTime | updatable=false |
+| `updatedAt` | LocalDateTime | 등록, 갱신 시 직접 채움 |
 
 ## 에러 코드
 
 | ErrorCode | code | HTTP | 메시지 | 사용처 |
 | --- | --- | --- | --- | --- |
 | `INVALID_REQUEST` | C001 | 400 | 잘못된 요청입니다. | 미사용 |
-| `INVALID_PARAMETER` | C002 | 400 | 유효하지 않은 파라미터입니다. | `@Valid` 검증 실패 |
+| `INVALID_PARAMETER` | C002 | 400 | 유효하지 않은 파라미터입니다. | `@Valid` 검증 실패, 읽을 수 없는 본문 (잘못된 enum 값 포함), 필수 쿼리 누락, `RoleNotAllowedException` |
 | `VERIFICATION_INVALID` | C4011 | 401 | 인증 정보가 유효하지 않습니다. | EntryPoint (미인증 접근), `AuthenticationInfoException` |
 | `PASSWORD_INVALID` | C4012 | 401 | 비밀번호가 일치하지 않습니다. | `PasswordInvalidException` |
 | `TOKEN_INVALID` | C4013 | 401 | 유효하지 않은 토큰입니다. | `TokenInvalidException` |
 | `ACCESS_DENIED` | C403 | 403 | 승인되지 않은 사용자입니다. | AccessDeniedHandler (권한 부족) |
+| `ROLE_NOT_SELECTED` | C4031 | 403 | 역할을 먼저 선택해야 합니다. | AccessDeniedHandler (역할 선택 전 `USER`의 접근) |
 | `USER_DATA_NOT_FOUND` | C4041 | 404 | 사용자를 찾을 수 없습니다. | `UserNotFoundException` |
-| `DATA_NOT_FOUND` | C404 | 404 | 정보를 불러올 수 없습니다. | `ProductNotFoundException` |
-| `EMAIL_DUPLICATION` | C4091 | 409 | 이미 존재하는 이메일입니다. | `EmailDuplicationException` |
+| `DATA_NOT_FOUND` | C404 | 404 | 정보를 불러올 수 없습니다. | 매핑되지 않은 경로 (`NoResourceFoundException`), 단순 조회 실패 |
+| `USERNAME_DUPLICATION` | C4092 | 409 | 이미 사용 중인 아이디입니다. | `UsernameDuplicationException` |
 | `UNKNOWN_ERROR` | C500 | 500 | 오류가 발생하였습니다. | 처리되지 않은 모든 예외 |
 
 ## 설정
@@ -228,9 +280,10 @@ docker run -d -p 6379:6379 redis:7
 
 | 항목 | 현재 상태 | 영향 |
 | --- | --- | --- |
-| 회원가입 시 `ADMIN` 선택 가능 | `role`을 요청 그대로 저장 (의도된 결정, 2026-11-09) | 누구나 ADMIN으로 가입 가능. 바꾸려면 `AuthService.signUp`에서 거른다 |
+| `profileRegistered` 갱신 | 주인, 관리사 프로필 도메인이 아직 없어 항상 false | `nextStep`이 `PROFILE_OWNER`, `PROFILE_CARE`에서 멈춘다. 프로필 등록 API를 만들 때 true로 바꾸고, 역할을 되돌렸을 때 기존 프로필이 있으면 true로 복원하도록 맞춘다 |
+| `/users/me`의 `owner`, `caretaker` | 항상 `null` | 프로필, 텃밭 도메인을 만들 때 `UserService.getMe`에서 채운다 |
+| 기존 로컬 DB의 `user` 테이블 | `ddl-auto: update`는 예전 `email` 컬럼(not null)을 지우지 않는다 | 가입 시 insert가 실패한다. 로컬 DB의 `user`, `product` 테이블을 직접 drop하고 다시 띄운다 |
 | prod `ddl-auto: validate` | 스키마 자동 생성 안 함 | prod DB에 테이블을 미리 만들어야 부팅됨 (마이그레이션 도구 없음) |
 | `@CreatedDate` 미동작 | `@EnableJpaAuditing` 없음 | 감사 필드는 서비스에서 `LocalDateTime.now()`로 직접 채운다 |
 | 검증 실패 메시지 | 클라이언트에는 C002 고정 메시지만 반환 | 어떤 필드가 틀렸는지는 서버 로그에만 남음 |
-| `product` 도메인 | 자리표시자 필드 | 실제 도메인으로 교체하거나 삭제 |
 | 테스트 | `contextLoads` 하나뿐 | |
