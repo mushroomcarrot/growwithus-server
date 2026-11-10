@@ -1,0 +1,863 @@
+# 대신텃밭 API 상세 명세서
+
+> 엔드포인트별 요청, 응답, 에러를 정리한 문서다. 전체 목록과 공통 규칙, 핵심 로직은 [api-spec.md](api-spec.md)를 본다.
+>
+> 필드는 Notion "API 명세서 (초안)"과 [api-spec.md](api-spec.md)를 기준으로 작성한 초안이다. 구현하면서 바뀌면 이 문서를 같이 고친다.
+>
+> 마지막 갱신: 2026-11-11
+
+## 목차
+
+1. [공통](#1-공통)
+2. [User](#2-user)
+3. [Farm, Caretaker](#3-farm-caretaker)
+4. [Home, Diary, Game](#4-home-diary-game)
+5. [Harvest](#5-harvest)
+6. [Task](#6-task)
+7. [Notification](#7-notification)
+8. [내부 배치](#8-내부-배치)
+9. [시연](#9-시연)
+10. [에러 코드](#10-에러-코드)
+
+## 1. 공통
+
+### 1.1 요청 헤더
+
+| 헤더 | 대상 | 값 |
+| --- | --- | --- |
+| `Authorization` | 로그인 필요한 API | `Bearer {accessToken}` |
+| `Content-Type` | 본문이 있는 요청 | `application/json` 또는 `multipart/form-data` |
+| `X-Service-Key` | `/internal/*` | 서버 환경변수 `INTERNAL_SERVICE_KEY` 값 |
+| `X-Demo-Mode` | `/demo/*` | `true` |
+
+### 1.2 응답 형식
+
+모든 응답은 `GlobalResponse<T>`로 감싼다. 아래 각 API의 응답 예시는 `data` 안의 값만 적는다.
+
+```json
+// 성공
+{ "data": { }, "error": { "code": null, "message": null } }
+
+// 실패
+{ "data": null, "error": { "code": "C4041", "message": "사용자를 찾을 수 없습니다." } }
+```
+
+### 1.3 페이지네이션
+
+목록 API는 커서 방식이다.
+
+| 쿼리 | 타입 | 기본값 | 설명 |
+| --- | --- | --- | --- |
+| `cursor` | String | 없음 | 이전 응답의 `nextCursor`. 첫 페이지는 생략 |
+| `limit` | Integer | 20 | 1~50 |
+
+```json
+{ "items": [ ], "nextCursor": "cl_1103_01" }
+```
+
+`nextCursor`가 `null`이면 마지막 페이지다.
+
+### 1.4 형식 규칙
+
+1. 날짜는 `YYYY-MM-DD`, 시각은 ISO 8601 `+09:00` (예: `2026-11-10T09:30:00+09:00`)
+2. ID는 접두어가 붙은 문자열이다 (예: `usr_minji`, `gdn_b14`)
+3. enum 값은 대문자 문자열로 주고받는다 (단, `character.animation`은 소문자)
+4. 금액은 원 단위 정수다. 월 이용료와 관리사 수당은 가정치다
+
+## 2. User
+
+### 2.1 회원가입
+
+`POST /auth/signup` | 권한 GUEST | 화면 DT_SIGNUP
+
+| 필드 | 타입 | 필수 | 검증 |
+| --- | --- | --- | --- |
+| `name` | String | O | 1~20자 |
+| `username` | String | O | 영문 소문자, 숫자 4~20자 |
+| `password` | String | O | 8~64자 |
+
+```json
+// 요청
+{ "name": "김민지", "username": "minji", "password": "password1234" }
+
+// 응답
+{
+  "userId": "usr_minji",
+  "accessToken": "eyJ...",
+  "refreshToken": "eyJ...",
+  "expiresIn": 3600,
+  "role": "USER",
+  "nextStep": "ROLE_SELECT"
+}
+```
+
+에러: `C002` 검증 실패, `C4092` 아이디 중복
+
+### 2.2 아이디 중복 확인
+
+`GET /auth/username-check?username=minji` | 권한 GUEST | 화면 DT_SIGNUP
+
+```json
+{ "username": "minji", "available": false }
+```
+
+### 2.3 로그인
+
+`POST /auth/login` | 권한 GUEST | 화면 DT_LOGIN
+
+```json
+// 요청
+{ "username": "minji", "password": "password1234" }
+
+// 응답
+{
+  "userId": "usr_minji",
+  "accessToken": "eyJ...",
+  "refreshToken": "eyJ...",
+  "expiresIn": 3600,
+  "role": "OWNER",
+  "nextStep": "OWNER_HOME"
+}
+```
+
+`nextStep` 결정 규칙
+
+| 상태 | nextStep |
+| --- | --- |
+| 역할 미선택 (`USER`) | `ROLE_SELECT` |
+| `OWNER`, 프로필 없음 | `PROFILE_OWNER` |
+| `CARETAKER`, 프로필 없음 | `PROFILE_CARE` |
+| `OWNER`, 프로필 있음 | `OWNER_HOME` |
+| `CARETAKER`, 프로필 있음 | `CARE_TODAY` |
+
+에러: `C4041` 아이디 없음, `C4012` 비밀번호 불일치
+
+### 2.4 토큰 재발급
+
+`POST /auth/refresh` | 권한 GUEST | 화면 공통
+
+```json
+// 요청
+{ "refreshToken": "eyJ..." }
+
+// 응답
+{ "accessToken": "eyJ...", "refreshToken": "eyJ...", "expiresIn": 3600 }
+```
+
+Refresh Token도 새로 발급하고 이전 토큰은 무효가 된다. 에러: `C4013`
+
+### 2.5 로그아웃
+
+`POST /auth/logout` | 권한 USER, OWNER, CARETAKER | 화면 DT_MY
+
+본문 없음. 응답 `data`는 `null`. Access Token과 Refresh Token을 모두 무효로 만든다.
+
+### 2.6 내 정보
+
+`GET /users/me` | 권한 USER, OWNER, CARETAKER | 화면 DT_LOGIN, DT_HOME, DT_CARE_TODAY, DT_MY
+
+```json
+{
+  "userId": "usr_minji",
+  "name": "김민지",
+  "username": "minji",
+  "role": "OWNER",
+  "nextStep": "OWNER_HOME",
+  "owner": { "nickname": "민지네", "district": "SUJI", "gardenId": "gdn_b14" },
+  "caretaker": null
+}
+```
+
+관리사는 `owner`가 `null`이고 `caretaker`에 `{ "caretakerId": "crt_soonja", "name": "박순자", "farmId": "farm_theme", "avatarUrl": "..." }`가 들어간다.
+
+### 2.7 역할 선택 및 변경
+
+`PUT /users/me/role` | 권한 USER, OWNER, CARETAKER | 화면 DT_ROLE, DT_MY
+
+```json
+// 요청
+{ "role": "OWNER" }
+
+// 응답
+{ "role": "OWNER", "accessToken": "eyJ...", "refreshToken": "eyJ...", "nextStep": "PROFILE_OWNER" }
+```
+
+역할이 토큰에 들어가므로 새 토큰을 내려준다. 에러: `C002` 허용되지 않는 역할
+
+### 2.8 푸시 토큰 등록
+
+`POST /users/me/push-tokens` | 권한 USER, OWNER, CARETAKER | 화면 DT_HOME, DT_CARE_TODAY
+
+```json
+// 요청
+{ "token": "fcm_token_value", "platform": "ANDROID" }
+```
+
+`platform`: `ANDROID`, `IOS`. 같은 토큰이면 사용자만 갱신한다. 응답 `data`는 `null`.
+
+## 3. Farm, Caretaker
+
+### 3.1 주말농장 목록
+
+`GET /farms?district=CHEOIN&cursor=&limit=20` | 권한 USER, OWNER, CARETAKER | 화면 DT_PROFILE_OWNER, DT_PROFILE_CARE
+
+```json
+{
+  "items": [
+    {
+      "farmId": "farm_theme",
+      "name": "처인 테마 주말농장",
+      "district": "CHEOIN",
+      "address": "경기도 용인시 처인구 ...",
+      "latitude": 37.2342,
+      "longitude": 127.2017,
+      "distanceKm": 18.4
+    }
+  ],
+  "nextCursor": null
+}
+```
+
+데이터 출처: 공공데이터포털 주말농장 정보 (`/internal/farms/sync`로 동기화)
+
+### 3.2 칸 미리보기
+
+`GET /farms/{farmId}/plots/{plotCode}` | 권한 USER, OWNER | 화면 DT_PROFILE_OWNER
+
+```json
+{
+  "farmId": "farm_theme",
+  "plotCode": "B-14",
+  "available": true,
+  "crop": { "cropId": "crop_cherry_tomato", "name": "방울토마토", "characterName": "토순이" },
+  "caretaker": { "caretakerId": "crt_soonja", "name": "박순자", "avatarUrl": "..." },
+  "monthlyFee": 30000
+}
+```
+
+에러: `C404` 농장 또는 칸 없음, `C4093` 이미 분양된 칸
+
+### 3.3 작물 목록
+
+`GET /crops` | 권한 USER, OWNER, CARETAKER | 화면 DT_PROFILE_OWNER
+
+```json
+[
+  {
+    "cropId": "crop_cherry_tomato",
+    "name": "방울토마토",
+    "characterName": "토순이",
+    "baseTemp": 10.0,
+    "stages": [
+      { "stage": "SEED", "level": 1, "requiredGdd": 0 },
+      { "stage": "SPROUT", "level": 2, "requiredGdd": 150 },
+      { "stage": "FLOWER", "level": 3, "requiredGdd": 550 },
+      { "stage": "FRUIT", "level": 4, "requiredGdd": 1000 }
+    ]
+  }
+]
+```
+
+데이터 출처: 농사로 작물 생육 정보. `requiredGdd` 값은 예시다.
+
+### 3.4 주인 프로필 등록
+
+`POST /owners/me/profile` | 권한 USER, OWNER | 화면 DT_PROFILE_OWNER
+
+| 필드 | 타입 | 필수 | 설명 |
+| --- | --- | --- | --- |
+| `nickname` | String | O | 1~20자 |
+| `district` | String | O | `SUJI`, `GIHEUNG` |
+| `farmId` | String | O | |
+| `plotCode` | String | O | |
+
+```json
+// 요청
+{ "nickname": "민지네", "district": "SUJI", "farmId": "farm_theme", "plotCode": "B-14" }
+
+// 응답
+{ "gardenId": "gdn_b14", "characterName": "토순이", "stage": "SEED", "nextStep": "OWNER_HOME" }
+```
+
+칸 분양과 텃밭(Garden) 생성을 함께 처리한다. 에러: `C4093` 이미 분양된 칸, `C4094` 프로필 이미 있음
+
+### 3.5 주인 프로필 수정
+
+`PATCH /owners/me/profile` | 권한 OWNER | 화면 DT_MY
+
+```json
+// 요청 (바꿀 필드만)
+{ "nickname": "민지와 아이들" }
+
+// 응답
+{ "nickname": "민지와 아이들", "district": "SUJI", "gardenId": "gdn_b14" }
+```
+
+### 3.6 관리사 프로필 등록
+
+`POST /caretakers/me/profile` | 권한 USER, CARETAKER | 화면 DT_PROFILE_CARE
+
+```json
+// 요청
+{ "name": "박순자", "farmId": "farm_theme" }
+
+// 응답
+{ "caretakerId": "crt_soonja", "name": "박순자", "farmId": "farm_theme", "nextStep": "CARE_TODAY" }
+```
+
+### 3.7 AI 아바타 생성 요청
+
+`POST /caretakers/me/avatar` | 권한 CARETAKER | 화면 DT_PROFILE_CARE, DT_MY | `multipart/form-data`
+
+| 파트 | 타입 | 필수 | 설명 |
+| --- | --- | --- | --- |
+| `photo` | File | O | jpg, png 10MB 이하 |
+| `portraitConsent` | Boolean | O | 초상권 동의, `true`여야 함 |
+
+```json
+{ "avatarJobId": "avj_soonja_01", "status": "PENDING" }
+```
+
+생성은 비동기로 진행한다. 에러: `C4003` 초상권 미동의, `C4001` 파일 형식 또는 크기 초과
+
+### 3.8 AI 아바타 결과 조회
+
+`GET /caretakers/me/avatar` | 권한 CARETAKER | 화면 DT_PROFILE_CARE, DT_MY
+
+```json
+{ "avatarJobId": "avj_soonja_01", "status": "DONE", "avatarUrl": "https://.../crt_soonja.png" }
+```
+
+`status`: `PENDING`, `DONE`, `FAILED`. 클라이언트는 2초 간격으로 폴링한다. 실패하면 기본 아바타를 쓴다.
+
+### 3.9 이번 달 활동 요약
+
+`GET /caretakers/me/summary?month=2026-11` | 권한 CARETAKER | 화면 DT_CARE_DONE, DT_MY
+
+```json
+{
+  "month": "2026-11",
+  "completedTasks": 32,
+  "gardenCount": 3,
+  "workDays": 9,
+  "heartsReceived": 18,
+  "expectedAllowance": 240000,
+  "allowanceNote": "가정치예요. 실제 수당과 다를 수 있어요."
+}
+```
+
+`month`를 생략하면 이번 달이다.
+
+### 3.10 읽어주기 음성
+
+`POST /tts` | 권한 USER, CARETAKER | 화면 DT_PROFILE_CARE, DT_CARE_TODAY
+
+```json
+// 요청
+{ "text": "오늘은 B-14 텃밭에 지지대를 세워 주세요.", "speed": 0.9 }
+```
+
+응답은 `GlobalResponse`가 아니라 `audio/mpeg` 바이너리다. `text`는 300자 이하, `speed`는 0.5~1.5 (기본 0.9). 같은 문장은 캐시한다.
+
+## 4. Home, Diary, Game
+
+### 4.1 홈 조회
+
+`GET /gardens/{gardenId}/home` | 권한 OWNER | 화면 DT_HOME
+
+```json
+{
+  "gardenId": "gdn_b14",
+  "character": {
+    "name": "토순이",
+    "stage": "FLOWER",
+    "level": 3,
+    "mood": "HAPPY",
+    "animation": "sunny_happy",
+    "message": "오늘 햇살이 좋아서 기분이 좋아요"
+  },
+  "weather": { "condition": "SUNNY", "temperature": 14.2, "rainProbability": 10, "updatedAt": "2026-11-10T09:00:00+09:00" },
+  "streak": { "days": 12, "cheeredToday": false },
+  "xp": { "total": 1240, "today": 0 },
+  "harvest": { "expectedDate": "2026-11-28", "dDay": 18 },
+  "caretaker": { "caretakerId": "crt_soonja", "name": "박순자", "avatarUrl": "..." },
+  "recentCareLog": {
+    "careLogId": "cl_1110_01",
+    "summary": "지지대를 세우고 곁순을 정리했어요",
+    "photoUrl": "...",
+    "createdAt": "2026-11-10T10:20:00+09:00",
+    "hearted": false
+  },
+  "hasUnreadEvent": false
+}
+```
+
+에러: `C404` 텃밭 없음, `C403` 내 텃밭 아님 (이 장의 텃밭 API 공통)
+
+### 4.2 성장 시뮬레이션 상세
+
+`GET /gardens/{gardenId}/growth` | 권한 OWNER | 화면 DT_HOME, DT_HARVEST
+
+```json
+{
+  "stage": "FLOWER",
+  "level": 3,
+  "accumulatedGdd": 812.4,
+  "nextStage": "FRUIT",
+  "nextStageGdd": 1000,
+  "progress": 0.75,
+  "expectedHarvestDate": "2026-11-28",
+  "calibratedAt": "2026-11-08T11:00:00+09:00",
+  "explanation": "요즘 따뜻해서 꽃이 잘 피고 있어요. 이대로면 11월 말에 열매를 딸 수 있어요.",
+  "dailyGdd": [ { "date": "2026-11-09", "avgTemp": 15.1, "gdd": 5.1 } ]
+}
+```
+
+계산 방식은 [api-spec.md 5장 AI 핵심 2](api-spec.md#ai-핵심-2-성장-시뮬레이션)를 본다. `dailyGdd`는 최근 14일이다.
+
+### 4.3 오늘의 응원
+
+`POST /gardens/{gardenId}/cheers` | 권한 OWNER | 화면 DT_HOME
+
+본문 없음.
+
+```json
+{ "streakDays": 13, "xpGained": 10, "totalXp": 1250, "mood": "HAPPY" }
+```
+
+하루 1회. 에러: `C4095` 오늘 이미 응원함
+
+### 4.4 감사 하트 보내기
+
+`POST /care-logs/{careLogId}/hearts` | 권한 OWNER | 화면 DT_HOME, DT_DIARY
+
+본문 없음.
+
+```json
+{ "careLogId": "cl_1110_01", "hearted": true, "xpGained": 5 }
+```
+
+돌봄 기록당 1회. 관리사에게 알림을 보낸다. 에러: `C4095` 이미 보냄
+
+### 4.5 성장 일기
+
+`GET /gardens/{gardenId}/diary?filter=ALL&cursor=&limit=20` | 권한 OWNER | 화면 DT_DIARY
+
+`filter`: `ALL`, `PHOTO`, `STAGE`
+
+```json
+{
+  "items": [
+    {
+      "type": "CARE_LOG",
+      "date": "2026-11-10",
+      "careLogId": "cl_1110_01",
+      "taskTypes": ["SUPPORT", "PRUNE"],
+      "summary": "지지대를 세우고 곁순을 정리했어요",
+      "photoUrl": "...",
+      "caretakerName": "박순자",
+      "hearted": false
+    },
+    { "type": "STAGE_CHANGE", "date": "2026-11-05", "fromStage": "SPROUT", "toStage": "FLOWER" },
+    { "type": "REST_DAY", "date": "2026-11-04", "message": "오늘은 쉬는 날이었어요" }
+  ],
+  "nextCursor": "2026-11-03"
+}
+```
+
+### 4.6 미확인 진화 이벤트
+
+`GET /gardens/{gardenId}/events` | 권한 OWNER | 화면 DT_HOME, DT_EVOLVE
+
+```json
+[
+  {
+    "eventId": "evt_fruit_b14",
+    "fromStage": "FLOWER",
+    "toStage": "FRUIT",
+    "occurredAt": "2026-11-28T06:00:00+09:00",
+    "reward": { "xp": 100, "badgeCode": "FIRST_FRUIT" }
+  }
+]
+```
+
+### 4.7 진화 이벤트 확인
+
+`POST /events/{eventId}/ack` | 권한 OWNER | 화면 DT_EVOLVE
+
+```json
+{ "eventId": "evt_fruit_b14", "xpGained": 100, "totalXp": 1350, "badge": { "code": "FIRST_FRUIT", "name": "첫 열매" } }
+```
+
+보상은 한 번만 지급한다. 에러: `C4095` 이미 확인함
+
+### 4.8 주간 리그
+
+`GET /leagues/current` | 권한 OWNER | 화면 DT_LEAGUE, DT_MY
+
+```json
+{
+  "leagueId": "lg_2026w46_cheoin",
+  "weekStart": "2026-11-09",
+  "weekEnd": "2026-11-15",
+  "myRank": 3,
+  "members": [
+    { "rank": 1, "gardenId": "gdn_a03", "nickname": "하준이네", "weeklyXp": 320, "me": false },
+    { "rank": 3, "gardenId": "gdn_b14", "nickname": "민지네", "weeklyXp": 210, "me": true }
+  ]
+}
+```
+
+같은 농장 텃밭끼리 한 리그다.
+
+### 4.9 주간 퀘스트
+
+`GET /quests/weekly` | 권한 OWNER | 화면 DT_LEAGUE, DT_MY
+
+```json
+[
+  { "questId": "qst_w46_cheer5", "title": "응원 5번 하기", "progress": 3, "goal": 5, "rewardXp": 50, "status": "IN_PROGRESS" }
+]
+```
+
+`status`: `IN_PROGRESS`, `COMPLETED`, `CLAIMED`
+
+### 4.10 퀘스트 보상 받기
+
+`POST /quests/{questId}/claim` | 권한 OWNER | 화면 DT_LEAGUE
+
+```json
+{ "questId": "qst_w46_cheer5", "xpGained": 50, "totalXp": 1300, "status": "CLAIMED" }
+```
+
+에러: `C4004` 아직 완료 안 됨, `C4095` 이미 받음
+
+### 4.11 내 배지
+
+`GET /users/me/badges` | 권한 OWNER | 화면 DT_MY
+
+```json
+[
+  { "code": "FIRST_FRUIT", "name": "첫 열매", "description": "작물이 처음 열매를 맺었어요", "acquiredAt": "2026-11-28T06:10:00+09:00" }
+]
+```
+
+### 4.12 [확장] 오늘의 텃밭 퀴즈
+
+`GET /gardens/{gardenId}/quizzes/today` | 권한 OWNER | 화면 DT_HOME
+
+```json
+{
+  "quizId": "qz_1110_b14",
+  "question": "토마토 곁순은 왜 따 줄까요?",
+  "choices": ["열매에 영양을 모으려고", "물을 덜 주려고", "벌레를 부르려고"],
+  "answered": false
+}
+```
+
+### 4.13 [확장] 퀴즈 답 제출
+
+`POST /quizzes/{quizId}/answers` | 권한 OWNER | 화면 DT_HOME
+
+```json
+// 요청
+{ "choiceIndex": 0 }
+
+// 응답
+{ "correct": true, "explanation": "곁순을 따면 열매가 더 커져요.", "xpGained": 10 }
+```
+
+## 5. Harvest
+
+### 5.1 수확 안내
+
+`GET /gardens/{gardenId}/harvest` | 권한 OWNER | 화면 DT_HARVEST
+
+```json
+{
+  "expectedDate": "2026-11-28",
+  "dDay": 18,
+  "harvestable": false,
+  "daysCaredTogether": 46,
+  "careLogCount": 21,
+  "caretakerName": "박순자",
+  "message": "11월 28일쯤 토순이를 만나러 오세요"
+}
+```
+
+### 5.2 방문 가능 시간
+
+`GET /gardens/{gardenId}/visit-slots?from=2026-11-28&to=2026-11-29` | 권한 OWNER | 화면 DT_HARVEST
+
+```json
+[
+  { "slotId": "slot_1128_10", "date": "2026-11-28", "startTime": "10:00", "endTime": "11:00", "available": true },
+  { "slotId": "slot_1128_14", "date": "2026-11-28", "startTime": "14:00", "endTime": "15:00", "available": false }
+]
+```
+
+주말 슬롯만 내려준다. `from`, `to`를 생략하면 다가오는 2주다.
+
+### 5.3 방문 예약
+
+`POST /visits` | 권한 OWNER | 화면 DT_HARVEST
+
+```json
+// 요청
+{ "gardenId": "gdn_b14", "slotId": "slot_1128_10", "headcount": 3, "memo": "아이 둘이랑 가요" }
+
+// 응답
+{ "visitId": "vst_1128_b14", "date": "2026-11-28", "startTime": "10:00", "status": "RESERVED" }
+```
+
+관리사에게 알림을 보낸다. 에러: `C4096` 이미 찬 시간, `C4095` 같은 날 예약 있음
+
+### 5.4 방문 예약 취소
+
+`DELETE /visits/{visitId}` | 권한 OWNER | 화면 DT_HARVEST
+
+응답 `data`는 `null`. 방문 하루 전까지만 가능하다. 에러: `C4005` 취소 기한 지남
+
+### 5.5 처인 나들이 추천
+
+`GET /gardens/{gardenId}/outings` | 권한 OWNER | 화면 DT_HARVEST
+
+```json
+[
+  { "type": "EXPERIENCE_FARM", "name": "OO 딸기 체험농장", "distanceKm": 3.2, "address": "...", "description": "아이와 딸기 따기 체험" },
+  { "type": "RESTAURANT", "name": "OO 손두부", "distanceKm": 1.8, "address": "...", "description": "농장 근처 두부 맛집" }
+]
+```
+
+`type`: `EXPERIENCE_FARM`, `RESTAURANT`
+
+## 6. Task
+
+### 6.1 오늘 할 일
+
+`GET /caretaker/tasks/today` | 권한 CARETAKER | 화면 DT_CARE_TODAY
+
+```json
+{
+  "date": "2026-11-10",
+  "weatherNotice": "오후에 비가 와요. 물은 안 주셔도 돼요.",
+  "skippedTypes": ["WATER"],
+  "totalMinutes": 75,
+  "gardens": [
+    {
+      "gardenId": "gdn_b14",
+      "plotCode": "B-14",
+      "cropName": "방울토마토",
+      "ownerNickname": "민지네",
+      "tasks": [
+        { "taskId": "tsk_1110_b14", "type": "SUPPORT", "title": "지지대 세우기", "description": "줄기가 기울었어요. 지지대에 묶어 주세요.", "minutes": 15, "status": "TODO" }
+      ],
+      "stageCheck": { "required": true, "expectedStage": "FRUIT" }
+    }
+  ]
+}
+```
+
+작업 `status`: `TODO`, `DONE`. 문구는 짧고 쉬운 말로 쓴다 (읽어주기용).
+
+### 6.2 작업 인증 사진
+
+`POST /caretaker/tasks/{taskId}/photos` | 권한 CARETAKER | 화면 DT_CARE_PHOTO | `multipart/form-data`
+
+| 파트 | 타입 | 필수 | 설명 |
+| --- | --- | --- | --- |
+| `photo` | File | O | jpg, png 10MB 이하 |
+
+```json
+{
+  "photoId": "pht_1110_b14",
+  "photoUrl": "...",
+  "aiCheck": { "matched": true, "message": "지지대가 잘 보여요" }
+}
+```
+
+AI 사진 확인이 실패해도 사진은 저장하고 `aiCheck`는 `null`로 준다.
+
+### 6.3 말로 남기기
+
+`POST /caretaker/tasks/{taskId}/voice-memos` | 권한 CARETAKER | 화면 DT_CARE_TODAY, DT_CARE_VOICE | `multipart/form-data`
+
+| 파트 | 타입 | 필수 | 설명 |
+| --- | --- | --- | --- |
+| `audio` | File | O | m4a, wav 60초 이하 |
+
+```json
+{
+  "voiceMemoId": "vm_1110_b14",
+  "transcript": "오늘 토마토 꽃이 많이 폈고 잎에 점이 좀 있어",
+  "summary": "꽃이 많이 피었어요. 잎에 작은 점이 보여서 지켜볼게요.",
+  "issues": ["LEAF_SPOT"],
+  "status": "DRAFT"
+}
+```
+
+STT로 받아 적고 LLM이 가족용 문장으로 정리한다. `issues`는 다음 날 작업 생성에 쓰인다.
+
+### 6.4 음성 메모 확정
+
+`POST /caretaker/voice-memos/{voiceMemoId}/confirm` | 권한 CARETAKER | 화면 DT_CARE_VOICE
+
+```json
+// 요청 (고친 문장이 있을 때만 summary 포함)
+{ "summary": "꽃이 많이 피었어요. 잎에 작은 점이 보여요." }
+
+// 응답
+{ "voiceMemoId": "vm_1110_b14", "status": "CONFIRMED" }
+```
+
+### 6.5 작업 완료
+
+`POST /caretaker/tasks/{taskId}/complete` | 권한 CARETAKER | 화면 DT_CARE_TODAY, DT_CARE_PHOTO, DT_CARE_DONE
+
+```json
+// 요청 (모두 선택)
+{ "photoId": "pht_1110_b14", "voiceMemoId": "vm_1110_b14" }
+
+// 응답
+{
+  "taskId": "tsk_1110_b14",
+  "status": "DONE",
+  "careLogId": "cl_1110_01",
+  "remainingTasks": 2,
+  "stageCheck": { "required": true, "gardenId": "gdn_b14" }
+}
+```
+
+돌봄 기록을 만들고 가족에게 알린다. 에러: `C403` 담당 작업 아님, `C4095` 이미 완료함
+
+### 6.6 성장 단계 확인
+
+`POST /gardens/{gardenId}/stage-checks` | 권한 CARETAKER | 화면 DT_CARE_DONE
+
+```json
+// 요청
+{ "observed": "FRUIT", "photoId": "pht_1110_b14" }
+
+// 응답
+{ "stage": "FRUIT", "calibrated": true, "calibratedAt": "2026-11-10T10:30:00+09:00", "eventId": "evt_fruit_b14" }
+```
+
+`observed`: `FLOWER`, `FRUIT`, `NO_CHANGE`. 단계가 오르면 `eventId`가 생기고, 그대로면 `null`이다.
+
+## 7. Notification
+
+### 7.1 알림 목록
+
+`GET /notifications?cursor=&limit=20` | 권한 OWNER, CARETAKER | 화면 DT_HOME, DT_CARE_DONE, DT_MY
+
+```json
+{
+  "items": [
+    {
+      "notificationId": "ntf_1110_01",
+      "type": "CARE_DONE",
+      "title": "순자 할머니가 토순이를 돌봤어요",
+      "body": "지지대를 세우고 곁순을 정리했어요",
+      "target": { "screen": "DT_DIARY", "id": "cl_1110_01" },
+      "read": false,
+      "createdAt": "2026-11-10T10:21:00+09:00"
+    }
+  ],
+  "unreadCount": 3,
+  "nextCursor": null
+}
+```
+
+`type`: `CARE_DONE`, `HEART`, `STAGE_UP`, `VISIT_RESERVED`, `VISIT_CANCELED`, `STREAK_RISK`, `QUEST_DONE`
+
+### 7.2 알림 읽음
+
+`PATCH /notifications/{notificationId}/read` | 권한 OWNER, CARETAKER | 화면 DT_HOME, DT_CARE_DONE, DT_MY
+
+`notificationId` 자리에 `all`을 넣으면 모두 읽음 처리한다.
+
+```json
+{ "readCount": 3, "unreadCount": 0 }
+```
+
+## 8. 내부 배치
+
+모두 `X-Service-Key` 헤더가 필요하고 스케줄러가 같은 로직을 주기대로 실행한다. 수동 실행용으로 아래 요청 본문을 받는다.
+
+| Endpoint | 주기 | 요청 (모두 선택) | 응답 |
+| --- | --- | --- | --- |
+| `POST /internal/weather/sync` | 1시간마다 | `{ "farmIds": ["farm_theme"] }` | `{ "syncedFarms": 1, "failedFarms": [] }` |
+| `POST /internal/ai/daily-tasks` | 매일 05:00 | `{ "date": "2026-11-10", "gardenIds": [] }` | `{ "generated": 3, "fallback": 0 }` |
+| `POST /internal/ai/growth-simulation` | 매일 06:00 | `{ "date": "2026-11-10" }` | `{ "updated": 3, "stageChanged": 1 }` |
+| `POST /internal/streaks/check` | 매일 00:05 | `{ "date": "2026-11-09" }` | `{ "broken": 2 }` |
+| `POST /internal/leagues/settle` | 매주 월 00:10 | `{ "weekStart": "2026-11-02" }` | `{ "settledLeagues": 4, "createdQuests": 12 }` |
+| `POST /internal/farms/sync` | 매주 월 03:00 | 없음 | `{ "created": 2, "updated": 10 }` |
+
+1. `daily-tasks`의 `fallback`은 LLM 실패로 규칙 기반 작업을 쓴 텃밭 수다.
+2. 대상을 비워 두면 전체를 처리한다.
+3. 에러: `C4014` 서비스 키 불일치
+
+## 9. 시연
+
+모두 `X-Demo-Mode: true` 헤더가 필요하다. 대상은 시연용 텃밭 `gdn_b14`와 관리사 `crt_soonja`다.
+
+### 9.1 데모 상태
+
+`GET /demo/state`
+
+```json
+{ "weather": "SUNNY", "stage": "FLOWER", "stageProgress": "3/4", "fastForwardDays": 18, "todayTaskGardens": 3 }
+```
+
+### 9.2 날씨 바꾸기
+
+`PUT /demo/weather`
+
+```json
+// 요청
+{ "condition": "RAIN" }
+
+// 응답
+{ "condition": "RAIN", "animation": "rain_umbrella", "weatherNotice": "오후에 비가 와요. 물은 안 주셔도 돼요.", "regeneratedTasks": 3 }
+```
+
+`condition`: `SUNNY`, `RAIN`, `HOT`. 작업을 즉시 다시 만든다.
+
+### 9.3 시간 빨리 감기
+
+`POST /demo/fast-forward`
+
+```json
+// 요청
+{ "days": 18 }
+
+// 응답
+{ "stage": "FRUIT", "eventId": "evt_fruit_b14", "expectedHarvestDate": "2026-11-28" }
+```
+
+### 9.4 초기화
+
+`POST /demo/reset`
+
+본문 없음. 맑음, 꽃 단계, 할 일 3곳 상태로 되돌린다.
+
+```json
+{ "weather": "SUNNY", "stage": "FLOWER", "todayTaskGardens": 3 }
+```
+
+## 10. 에러 코드
+
+기존 코드는 [architecture.md](architecture.md#에러-코드)에 있다. 아래는 이 명세에서 새로 쓰는 코드의 초안이다. 구현할 때 `ErrorCode`에 추가한다.
+
+| code | HTTP | 메시지 | 사용처 |
+| --- | --- | --- | --- |
+| C4001 | 400 | 지원하지 않는 파일입니다. | 파일 형식, 크기, 길이 초과 |
+| C4003 | 400 | 초상권 동의가 필요합니다. | AI 아바타 |
+| C4004 | 400 | 아직 완료되지 않았습니다. | 퀘스트 보상 |
+| C4005 | 400 | 취소 기한이 지났습니다. | 방문 취소 |
+| C4014 | 401 | 서비스 키가 유효하지 않습니다. | 내부 배치 |
+| C4092 | 409 | 이미 사용 중인 아이디입니다. | 회원가입 |
+| C4093 | 409 | 이미 분양된 칸입니다. | 칸 미리보기, 주인 프로필 |
+| C4094 | 409 | 이미 프로필이 있습니다. | 프로필 등록 |
+| C4095 | 409 | 이미 처리된 요청입니다. | 응원, 하트, 이벤트, 퀘스트, 작업 완료 |
+| C4096 | 409 | 예약이 마감된 시간입니다. | 방문 예약 |

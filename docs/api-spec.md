@@ -1,6 +1,8 @@
 # 대신텃밭 API 명세 요약
 
 > 원본: Notion "API 명세서 (초안)" 데이터베이스 (API 54개). 필드 단위 Request, Response, Example은 Notion 각 페이지를 기준으로 한다.
+>
+> 엔드포인트별 요청, 응답 필드는 [api-detail.md](api-detail.md)를 본다.
 
 ## 1. 서비스 한 줄 요약
 
