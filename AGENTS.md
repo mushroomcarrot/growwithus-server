@@ -11,6 +11,7 @@
 3. [docs/planning.md](docs/planning.md): 기획안 (문제 정의, 핵심 기능, 활용 데이터, 기술 구성, 시연 시나리오)
 4. [docs/commit-convention.md](docs/commit-convention.md): 커밋 메시지 컨벤션 (태그, 형식, 작성 규칙)
 5. [docs/github-convention.md](docs/github-convention.md): 브랜치 전략, Issue 및 PR 작성 가이드 (템플릿은 `.github/`)
+6. [docs/api-spec.md](docs/api-spec.md): 대신텃밭 API 명세 요약 (공통 규칙, 권한, enum, 화면 코드, API 54개, 핵심 로직, 시연 시나리오)
 
 ## 문서 갱신 (필수)
 
