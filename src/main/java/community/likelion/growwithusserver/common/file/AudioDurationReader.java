@@ -6,7 +6,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Optional;
 
-// wav, m4a 파일 헤더에서 재생 길이를 읽는다. 읽을 수 없으면 empty.
+// wav, m4a(mp4) 파일 헤더에서 재생 길이를 읽는다. 읽을 수 없으면 empty.
 public final class AudioDurationReader {
     private AudioDurationReader() {
     }

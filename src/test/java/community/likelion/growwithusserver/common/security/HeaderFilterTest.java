@@ -47,11 +47,12 @@ class HeaderFilterTest {
     }
 
     @Test
-    void 시연_헤더가_있으면_DEMO_권한을_준다() throws Exception {
+    void 시연_헤더가_있으면_통과시키되_권한은_주지_않는다() throws Exception {
         MockHttpServletResponse response = run(new DemoModeFilter(true, objectMapper), "/demo/state", DemoModeFilter.HEADER, "true");
 
+        // ADMIN 토큰 확인은 SecurityConfiguration이 하므로 헤더만으로 인증되면 안 된다
         assertThat(response.getStatus()).isEqualTo(200);
-        assertThat(currentAuthority()).isEqualTo("ROLE_DEMO");
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
     }
 
     @Test

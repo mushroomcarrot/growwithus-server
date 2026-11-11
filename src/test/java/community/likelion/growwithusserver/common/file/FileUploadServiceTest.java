@@ -95,6 +95,43 @@ class FileUploadServiceTest {
                 .isInstanceOf(FileNotSupportedException.class);
     }
 
+    @Test
+    void 브라우저_녹음_형식도_받는다() {
+        // 크롬, 안드로이드: webm (길이 정보 없음)
+        assertThat(fileUploadService.uploadAudio(new MockMultipartFile("file", "memo.webm", "audio/webm", webm(1024)), "voice-memos"))
+                .endsWith(".webm");
+        // 사파리: mp4 확장자, 조각 mp4라 mvhd 길이가 0
+        assertThat(fileUploadService.uploadAudio(new MockMultipartFile("file", "memo.mp4", "audio/mp4", m4a(0, 0)), "voice-memos"))
+                .endsWith(".mp4");
+        assertThat(fileUploadService.uploadAudio(new MockMultipartFile("file", "memo.mp4", "audio/mp4", m4a(30, 0)), "voice-memos"))
+                .endsWith(".mp4");
+    }
+
+    @Test
+    void 길이를_모르는_음성은_크기로_막는다() {
+        assertThatThrownBy(() -> fileUploadService.uploadAudio(
+                new MockMultipartFile("file", "memo.webm", "audio/webm", webm((int) FileUploadService.MAX_UNTIMED_AUDIO_SIZE + 1)), "voice-memos"))
+                .isInstanceOf(FileNotSupportedException.class);
+        // 확장자만 webm
+        assertThatThrownBy(() -> fileUploadService.uploadAudio(
+                new MockMultipartFile("file", "memo.webm", "audio/webm", wav(10)), "voice-memos"))
+                .isInstanceOf(FileNotSupportedException.class);
+        // 확장자만 wav
+        assertThatThrownBy(() -> fileUploadService.uploadAudio(
+                new MockMultipartFile("file", "memo.wav", "audio/wav", webm(1024)), "voice-memos"))
+                .isInstanceOf(FileNotSupportedException.class);
+    }
+
+    // EBML 헤더로 시작하는 webm
+    private byte[] webm(int size) {
+        byte[] bytes = new byte[size];
+        bytes[0] = 0x1A;
+        bytes[1] = 0x45;
+        bytes[2] = (byte) 0xDF;
+        bytes[3] = (byte) 0xA3;
+        return bytes;
+    }
+
     // 8kHz, 8bit, mono PCM (초당 8000바이트). LIST 청크를 끼워 넣어 청크 건너뛰기도 확인한다.
     private byte[] wav(int seconds) {
         int byteRate = 8000;
