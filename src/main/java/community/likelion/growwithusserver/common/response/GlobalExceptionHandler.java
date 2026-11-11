@@ -8,6 +8,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -36,8 +37,12 @@ public class GlobalExceptionHandler {
                 .body(GlobalResponse.error(ErrorCode.INVALID_PARAMETER));
     }
 
-    // 본문 JSON을 읽을 수 없거나 (허용되지 않는 enum 값 포함) 필수 쿼리 파라미터가 빠진 경우
-    @ExceptionHandler({HttpMessageNotReadableException.class, MissingServletRequestParameterException.class})
+    // 본문 JSON을 읽을 수 없거나 (허용되지 않는 enum 값 포함), 필수 쿼리 파라미터가 빠졌거나, 쿼리와 경로 값의 형식이 틀린 경우 (날짜 등)
+    @ExceptionHandler({
+            HttpMessageNotReadableException.class,
+            MissingServletRequestParameterException.class,
+            MethodArgumentTypeMismatchException.class
+    })
     public ResponseEntity<GlobalResponse<?>> handleUnreadableRequestException(Exception e) {
         log.warn("[handleUnreadableRequestException] 요청 형식 오류: {}", e.getMessage());
 

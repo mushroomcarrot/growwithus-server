@@ -16,7 +16,8 @@ public enum IdPrefix {
     VOICE_MEMO("vm"),
     PHOTO("pht"),
     EVENT("evt"),
-    VISIT("vst");
+    VISIT("vst"),
+    NOTIFICATION("ntf");
 
     private static final String SEPARATOR = "_";
 
