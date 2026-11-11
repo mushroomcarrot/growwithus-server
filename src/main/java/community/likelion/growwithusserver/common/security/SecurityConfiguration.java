@@ -80,9 +80,10 @@ public class SecurityConfiguration {
                         ).permitAll()
                         // 로컬 저장소에 올린 파일 (file.storage=local)
                         .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
-                        // 내부 배치, 시연: 헤더 검증은 InternalServiceKeyFilter, DemoModeFilter가 한다
+                        // 내부 배치: 헤더 검증은 InternalServiceKeyFilter가 한다
                         .requestMatchers("/internal/**").hasRole("SYSTEM")
-                        .requestMatchers("/demo/**").hasRole("DEMO")
+                        // 시연: ADMIN 토큰 + X-Demo-Mode 헤더 (헤더 검증은 DemoModeFilter)
+                        .requestMatchers("/demo/**").hasRole("ADMIN")
                         // User
                         .requestMatchers(HttpMethod.POST, "/auth/signup", "/auth/login", "/auth/refresh").permitAll()
                         .requestMatchers(HttpMethod.GET, "/auth/username-check").permitAll()

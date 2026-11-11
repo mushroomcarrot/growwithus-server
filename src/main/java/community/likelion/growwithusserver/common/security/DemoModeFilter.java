@@ -8,23 +8,18 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
-import java.util.List;
 
-// /demo/** 요청의 X-Demo-Mode: true 헤더를 검증하고 DEMO 권한을 준다. demo.enabled=false면 모두 거부한다.
+// /demo/** 요청의 X-Demo-Mode: true 헤더를 검증한다. demo.enabled=false면 모두 거부한다.
+// 인증은 JWT가 맡고, ADMIN 권한 확인은 SecurityConfiguration이 한다. 헤더만으로는 통과할 수 없다.
 @Slf4j
 @RequiredArgsConstructor
 public class DemoModeFilter extends OncePerRequestFilter {
     public static final String PATH_PREFIX = "/demo/";
     public static final String HEADER = "X-Demo-Mode";
-    public static final String PRINCIPAL = "demo";
-    public static final String AUTHORITY = "ROLE_DEMO";
 
     private final boolean enabled;
     private final ObjectMapper objectMapper;
@@ -44,8 +39,6 @@ public class DemoModeFilter extends OncePerRequestFilter {
             return;
         }
 
-        SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
-                PRINCIPAL, null, List.of(new SimpleGrantedAuthority(AUTHORITY))));
         chain.doFilter(request, response);
     }
 }

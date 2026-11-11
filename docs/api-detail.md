@@ -28,7 +28,7 @@
 | `Authorization` | 로그인 필요한 API | `Bearer {accessToken}` |
 | `Content-Type` | 본문이 있는 요청 | `application/json` 또는 `multipart/form-data` |
 | `X-Service-Key` | `/internal/*` | 서버 환경변수 `INTERNAL_SERVICE_KEY` 값 |
-| `X-Demo-Mode` | `/demo/*` | `true` |
+| `X-Demo-Mode` | `/demo/*` | `true` (ADMIN 계정의 `Authorization`도 함께 필요) |
 
 ### 1.2 응답 형식
 
@@ -684,7 +684,7 @@ AI 사진 확인이 실패해도 사진은 저장하고 `aiCheck`는 `null`로 �
 
 | 파트 | 타입 | 필수 | 설명 |
 | --- | --- | --- | --- |
-| `audio` | File | O | m4a, wav 60초 이하 |
+| `audio` | File | O | webm, m4a, mp4, wav 60초 이하. 브라우저 녹음(webm, 사파리 mp4)은 서버가 길이를 읽지 못할 수 있어 5MB 이하로만 확인하므로, 녹음은 프론트에서 60초에 멈춘다 |
 
 ```json
 {
@@ -799,7 +799,7 @@ STT로 받아 적고 LLM이 가족용 문장으로 정리한다. `issues`는 다
 
 ## 9. 시연
 
-모두 `X-Demo-Mode: true` 헤더가 필요하다. 대상은 시연용 텃밭 `gdn_b14`와 관리사 `crt_soonja`다.
+모두 ADMIN 계정의 `Authorization` 토큰과 `X-Demo-Mode: true` 헤더가 필요하다. 토큰이 없으면 `C4011`, ADMIN이 아니면 `C403`, 헤더가 없으면 `C4032`다. 대상은 시연용 텃밭 `gdn_b14`와 관리사 `crt_soonja`다.
 
 ### 9.1 데모 상태
 

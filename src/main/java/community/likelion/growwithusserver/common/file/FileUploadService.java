@@ -21,9 +21,11 @@ import java.util.UUID;
 public class FileUploadService {
     // 사진: jpg, png 10MB 이하
     public static final long MAX_IMAGE_SIZE = 10L * 1024 * 1024;
-    // 음성: m4a, wav 60초 이하. 크기는 multipart 상한(20MB)과 같게 둔다.
+    // 음성: webm, m4a, mp4, wav 60초 이하. 크기는 multipart 상한(20MB)과 같게 둔다.
     public static final long MAX_AUDIO_SIZE = 20L * 1024 * 1024;
     public static final Duration MAX_AUDIO_DURATION = Duration.ofSeconds(60);
+    // 길이를 읽을 수 없는 녹음(크롬 webm, 사파리 조각 mp4)은 60초 녹음이 넉넉히 들어가는 크기로만 막는다
+    public static final long MAX_UNTIMED_AUDIO_SIZE = 5L * 1024 * 1024;
 
     private final FileStorage fileStorage;
 
@@ -50,20 +52,26 @@ public class FileUploadService {
 
         Optional<Duration> duration;
         String contentType;
-        if (extension.equals("wav")) {
+        if (extension.equals("wav") && isWav(bytes)) {
             duration = AudioDurationReader.readWav(bytes);
             contentType = "audio/wav";
-        } else if (extension.equals("m4a")) {
+        } else if ((extension.equals("m4a") || extension.equals("mp4")) && isMp4(bytes)) {
             duration = AudioDurationReader.readM4a(bytes);
             contentType = "audio/mp4";
+        } else if (extension.equals("webm") && isWebm(bytes)) {
+            // 브라우저 녹음 webm에는 길이 정보가 없는 경우가 많다
+            duration = Optional.empty();
+            contentType = "audio/webm";
         } else {
             log.warn("[uploadAudio] 지원하지 않는 음성 형식: {}", extension);
             throw new FileNotSupportedException();
         }
 
-        // 길이를 읽을 수 없는 파일은 형식이 깨진 것으로 본다
-        if (duration.isEmpty() || duration.get().compareTo(MAX_AUDIO_DURATION) > 0) {
-            log.warn("[uploadAudio] 음성 길이 제한 위반: {}", duration.map(Duration::toString).orElse("알 수 없음"));
+        // 길이를 읽었으면 60초로 막고, 읽지 못했으면(또는 0이면) 크기로 막는다. 60초 녹음 제한은 프론트도 건다.
+        boolean timed = duration.isPresent() && !duration.get().isZero();
+        if (timed ? duration.get().compareTo(MAX_AUDIO_DURATION) > 0 : bytes.length > MAX_UNTIMED_AUDIO_SIZE) {
+            log.warn("[uploadAudio] 음성 길이 제한 위반: {}, {}바이트",
+                    duration.map(Duration::toString).orElse("알 수 없음"), bytes.length);
             throw new FileNotSupportedException();
         }
 
@@ -103,6 +111,31 @@ public class FileUploadService {
     private boolean isJpeg(byte[] bytes) {
         return bytes.length >= 3
                 && (bytes[0] & 0xFF) == 0xFF && (bytes[1] & 0xFF) == 0xD8 && (bytes[2] & 0xFF) == 0xFF;
+    }
+
+    private boolean isWav(byte[] bytes) {
+        return bytes.length >= 12 && startsWith(bytes, 0, "RIFF") && startsWith(bytes, 8, "WAVE");
+    }
+
+    // MP4 계열은 첫 박스가 ftyp다
+    private boolean isMp4(byte[] bytes) {
+        return bytes.length >= 8 && startsWith(bytes, 4, "ftyp");
+    }
+
+    // WebM(Matroska)은 EBML 헤더 1A 45 DF A3로 시작한다
+    private boolean isWebm(byte[] bytes) {
+        return bytes.length >= 4
+                && (bytes[0] & 0xFF) == 0x1A && (bytes[1] & 0xFF) == 0x45
+                && (bytes[2] & 0xFF) == 0xDF && (bytes[3] & 0xFF) == 0xA3;
+    }
+
+    private boolean startsWith(byte[] bytes, int offset, String ascii) {
+        for (int i = 0; i < ascii.length(); i++) {
+            if (bytes[offset + i] != ascii.charAt(i)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private boolean isPng(byte[] bytes) {

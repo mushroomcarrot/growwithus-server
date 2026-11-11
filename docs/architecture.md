@@ -2,7 +2,7 @@
 
 > 코드의 현재 상태를 그대로 기록한 문서다. 기능을 추가하거나 바꾸면 이 문서도 함께 갱신한다 ([development-guide.md](development-guide.md#문서-갱신-규칙)).
 >
-> 마지막 갱신: 2026-11-11, 공통 모듈 추가 (커서 페이지네이션, 파일 업로드, 내부 및 시연 API 필터, 외부 ID, 날짜 직렬화, 외부 API 클라이언트, AI 클라이언트 인터페이스, 스케줄러)
+> 마지막 갱신: 2026-11-11, 음성 업로드에 webm, mp4 허용, 시연 API를 ADMIN 토큰과 `X-Demo-Mode` 헤더가 모두 있을 때만 허용
 
 ## 한눈에 보기
 
@@ -37,7 +37,7 @@ community.likelion.growwithusserver/
 │   │   ├── FileStorage             # 저장소 추상화 (store)
 │   │   ├── LocalFileStorage        # 로컬 디스크 구현 (file.storage=local)
 │   │   ├── FileWebConfiguration    # 로컬 저장 파일을 /uploads/**로 제공
-│   │   ├── AudioDurationReader     # wav, m4a 헤더에서 재생 길이 읽기
+│   │   ├── AudioDurationReader     # wav, m4a(mp4) 헤더에서 재생 길이 읽기
 │   │   └── exception/              # FileNotSupportedException (C4001), FileUploadFailedException (C5001)
 │   ├── http/
 │   │   └── RestClientConfiguration # externalRestClient 빈 (타임아웃 설정)
@@ -65,7 +65,7 @@ community.likelion.growwithusserver/
 │   │   ├── JwtTokenProvider        # 토큰 발급, 검증, 블랙리스트, Redis RT 저장
 │   │   ├── JwtAuthenticationFilter # Authorization 헤더를 읽어 SecurityContext에 등록
 │   │   ├── InternalServiceKeyFilter # /internal/**: X-Service-Key 검증 후 ROLE_SYSTEM 부여
-│   │   ├── DemoModeFilter          # /demo/**: X-Demo-Mode: true 검증 후 ROLE_DEMO 부여
+│   │   ├── DemoModeFilter          # /demo/**: X-Demo-Mode: true 검증 (권한은 부여하지 않음)
 │   │   ├── SecurityErrorWriter     # 필터 단계의 GlobalResponse 에러 응답 작성
 │   │   ├── JwtAuthenticationEntryPoint  # 401 응답 (C4011)
 │   │   ├── JwtAccessDeniedHandler  # 403 응답 (C403, 역할 미선택 사용자는 C4031)
@@ -112,7 +112,7 @@ community.likelion.growwithusserver/
 | 1 | `/swagger-ui/**`, `/v3/api-docs/**`, `/swagger-resources/**`, `/webjars/**` | 공개 |
 | 2 | GET `/uploads/**` | 공개 (로컬 저장소 파일) |
 | 3 | `/internal/**` | SYSTEM (`X-Service-Key` 헤더) |
-| 4 | `/demo/**` | DEMO (`X-Demo-Mode: true` 헤더) |
+| 4 | `/demo/**` | ADMIN 토큰 + `X-Demo-Mode: true` 헤더 |
 | 5 | POST `/auth/signup`, `/auth/login`, `/auth/refresh`, GET `/auth/username-check` | 공개 |
 | 6 | `/auth/logout` | USER, OWNER, CARETAKER |
 | 7 | `/users/me/badges` | OWNER |
@@ -129,16 +129,16 @@ community.likelion.growwithusserver/
 | 18 | `/notifications/**` | OWNER, CARETAKER |
 | 19 | 그 외 모든 경로 | 인증만 필요 |
 
-ADMIN은 RoleHierarchy로 USER, OWNER, CARETAKER 권한을 갖는다. SYSTEM, DEMO는 `UserRole`이 아니고 필터가 헤더를 확인해 부여하는 권한이라 ADMIN도 헤더가 있어야 한다.
+ADMIN은 RoleHierarchy로 USER, OWNER, CARETAKER 권한을 갖는다. SYSTEM은 `UserRole`이 아니고 필터가 헤더를 확인해 부여하는 권한이라 ADMIN도 헤더가 있어야 한다. 시연 API는 ADMIN 토큰이 필요하고 헤더도 함께 있어야 한다.
 
 ### 내부 배치, 시연 API
 
 | 경로 | 필터 | 통과 조건 | 실패 응답 | principal |
 | --- | --- | --- | --- | --- |
 | `/internal/**` | `InternalServiceKeyFilter` | `X-Service-Key` 헤더가 `internal.service-key`와 같음. 서버에 키가 비어 있으면 항상 거부 | 401 `C4014` | `system` (`ROLE_SYSTEM`) |
-| `/demo/**` | `DemoModeFilter` | `demo.enabled=true`이고 `X-Demo-Mode: true` 헤더가 있음 | 403 `C4032` | `demo` (`ROLE_DEMO`) |
+| `/demo/**` | `DemoModeFilter` | `demo.enabled=true`이고 `X-Demo-Mode: true` 헤더가 있음. 통과해도 권한을 주지 않으며 JWT의 ADMIN 권한이 따로 필요하다 | 403 `C4032` (토큰 없음 401 `C4011`, ADMIN 아님 403 `C403`) | JWT 사용자 (ADMIN) |
 
-JWT가 함께 와도 이 경로에서는 헤더 검증 결과가 인증을 대신한다. 아직 `/internal`, `/demo` 컨트롤러는 없다.
+`/internal/**`에서는 JWT가 함께 와도 헤더 검증 결과가 인증을 대신한다. `/demo/**`는 헤더만으로는 통과할 수 없어서, 배포 후에도 ADMIN 계정 없이는 시연 데이터를 바꿀 수 없다. 가입 API로는 ADMIN을 만들 수 없으므로 시연 계정은 DB에서 직접 바꾼다 (`UPDATE user SET role = 'ADMIN' WHERE username = '...'`). 아직 `/internal`, `/demo` 컨트롤러는 없다.
 
 ### DTO
 
@@ -186,7 +186,7 @@ JWT가 함께 와도 이 경로에서는 헤더 검증 결과가 인증을 대�
 | --- | --- |
 | 진입점 | `FileUploadService.uploadImage(MultipartFile, directory)`, `uploadAudio(MultipartFile, directory)`. 반환값은 업로드 URL |
 | 사진 검증 | 확장자 jpg, jpeg, png이고 파일 앞부분(매직 넘버)이 실제 JPEG, PNG여야 함. 10MB 이하 |
-| 음성 검증 | 확장자 m4a, wav. 헤더에서 읽은 길이가 60초 이하 (wav는 `data` 크기와 초당 바이트 수, m4a는 `mvhd` 박스). 길이를 읽을 수 없으면 거부. 20MB 이하 |
+| 음성 검증 | 확장자 webm, m4a, mp4, wav이고 파일 앞부분이 실제 형식과 맞아야 함 (webm은 EBML 헤더, m4a와 mp4는 `ftyp` 박스, wav는 RIFF/WAVE). 헤더에서 길이를 읽으면 60초 이하 (wav는 `data` 크기와 초당 바이트 수, m4a와 mp4는 `mvhd` 박스). 길이를 읽을 수 없거나 0이면 (크롬 webm, 사파리 조각 mp4) 5MB 이하만 받는다. 60초 녹음 제한은 프론트도 건다 |
 | 위반 시 | `C4001` (multipart 상한 초과도 `C4001`) |
 | 저장 | 원본 이름 대신 `UUID.확장자`로 `FileStorage.store` 호출 |
 | 저장소 | `FileStorage` 인터페이스. 현재 구현은 `LocalFileStorage` (`file.storage=local`): `file.upload-dir/{directory}/{파일}`에 저장하고 `file.base-url/uploads/{directory}/{파일}`을 돌려줌. S3는 구현체를 추가하고 `file.storage` 값으로 고른다 |
@@ -397,4 +397,6 @@ docker run -d -p 6379:6379 redis:7
 | 검증 실패 메시지 | 클라이언트에는 C002 고정 메시지만 반환 | 어떤 필드가 틀렸는지는 서버 로그에만 남음 |
 | 테스트 | `contextLoads`와 `common` 단위 테스트 (페이지네이션, ID, 파일 검증, 필터, 날짜 직렬화) | 도메인 테스트는 없음 |
 | AI 클라이언트 구현체 | 제공자 미정, 인터페이스와 기본 빈만 있음 | `LlmClient`, `SttClient`, `TtsClient` 호출은 항상 `C502`. 제공자가 정해지면 구현체를 추가한다 |
+| 시연 계정 | 가입 API로는 ADMIN을 만들 수 없음 | 시연 전에 DB에서 시연 계정의 `role`을 `ADMIN`으로 직접 바꾼다. 시연이 끝나면 prod `DEMO_ENABLED=false` |
+| 브라우저 녹음 길이 | webm과 사파리 조각 mp4는 서버가 길이를 읽지 못함 | 5MB 이하로만 확인한다. 60초 제한은 프론트 녹음 제한에 기대며, STT 제공자가 정해지면 STT 결과 길이로 다시 확인할 수 있다 |
 | 파일 저장소 | 로컬 디스크만 구현 | 서버를 여러 대 띄우거나 재배포로 디스크가 초기화되면 파일이 사라진다. 필요하면 S3 구현체를 추가한다 |

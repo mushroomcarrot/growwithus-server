@@ -14,10 +14,10 @@
 | --- | --- |
 | 인증 | `Authorization: Bearer {accessToken}` (JWT, 만료 3600초) |
 | 내부 배치 API | `/internal/*`, 헤더 `X-Service-Key` 필수 |
-| 시연 API | `/demo/*`, 헤더 `X-Demo-Mode: true` 필수 |
+| 시연 API | `/demo/*`, ADMIN 계정 토큰과 헤더 `X-Demo-Mode: true` 모두 필수 |
 | 날짜 형식 | 날짜 `YYYY-MM-DD`, 시각 ISO 8601 (`+09:00`) |
 | 페이지네이션 | 커서 방식 (`cursor`, `limit`, 응답 `nextCursor`) |
-| 파일 업로드 | `multipart/form-data` (사진 jpg, png 10MB 이하, 음성 m4a, wav 60초 이하) |
+| 파일 업로드 | `multipart/form-data` (사진 jpg, png 10MB 이하, 음성 webm, m4a, mp4, wav 60초 이하) |
 | 숫자 정책 | 월 이용료 3만 원, 관리사 수당은 모두 **가정치** |
 
 ### 권한 (Permission)
@@ -29,7 +29,7 @@
 | OWNER | 텃밭 주인 (도시 가족) |
 | CARETAKER | 텃밭 관리사 (처인구 어르신) |
 | SYSTEM | 내부 배치 |
-| DEMO | 발표 시연 전용 |
+| DEMO | 발표 시연 전용 (ADMIN 계정 토큰 + `X-Demo-Mode` 헤더) |
 
 ### 주요 enum
 
