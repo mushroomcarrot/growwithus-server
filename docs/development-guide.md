@@ -36,7 +36,14 @@
 
 - 도메인 패키지는 `common`에 의존해도 되지만, `common`이 도메인에 의존해선 안 된다. 예외: `JwtTokenProvider`가 `UserRepository`를 참조
 - DTO는 `data/dto/`에 둔다. `user` 도메인만 `request/`, `response/`로 한 겹 더 나뉜다
-- 다른 도메인의 사용자 엔티티가 필요하면 `AuthService.getUserEntity(email)`을 쓴다
+- 다른 도메인의 사용자 엔티티가 필요하면 `UserService.getUserEntity(username)`을 쓴다
+- `nextStep`은 `UserService.resolveNextStep(user)`로만 계산한다. 다른 곳에서 같은 분기를 다시 만들지 않는다
+
+## 외부 ID
+
+- DB PK는 `Long`으로 두고, API로 주고받는 ID는 `IdPrefix`로 `접두어_숫자` 문자열을 만든다 (예: `IdPrefix.GARDEN.format(garden.getId())`는 `gdn_3`)
+- 경로 변수나 본문으로 받은 ID는 `IdPrefix.GARDEN.parse(gardenId)`로 PK를 얻는다. 형식이 틀리면 C002가 나간다
+- 새 종류의 ID가 필요하면 `IdPrefix`에 항목을 추가한다
 
 ## 응답
 
@@ -48,6 +55,93 @@ public GlobalResponse<OrderResponseDto> getOrder(@RequestParam Long id) {
     return orderService.getOrder(id);
 }
 ```
+
+## 커서 페이지네이션
+
+목록 API는 `CursorPageRequest`로 받고 `CursorPageResponse<T>`로 돌려준다. 다음 페이지가 있는지는 한 건 더 조회해서(limit + 1) 판단한다.
+
+```java
+// Controller
+@GetMapping("/gardens/{gardenId}/diary")
+public GlobalResponse<CursorPageResponse<DiaryItemDto>> getDiary(@PathVariable String gardenId,
+                                                                 @Valid @ModelAttribute CursorPageRequest pageRequest) {
+    return diaryService.getDiary(SecurityUtil.getUsername(), gardenId, pageRequest);
+}
+
+// Service: 최신순(id 내림차순), cursor보다 작은 id부터 limit + 1건 조회
+Long cursorId = pageRequest.getCursorId(IdPrefix.CARE_LOG);   // 첫 페이지면 null
+List<CareLog> fetched = careLogRepository.findPage(garden, cursorId, PageRequest.of(0, pageRequest.getFetchSize()));
+
+CursorPageResponse<DiaryItemDto> page = CursorPageResponse
+        .of(fetched, pageRequest.getLimit(), careLog -> IdPrefix.CARE_LOG.format(careLog.getId()))
+        .map(DiaryItemDto::from);
+return GlobalResponse.ok(page);
+
+// Repository
+@Query("select c from CareLog c where c.garden = :garden and (:cursorId is null or c.id < :cursorId) order by c.id desc")
+List<CareLog> findPage(Garden garden, Long cursorId, Pageable pageable);
+```
+
+## 파일 업로드
+
+- `multipart/form-data`로 받은 `MultipartFile`을 `FileUploadService.uploadImage(file, "care-photos")` 또는 `uploadAudio(file, "voice-memos")`에 넘기면 검증 후 저장하고 URL을 돌려준다
+- 형식, 크기, 길이 검증은 `FileUploadService`가 한다. 도메인에서 다시 검사하지 않는다 (위반 시 C4001)
+- `directory`는 도메인별로 고정된 이름을 쓴다. 사용자 입력을 넣지 않는다
+- 저장소를 직접 다루지 않는다. `FileStorage`는 `FileUploadService`만 쓴다
+
+```java
+@PostMapping(value = "/caretaker/tasks/{taskId}/photos", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+public GlobalResponse<TaskPhotoResponseDto> uploadPhoto(@PathVariable String taskId, @RequestPart("file") MultipartFile file) {
+    return taskService.uploadPhoto(SecurityUtil.getUsername(), taskId, file);
+}
+```
+
+## 날짜와 시각
+
+- 응답 DTO의 날짜는 `LocalDate`, 시각은 `OffsetDateTime`으로 둔다. 각각 `YYYY-MM-DD`, `2026-11-10T09:30:00+09:00`으로 나간다
+- 엔티티의 `LocalDateTime`은 `DateTimes.toOffset(entity.getCreatedAt())`로 바꿔 담는다. 응답 DTO에 `LocalDateTime`을 그대로 두면 오프셋이 빠진다
+- `@JsonFormat`으로 필드마다 형식을 따로 정하지 않는다
+
+## 외부 API 호출
+
+- `RestClient externalRestClient` 빈을 주입받아 `externalRestClient.mutate().baseUrl("https://...").build()`로 파생해서 쓴다. 타임아웃이 이미 걸려 있으므로 `RestClient.create()`나 `RestTemplate`을 새로 만들지 않는다
+- 외부 API 클라이언트는 그 데이터를 쓰는 도메인의 `client/` 패키지에 둔다 (예: `weather/client/KmaClient`)
+- API 키는 `${ENV_VAR}`로 받고 `.env.example`에 추가한다
+- LLM, STT, TTS는 `LlmClient`, `SttClient`, `TtsClient` 인터페이스로만 호출한다. 실패하면 `AiClientException`이 나오므로, 규칙 기반 대체가 있는 로직(오늘의 작업 생성 등)은 이 예외를 잡아 대체한다
+
+## 배치 작업
+
+배치 로직은 서비스 메서드 하나에 두고, 스케줄러와 내부 API가 같은 메서드를 호출한다. 스케줄러나 컨트롤러에 로직을 쓰지 않는다.
+
+```java
+// 로직: 서비스
+@Service
+public class WeatherSyncService {
+    @Transactional
+    public WeatherSyncResponseDto sync(List<String> farmIds) { ... }
+}
+
+// 주기 실행: <domain>/scheduler
+@Component
+@RequiredArgsConstructor
+public class WeatherSyncScheduler {
+    private final WeatherSyncService weatherSyncService;
+
+    @Scheduled(cron = "0 0 * * * *")   // 1시간마다. 시간대는 JVM 기본(Asia/Seoul)
+    public void run() {
+        weatherSyncService.sync(List.of());
+    }
+}
+
+// 수동 실행: /internal 컨트롤러 (X-Service-Key 검증은 필터가 한다)
+@PostMapping("/internal/weather/sync")
+public GlobalResponse<WeatherSyncResponseDto> sync(@RequestBody(required = false) WeatherSyncRequestDto request) {
+    return GlobalResponse.ok(weatherSyncService.sync(request == null ? List.of() : request.getFarmIds()));
+}
+```
+
+- `/internal/**`와 `/demo/**`의 헤더 검증과 권한은 필터와 `SecurityConfiguration`에 이미 있다. 컨트롤러에서 헤더를 다시 확인하지 않는다
+- 스케줄러 메서드는 예외가 밖으로 나가면 로그만 남고 끝난다. 실패를 알아야 하면 서비스에서 로그를 남긴다
 
 ## 예외
 
@@ -72,13 +166,13 @@ public class OrderNotFoundException extends GlobalException {
 - 쓰기 메서드 `@Transactional`, 읽기 `@Transactional(readOnly = true)` (`org.springframework.transaction.annotation.Transactional`)
 - 엔티티 조회는 `private <Domain> get<Domain>Entity(Long id)` 헬퍼 + `orElseThrow(XxxNotFoundException::new)`
 - 엔티티는 Lombok `@Builder`로 생성
-- 서비스는 `SecurityContextHolder`를 직접 보지 않는다. 사용자 이메일은 컨트롤러에서 받는다
+- 서비스는 `SecurityContextHolder`를 직접 보지 않는다. 사용자 아이디는 컨트롤러에서 받는다
 - 생성 시각 같은 감사 필드는 `LocalDateTime.now()`로 직접 채운다 (`@EnableJpaAuditing` 없음)
 
 ## 컨트롤러
 
-- `@RestController @RequestMapping("/api/v1/<domain>") @RequiredArgsConstructor`
-- 현재 사용자가 필요하면 `SecurityUtil.getUsername()`(이메일)을 컨트롤러에서 읽어 서비스에 넘긴다
+- `@RestController @RequestMapping("/<domain>") @RequiredArgsConstructor`. 경로는 `api-spec.md` 그대로 쓰고 `/api/v1` 같은 접두어를 붙이지 않는다`
+- 현재 사용자가 필요하면 `SecurityUtil.getUsername()`(로그인 아이디)을 컨트롤러에서 읽어 서비스에 넘긴다
 - 요청 바디에는 `@Valid @RequestBody`
 - Swagger 설명은 `@Operation(summary = "...")`
 
@@ -94,37 +188,40 @@ public class OrderNotFoundException extends GlobalException {
 
 - `@Data @Builder @NoArgsConstructor @AllArgsConstructor`
 - 요청 DTO에만 `jakarta.validation` 애너테이션(`@NotBlank`, `@NotNull`, `@Email`, `@Size`)
-- 검증 실패는 `GlobalExceptionHandler`가 C002로 변환한다
+- 검증 실패, 읽을 수 없는 본문(잘못된 enum 값 포함), 필수 쿼리 누락은 `GlobalExceptionHandler`가 C002로 변환한다
 
 ## 보안 경로
 
 - 공개 엔드포인트는 `SecurityConfiguration`의 `permitAll()` 목록에 추가
-- 권한 제한은 `.requestMatchers("/api/v1/<domain>/**").hasRole("OWNER")` 또는 `.hasAnyRole("OWNER", "MANAGER")`를 `.anyRequest().authenticated()` **앞에** 넣는다. 순서가 뒤바뀌면 매처가 무시된다
+- `api-spec.md` 4장의 경로별 권한은 `SecurityConfiguration`에 이미 매핑되어 있다 ([architecture.md의 경로별 권한](architecture.md#경로별-권한-securityconfiguration)). 새 도메인은 명세와 다른 권한이 필요할 때만 고친다
+- 권한 제한은 `.requestMatchers("/<domain>/**").hasRole("OWNER")` 또는 `.hasAnyRole("OWNER", "CARETAKER")`를 `.anyRequest().authenticated()` **앞에** 넣는다. 먼저 맞는 규칙이 적용되므로 더 구체적인 경로를 위에 둔다
 - `hasRole`에는 `ROLE_` 접두사 없이 쓴다
-- ADMIN은 RoleHierarchy로 OWNER와 MANAGER 권한을 자동으로 갖는다. ADMIN 전용 경로만 `hasRole("ADMIN")`
+- ADMIN은 RoleHierarchy로 USER, OWNER, CARETAKER 권한을 자동으로 갖는다. ADMIN 전용 경로만 `hasRole("ADMIN")`
+- USER, OWNER, CARETAKER는 서로 포함하지 않는다. 명세의 "USER, OWNER, CARETAKER"는 `hasAnyRole("USER", "OWNER", "CARETAKER")`로 쓴다
 
 ## 로그
 
 `[메서드명] 한국어 설명: {}` 형식으로 통일한다.
 
 ```java
-log.info("[signUp] 새로운 사용자 등록: {}", user.getEmail());
+log.info("[signUp] 새로운 사용자 등록: {}", user.getUsername());
 log.error("[logout] 유효하지 않은 Access Token으로 로그아웃 시도");
 ```
 
-토큰 값, 비밀번호, 개인정보 원문은 남기지 않는다. 식별자(이메일) 정도까지만.
+토큰 값, 비밀번호, 개인정보 원문은 남기지 않는다. 식별자(로그인 아이디) 정도까지만.
 
 ## 설정
 
 - 공통은 `application.yml`, 프로필별 값은 `application-local.yml` / `application-prod.yml`
 - 모든 값은 `${ENV_VAR:기본값}` 형태로 환경변수 우선
-- prod에는 기본값을 두지 않는다. 누락되면 부팅이 실패하는 편이 낫다
+- prod에는 기본값을 두지 않는다. 누락되면 부팅이 실패하는 편이 낫다. 예외: 환경과 무관한 튜닝 값(타임아웃, 스케줄러 사용 여부, 저장소 종류)과 아직 제공자가 정해지지 않은 AI 설정은 `application.yml`에 기본값을 둔다
 - 새 환경변수를 추가하면 `.env.example`에도 추가한다. 비밀 값은 주석 처리한 줄과 생성 방법을 적는다
 - 날짜와 시간은 JVM 기본 시간대(Asia/Seoul)를 따른다. 코드에서 `ZoneId`를 따로 하드코딩하지 않는다
 
 ## 주의할 점
 
 - `./gradlew build`는 DB 없이 실패한다. `./gradlew compileJava` 또는 `./gradlew build -x test`를 쓴다
+- DB가 필요 없는 단위 테스트는 `./gradlew test --tests 'community.likelion.growwithusserver.common.*'`처럼 패키지를 지정해 돌린다. 테스트 메서드 이름은 한국어로 써도 된다
 - jjwt는 0.12.x API다: `Jwts.builder().subject()`, `.signWith(key, Jwts.SIG.HS256)`, `Jwts.parser().verifyWith(key).build().parseSignedClaims()`. 구버전 `setSubject`/`parseClaimsJws`는 컴파일되지 않는다
 - Spring Boot 4의 Jackson은 `tools.jackson.databind.ObjectMapper`다 (`com.fasterxml` 아님)
 - prod는 `ddl-auto: validate`라 새 엔티티나 컬럼을 추가하면 prod DB 스키마도 직접 맞춰야 한다

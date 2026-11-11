@@ -1,5 +1,6 @@
 package community.likelion.growwithusserver.user.data.entity;
 
+import community.likelion.growwithusserver.common.id.IdPrefix;
 import jakarta.persistence.*;
 import community.likelion.growwithusserver.user.data.enums.UserRole;
 import lombok.AllArgsConstructor;
@@ -28,10 +29,11 @@ public class User implements UserDetails {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
-    private String email;
+    // 로그인 아이디. UserDetails.getUsername()도 이 값을 반환한다.
+    @Column(nullable = false, unique = true, length = 20)
+    private String username;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 20)
     private String name;
 
     @Column(nullable = false)
@@ -41,6 +43,11 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private UserRole role;
 
+    // 현재 역할의 프로필(주인 또는 관리사) 등록 여부. 프로필 도메인이 등록 시 true로 바꾼다.
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean profileRegistered = false;
+
     @CreatedDate
     @Column(updatable = false)
     private LocalDateTime registeredAt;
@@ -49,9 +56,9 @@ public class User implements UserDetails {
     @Column
     private LocalDateTime modifiedAt;
 
-    @Override
-    public String getUsername() {
-        return email;
+    // API 응답에 쓰는 외부 노출용 ID (예: usr_12)
+    public String getPublicId() {
+        return IdPrefix.USER.format(id);
     }
 
     @Override

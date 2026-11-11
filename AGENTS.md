@@ -11,6 +11,8 @@
 3. [docs/planning.md](docs/planning.md): 기획안 (문제 정의, 핵심 기능, 활용 데이터, 기술 구성, 시연 시나리오)
 4. [docs/commit-convention.md](docs/commit-convention.md): 커밋 메시지 컨벤션 (태그, 형식, 작성 규칙)
 5. [docs/github-convention.md](docs/github-convention.md): 브랜치 전략, Issue 및 PR 작성 가이드 (템플릿은 `.github/`)
+6. [docs/api-spec.md](docs/api-spec.md): 대신텃밭 API 명세 요약 (공통 규칙, 권한, enum, 화면 코드, API 54개, 핵심 로직, 시연 시나리오)
+7. [docs/api-detail.md](docs/api-detail.md): API 상세 명세서 (엔드포인트별 요청, 응답 예시, 에러 코드)
 
 ## 문서 갱신 (필수)
 
@@ -25,14 +27,15 @@ Java 21, Spring Boot 4.1, Gradle, MariaDB, Redis, JWT (jjwt 0.12.x), Swagger
 
 1. `./gradlew compileJava`: 컴파일 확인
 2. `./gradlew build`는 DB 없이 실패한다 (`contextLoads`가 실제 MariaDB 연결 필요). DB 없이 빌드하려면 `./gradlew build -x test`
+3. DB 없이 도는 단위 테스트: `./gradlew test --tests 'community.likelion.growwithusserver.common.*'`
 
 ## 권한
 
-`UserRole`: `ADMIN`, `OWNER`, `MANAGER`
+`UserRole`: `USER`, `OWNER`, `CARETAKER`, `ADMIN`
 
-1. `OWNER`는 텃밭 주인 (도시민), `MANAGER`는 텃밭 관리사 (어르신), `ADMIN`은 서비스 관리자
-2. 회원가입 요청에서 role을 직접 고른다 (기획안 3.5)
-3. `RoleHierarchy`: ADMIN은 OWNER와 MANAGER를 포함하고, OWNER와 MANAGER는 서로 포함하지 않는다
+1. `USER`는 가입 직후 역할 선택 전, `OWNER`는 텃밭 주인 (도시민), `CARETAKER`는 텃밭 관리사 (어르신), `ADMIN`은 서비스 관리자
+2. 회원가입 직후 역할은 `USER`이고, `PUT /users/me/role`로 `OWNER` 또는 `CARETAKER`를 고른다
+3. `RoleHierarchy`: ADMIN은 USER, OWNER, CARETAKER를 포함하고, USER, OWNER, CARETAKER는 서로 포함하지 않는다
 
 ## 코드 규칙
 
@@ -42,6 +45,8 @@ Java 21, Spring Boot 4.1, Gradle, MariaDB, Redis, JWT (jjwt 0.12.x), Swagger
 2. 예외는 `GlobalException`을 상속하고 `ErrorCode`에 항목을 추가한다
 3. 로그는 `[메서드명] 한국어 설명: {}` 형식
 4. 현재 사용자는 컨트롤러에서 `SecurityUtil.getUsername()`으로 가져와 서비스에 넘긴다
+5. API 경로는 `docs/api-spec.md` 그대로 쓴다. `/api/v1` 같은 접두어를 붙이지 않는다
+6. 페이지네이션, 파일 업로드, 외부 ID, 날짜 형식, 외부 API 호출, 배치는 `common`의 공통 모듈을 쓴다. 도메인마다 새로 만들지 않는다
 
 ## Git
 

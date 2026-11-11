@@ -3,9 +3,13 @@ package community.likelion.growwithusserver.common.response;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @Slf4j
 @RestControllerAdvice
@@ -30,6 +34,34 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(ErrorCode.INVALID_PARAMETER.getHttpStatus())
                 .body(GlobalResponse.error(ErrorCode.INVALID_PARAMETER));
+    }
+
+    // 본문 JSON을 읽을 수 없거나 (허용되지 않는 enum 값 포함) 필수 쿼리 파라미터가 빠진 경우
+    @ExceptionHandler({HttpMessageNotReadableException.class, MissingServletRequestParameterException.class})
+    public ResponseEntity<GlobalResponse<?>> handleUnreadableRequestException(Exception e) {
+        log.warn("[handleUnreadableRequestException] 요청 형식 오류: {}", e.getMessage());
+
+        return ResponseEntity
+                .status(ErrorCode.INVALID_PARAMETER.getHttpStatus())
+                .body(GlobalResponse.error(ErrorCode.INVALID_PARAMETER));
+    }
+
+    // multipart 최대 크기(spring.servlet.multipart) 초과
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<GlobalResponse<?>> handleMaxUploadSizeExceededException(MaxUploadSizeExceededException e) {
+        log.warn("[handleMaxUploadSizeExceededException] 업로드 크기 제한 초과: {}", e.getMessage());
+
+        return ResponseEntity
+                .status(ErrorCode.FILE_NOT_SUPPORTED.getHttpStatus())
+                .body(GlobalResponse.error(ErrorCode.FILE_NOT_SUPPORTED));
+    }
+
+    // 매핑된 컨트롤러가 없는 경로
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<GlobalResponse<?>> handleNoResourceFoundException(NoResourceFoundException e) {
+        return ResponseEntity
+                .status(ErrorCode.DATA_NOT_FOUND.getHttpStatus())
+                .body(GlobalResponse.error(ErrorCode.DATA_NOT_FOUND));
     }
 
     @ExceptionHandler(Exception.class)

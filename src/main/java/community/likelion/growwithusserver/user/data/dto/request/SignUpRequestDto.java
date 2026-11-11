@@ -1,9 +1,7 @@
 package community.likelion.growwithusserver.user.data.dto.request;
 
-import jakarta.validation.constraints.Email;
-import community.likelion.growwithusserver.user.data.enums.UserRole;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -16,16 +14,14 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class SignUpRequestDto {
     @NotBlank
-    @Email
-    private String email;
+    @Size(max = 20)
+    private String name;
 
     @NotBlank
-    private String name;
+    @Pattern(regexp = "^[a-z0-9]{4,20}$")
+    private String username;
 
     @NotBlank
     @Size(min = 8, max = 64)
     private String password;
-
-    @NotNull
-    private UserRole role;
 }

@@ -11,12 +11,52 @@ spring:
   jpa:
     open-in-view: false
     database-platform: org.hibernate.dialect.MariaDBDialect
+  servlet:
+    multipart:
+      # 사진 10MB, 음성 60초 제한은 FileUploadService가 검증한다. 여기는 요청 전체의 상한이다.
+      max-file-size: 20MB
+      max-request-size: 25MB
+  jackson:
+    # 날짜는 YYYY-MM-DD, 시각은 ISO 8601 +09:00으로 내려준다
+    time-zone: Asia/Seoul
+    datatype:
+      datetime:
+        write-dates-as-timestamps: false
+        write-dates-with-context-time-zone: true
 
 jwt:
   access-token:
     expire-time: ${JWT_ACCESS_TOKEN_EXPIRE_TIME:3600000}
   refresh-token:
     expire-time: ${JWT_REFRESH_TOKEN_EXPIRE_TIME:604800000}
+
+file:
+  # 저장소 구현체 선택. 현재는 local만 있다
+  storage: ${FILE_STORAGE:local}
+
+external:
+  http:
+    connect-timeout: ${EXTERNAL_HTTP_CONNECT_TIMEOUT:3s}
+    read-timeout: ${EXTERNAL_HTTP_READ_TIMEOUT:30s}
+
+scheduler:
+  enabled: ${SCHEDULER_ENABLED:true}
+
+# LLM, STT, TTS. 제공자와 구현체가 정해질 때까지는 비워 두어도 부팅된다
+ai:
+  llm:
+    api-key: ${LLM_API_KEY:}
+    base-url: ${LLM_BASE_URL:}
+    model: ${LLM_MODEL:}
+  stt:
+    api-key: ${STT_API_KEY:}
+    base-url: ${STT_BASE_URL:}
+    model: ${STT_MODEL:}
+  tts:
+    api-key: ${TTS_API_KEY:}
+    base-url: ${TTS_BASE_URL:}
+    model: ${TTS_MODEL:}
+    voice: ${TTS_VOICE:}
 
 springdoc:
   swagger-ui:
