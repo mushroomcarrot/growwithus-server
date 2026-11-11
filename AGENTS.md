@@ -30,11 +30,11 @@ Java 21, Spring Boot 4.1, Gradle, MariaDB, Redis, JWT (jjwt 0.12.x), Swagger
 
 ## 권한
 
-`UserRole`: `ADMIN`, `OWNER`, `MANAGER`
+`UserRole`: `USER`, `OWNER`, `CARETAKER`, `ADMIN`
 
-1. `OWNER`는 텃밭 주인 (도시민), `MANAGER`는 텃밭 관리사 (어르신), `ADMIN`은 서비스 관리자
-2. 회원가입 요청에서 role을 직접 고른다 (기획안 3.5)
-3. `RoleHierarchy`: ADMIN은 OWNER와 MANAGER를 포함하고, OWNER와 MANAGER는 서로 포함하지 않는다
+1. `USER`는 가입 직후 역할 선택 전, `OWNER`는 텃밭 주인 (도시민), `CARETAKER`는 텃밭 관리사 (어르신), `ADMIN`은 서비스 관리자
+2. 회원가입 직후 역할은 `USER`이고, `PUT /users/me/role`로 `OWNER` 또는 `CARETAKER`를 고른다
+3. `RoleHierarchy`: ADMIN은 USER, OWNER, CARETAKER를 포함하고, USER, OWNER, CARETAKER는 서로 포함하지 않는다
 
 ## 코드 규칙
 
@@ -44,6 +44,7 @@ Java 21, Spring Boot 4.1, Gradle, MariaDB, Redis, JWT (jjwt 0.12.x), Swagger
 2. 예외는 `GlobalException`을 상속하고 `ErrorCode`에 항목을 추가한다
 3. 로그는 `[메서드명] 한국어 설명: {}` 형식
 4. 현재 사용자는 컨트롤러에서 `SecurityUtil.getUsername()`으로 가져와 서비스에 넘긴다
+5. API 경로는 `docs/api-spec.md` 그대로 쓴다. `/api/v1` 같은 접두어를 붙이지 않는다
 
 ## Git
 

@@ -6,9 +6,11 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum UserRole {
-    ADMIN("ROLE_ADMIN"),
+    // 가입 직후, 역할 선택 전
+    USER("ROLE_USER"),
     OWNER("ROLE_OWNER"),
-    MANAGER("ROLE_MANAGER");
+    CARETAKER("ROLE_CARETAKER"),
+    ADMIN("ROLE_ADMIN");
 
     private final String value;
 }

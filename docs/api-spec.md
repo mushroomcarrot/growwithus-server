@@ -216,12 +216,11 @@
 
 명세를 기준으로 맞춰 나간다. 현재 코드 상태는 [architecture.md](architecture.md)를 본다.
 
+4.1 User의 8개 API는 명세대로 구현했다. 경로 접두어는 명세를 따라 `/api/v1` 없이 쓰기로 정했다.
+
 | 항목 | 명세 | 현재 구현 |
 | --- | --- | --- |
-| 경로 접두어 | `/auth/login` 등 접두어 없음 | `/api/v1/auth/signin` 등 `/api/v1` 접두어 |
-| 로그인 식별자 | 아이디 (`username`) | 이메일 (`email`) |
-| 관리사 역할 이름 | `CARETAKER` | `MANAGER` |
-| 역할 선택 시점 | 가입 후 `PUT /users/me/role` (가입 직후는 `USER`) | 회원가입 요청에서 `role` 선택 |
-| 로그인 응답 | `nextStep` 포함 | 토큰, 이메일, 이름만 반환 |
-| 토큰 재발급 | `POST /auth/refresh` | `POST /api/v1/auth/reissue` |
-| 예제 도메인 | 없음 | `product` 예제 도메인 존재 |
+| ID 형식 | `usr_minji`처럼 읽기 쉬운 예시 ID | `usr_12`처럼 접두어에 숫자 PK를 붙인 문자열. 클라이언트는 ID를 불투명한 문자열로 다룬다 |
+| `/users/me`의 `owner`, `caretaker` | 프로필 요약 | 프로필 도메인 구현 전까지 `null` |
+| `nextStep`의 `OWNER_HOME`, `CARE_TODAY` | 프로필 등록 후 반환 | 프로필 도메인 구현 전까지 `PROFILE_OWNER`, `PROFILE_CARE`까지만 반환 |
+| 4.2 이후 API | 46개 | 미구현 (경로별 권한만 매핑됨) |

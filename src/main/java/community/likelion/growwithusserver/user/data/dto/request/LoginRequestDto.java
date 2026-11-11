@@ -1,4 +1,4 @@
-package community.likelion.growwithusserver.product.data.dto;
+package community.likelion.growwithusserver.user.data.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
@@ -10,10 +10,10 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ProductRequestDto {
+public class LoginRequestDto {
     @NotBlank
-    private String name;
+    private String username;
 
     @NotBlank
-    private String description;
+    private String password;
 }

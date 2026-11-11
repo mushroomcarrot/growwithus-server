@@ -36,7 +36,8 @@
 
 - 도메인 패키지는 `common`에 의존해도 되지만, `common`이 도메인에 의존해선 안 된다. 예외: `JwtTokenProvider`가 `UserRepository`를 참조
 - DTO는 `data/dto/`에 둔다. `user` 도메인만 `request/`, `response/`로 한 겹 더 나뉜다
-- 다른 도메인의 사용자 엔티티가 필요하면 `AuthService.getUserEntity(email)`을 쓴다
+- 다른 도메인의 사용자 엔티티가 필요하면 `UserService.getUserEntity(username)`을 쓴다
+- `nextStep`은 `UserService.resolveNextStep(user)`로만 계산한다. 다른 곳에서 같은 분기를 다시 만들지 않는다
 
 ## 응답
 
@@ -72,13 +73,13 @@ public class OrderNotFoundException extends GlobalException {
 - 쓰기 메서드 `@Transactional`, 읽기 `@Transactional(readOnly = true)` (`org.springframework.transaction.annotation.Transactional`)
 - 엔티티 조회는 `private <Domain> get<Domain>Entity(Long id)` 헬퍼 + `orElseThrow(XxxNotFoundException::new)`
 - 엔티티는 Lombok `@Builder`로 생성
-- 서비스는 `SecurityContextHolder`를 직접 보지 않는다. 사용자 이메일은 컨트롤러에서 받는다
+- 서비스는 `SecurityContextHolder`를 직접 보지 않는다. 사용자 아이디는 컨트롤러에서 받는다
 - 생성 시각 같은 감사 필드는 `LocalDateTime.now()`로 직접 채운다 (`@EnableJpaAuditing` 없음)
 
 ## 컨트롤러
 
-- `@RestController @RequestMapping("/api/v1/<domain>") @RequiredArgsConstructor`
-- 현재 사용자가 필요하면 `SecurityUtil.getUsername()`(이메일)을 컨트롤러에서 읽어 서비스에 넘긴다
+- `@RestController @RequestMapping("/<domain>") @RequiredArgsConstructor`. 경로는 `api-spec.md` 그대로 쓰고 `/api/v1` 같은 접두어를 붙이지 않는다`
+- 현재 사용자가 필요하면 `SecurityUtil.getUsername()`(로그인 아이디)을 컨트롤러에서 읽어 서비스에 넘긴다
 - 요청 바디에는 `@Valid @RequestBody`
 - Swagger 설명은 `@Operation(summary = "...")`
 
@@ -94,25 +95,27 @@ public class OrderNotFoundException extends GlobalException {
 
 - `@Data @Builder @NoArgsConstructor @AllArgsConstructor`
 - 요청 DTO에만 `jakarta.validation` 애너테이션(`@NotBlank`, `@NotNull`, `@Email`, `@Size`)
-- 검증 실패는 `GlobalExceptionHandler`가 C002로 변환한다
+- 검증 실패, 읽을 수 없는 본문(잘못된 enum 값 포함), 필수 쿼리 누락은 `GlobalExceptionHandler`가 C002로 변환한다
 
 ## 보안 경로
 
 - 공개 엔드포인트는 `SecurityConfiguration`의 `permitAll()` 목록에 추가
-- 권한 제한은 `.requestMatchers("/api/v1/<domain>/**").hasRole("OWNER")` 또는 `.hasAnyRole("OWNER", "MANAGER")`를 `.anyRequest().authenticated()` **앞에** 넣는다. 순서가 뒤바뀌면 매처가 무시된다
+- `api-spec.md` 4장의 경로별 권한은 `SecurityConfiguration`에 이미 매핑되어 있다 ([architecture.md의 경로별 권한](architecture.md#경로별-권한-securityconfiguration)). 새 도메인은 명세와 다른 권한이 필요할 때만 고친다
+- 권한 제한은 `.requestMatchers("/<domain>/**").hasRole("OWNER")` 또는 `.hasAnyRole("OWNER", "CARETAKER")`를 `.anyRequest().authenticated()` **앞에** 넣는다. 먼저 맞는 규칙이 적용되므로 더 구체적인 경로를 위에 둔다
 - `hasRole`에는 `ROLE_` 접두사 없이 쓴다
-- ADMIN은 RoleHierarchy로 OWNER와 MANAGER 권한을 자동으로 갖는다. ADMIN 전용 경로만 `hasRole("ADMIN")`
+- ADMIN은 RoleHierarchy로 USER, OWNER, CARETAKER 권한을 자동으로 갖는다. ADMIN 전용 경로만 `hasRole("ADMIN")`
+- USER, OWNER, CARETAKER는 서로 포함하지 않는다. 명세의 "USER, OWNER, CARETAKER"는 `hasAnyRole("USER", "OWNER", "CARETAKER")`로 쓴다
 
 ## 로그
 
 `[메서드명] 한국어 설명: {}` 형식으로 통일한다.
 
 ```java
-log.info("[signUp] 새로운 사용자 등록: {}", user.getEmail());
+log.info("[signUp] 새로운 사용자 등록: {}", user.getUsername());
 log.error("[logout] 유효하지 않은 Access Token으로 로그아웃 시도");
 ```
 
-토큰 값, 비밀번호, 개인정보 원문은 남기지 않는다. 식별자(이메일) 정도까지만.
+토큰 값, 비밀번호, 개인정보 원문은 남기지 않는다. 식별자(로그인 아이디) 정도까지만.
 
 ## 설정
 

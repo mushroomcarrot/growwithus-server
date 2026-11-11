@@ -1,7 +1,9 @@
 package community.likelion.growwithusserver.user.data.dto.request;
 
-import jakarta.validation.constraints.Email;
+import community.likelion.growwithusserver.user.data.enums.PushPlatform;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -11,11 +13,11 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class SignInRequestDto {
+public class PushTokenRequestDto {
     @NotBlank
-    @Email
-    private String email;
+    @Size(max = 512)
+    private String token;
 
-    @NotBlank
-    private String password;
+    @NotNull
+    private PushPlatform platform;
 }
