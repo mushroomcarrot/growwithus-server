@@ -2,7 +2,6 @@ package community.likelion.growwithusserver.user.controller;
 
 import community.likelion.growwithusserver.common.response.GlobalResponse;
 import community.likelion.growwithusserver.common.security.SecurityUtil;
-import community.likelion.growwithusserver.user.data.dto.request.PushTokenRequestDto;
 import community.likelion.growwithusserver.user.data.dto.request.RoleChangeRequestDto;
 import community.likelion.growwithusserver.user.data.dto.response.RoleChangeResponseDto;
 import community.likelion.growwithusserver.user.data.dto.response.UserMeResponseDto;
@@ -12,7 +11,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -36,11 +34,5 @@ public class UserController {
     public GlobalResponse<RoleChangeResponseDto> changeRole(@RequestHeader(HttpHeaders.AUTHORIZATION) String bearerToken,
                                                             @Valid @RequestBody RoleChangeRequestDto roleChangeRequestDto) {
         return userService.changeRole(SecurityUtil.getUsername(), bearerToken, roleChangeRequestDto);
-    }
-
-    @PostMapping("/me/push-tokens")
-    @Operation(summary = "푸시 토큰 등록")
-    public GlobalResponse<Void> registerPushToken(@Valid @RequestBody PushTokenRequestDto pushTokenRequestDto) {
-        return userService.registerPushToken(SecurityUtil.getUsername(), pushTokenRequestDto);
     }
 }

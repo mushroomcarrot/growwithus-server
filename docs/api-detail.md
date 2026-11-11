@@ -184,17 +184,6 @@ Refresh Token도 새로 발급하고 이전 토큰은 무효가 된다. 에러: 
 
 역할이 토큰에 들어가므로 새 토큰을 내려준다. 에러: `C002` 허용되지 않는 역할
 
-### 2.8 푸시 토큰 등록
-
-`POST /users/me/push-tokens` | 권한 USER, OWNER, CARETAKER | 화면 DT_HOME, DT_CARE_TODAY
-
-```json
-// 요청
-{ "token": "fcm_token_value", "platform": "ANDROID" }
-```
-
-`platform`: `ANDROID`, `IOS`. 같은 토큰이면 사용자만 갱신한다. 응답 `data`는 `null`.
-
 ## 3. Farm, Caretaker
 
 ### 3.1 주말농장 목록
@@ -591,12 +580,17 @@ Refresh Token도 새로 발급하고 이전 토큰은 무효가 된다. 에러: 
 
 ```json
 [
-  { "slotId": "slot_1128_10", "date": "2026-11-28", "startTime": "10:00", "endTime": "11:00", "available": true },
-  { "slotId": "slot_1128_14", "date": "2026-11-28", "startTime": "14:00", "endTime": "15:00", "available": false }
+  { "slotId": "slot_20261128_10", "date": "2026-11-28", "startTime": "10:00", "endTime": "11:00", "available": true },
+  { "slotId": "slot_20261128_14", "date": "2026-11-28", "startTime": "14:00", "endTime": "15:00", "available": false }
 ]
 ```
 
-주말 슬롯만 내려준다. `from`, `to`를 생략하면 다가오는 2주다.
+1. 주말 슬롯만 내려준다. 하루에 10시, 11시, 14시, 15시에 시작하는 1시간 슬롯 네 개다.
+2. `from`, `to`를 생략하면 내일부터 2주다. 한 번에 31일까지 조회할 수 있다.
+3. `available`은 정원(한 농장의 한 슬롯에 2건)이 찼거나 오늘 또는 지난 날짜면 `false`다.
+4. `slotId`는 `slot_{yyyyMMdd}_{HH}` 형식이다.
+
+에러: `C002` 날짜 형식 오류, `to`가 `from`보다 앞, 31일 초과
 
 ### 5.3 방문 예약
 
@@ -607,23 +601,23 @@ Refresh Token도 새로 발급하고 이전 토큰은 무효가 된다. 에러: 
 | `gardenId` | String | O | |
 | `slotId` | String | O | |
 | `headcount` | Integer | X | 방문 인원, 1 이상. 생략하면 1명으로 저장한다 |
-| `memo` | String | X | |
+| `memo` | String | X | 200자 이하 |
 
 ```json
 // 요청 (인원 입력 화면이 없으면 headcount 생략)
-{ "gardenId": "gdn_b14", "slotId": "slot_1128_10", "headcount": 3, "memo": "아이 둘이랑 가요" }
+{ "gardenId": "gdn_b14", "slotId": "slot_20261128_10", "headcount": 3, "memo": "아이 둘이랑 가요" }
 
 // 응답
 { "visitId": "vst_1128_b14", "date": "2026-11-28", "startTime": "10:00", "status": "RESERVED" }
 ```
 
-관리사에게 알림을 보낸다. 에러: `C4096` 이미 찬 시간, `C4095` 같은 날 예약 있음
+관리사에게 알림을 보낸다. 내일 이후의 슬롯만 예약할 수 있다. 에러: `C4096` 이미 찬 시간, `C4095` 그 텃밭에 같은 날 예약 있음, `C002` 없는 슬롯이거나 오늘 또는 지난 날짜
 
 ### 5.4 방문 예약 취소
 
 `DELETE /visits/{visitId}` | 권한 OWNER | 화면 DT_HARVEST
 
-응답 `data`는 `null`. 방문 하루 전까지만 가능하다. 에러: `C4005` 취소 기한 지남
+응답 `data`는 `null`. 방문 하루 전까지만 가능하다. 관리사에게 알림을 보낸다. 에러: `C4005` 취소 기한 지남 (방문 당일부터), `C403` 내 예약 아님, `C404` 예약 없음, `C4095` 이미 취소함
 
 ### 5.5 처인 나들이 추천
 
@@ -636,7 +630,7 @@ Refresh Token도 새로 발급하고 이전 토큰은 무효가 된다. 에러: 
 ]
 ```
 
-`type`: `EXPERIENCE_FARM`, `RESTAURANT`
+`type`: `EXPERIENCE_FARM`, `RESTAURANT`. 농장에서 가까운 순으로 최대 6곳이다. `distanceKm`는 직선 거리이고 농장 위치를 모르면 `null`이다.
 
 ## 6. Task
 
@@ -777,6 +771,10 @@ STT로 받아 적고 LLM이 가족용 문장으로 정리한다. `issues`는 다
 
 `type`: `CARE_DONE`, `HEART`, `STAGE_UP`, `VISIT_RESERVED`, `VISIT_CANCELED`, `STREAK_RISK`, `QUEST_DONE`
 
+1. 최신순이다. `unreadCount`는 페이지와 상관없이 안 읽은 알림 전체 수다.
+2. `target`은 알림을 눌렀을 때 이동할 화면 코드와 그 화면에서 쓸 ID다. 이동 대상이 없는 알림은 `null`이다.
+3. 기기 푸시는 없다. 새 알림과 `unreadCount`는 화면에 들어올 때와 일정 간격으로 이 API를 다시 조회해서 확인한다.
+
 ### 7.2 알림 읽음
 
 `PATCH /notifications/{notificationId}/read` | 권한 OWNER, CARETAKER | 화면 DT_HOME, DT_CARE_DONE, DT_MY
@@ -787,13 +785,15 @@ STT로 받아 적고 LLM이 가족용 문장으로 정리한다. `issues`는 다
 { "readCount": 3, "unreadCount": 0 }
 ```
 
+`readCount`는 이번 요청으로 읽음 처리된 수다. 이미 읽은 알림이면 0이고 에러는 아니다. 에러: `C404` 알림 없음 또는 내 알림 아님, `C002` ID 형식 오류
+
 ## 8. 내부 배치
 
 모두 `X-Service-Key` 헤더가 필요하고 스케줄러가 같은 로직을 주기대로 실행한다. 수동 실행용으로 아래 요청 본문을 받는다.
 
 | Endpoint | 주기 | 요청 (모두 선택) | 응답 |
 | --- | --- | --- | --- |
-| `POST /internal/weather/sync` | 1시간마다 | `{ "farmIds": ["farm_theme"] }` | `{ "syncedFarms": 1, "failedFarms": [] }` |
+| `POST /internal/weather/sync` | 1시간마다 (매시 15분) | `{ "farmIds": ["farm_theme"] }` (본문 생략 가능) | `{ "syncedFarms": 1, "failedFarms": [] }` |
 | `POST /internal/ai/daily-tasks` | 매일 05:00 | `{ "date": "2026-11-10", "gardenIds": [] }` | `{ "generated": 3, "fallback": 0 }` |
 | `POST /internal/ai/growth-simulation` | 매일 06:00 | `{ "date": "2026-11-10" }` | `{ "updated": 3, "stageChanged": 1 }` |
 | `POST /internal/streaks/check` | 매일 00:05 | `{ "date": "2026-11-09" }` | `{ "broken": 2 }` |
@@ -816,6 +816,8 @@ STT로 받아 적고 LLM이 가족용 문장으로 정리한다. `issues`는 다
 { "weather": "SUNNY", "stage": "FLOWER", "stageProgress": "3/4", "fastForwardDays": 18, "todayTaskGardens": 3 }
 ```
 
+현재 구현: `weather`만 채워진다 (날씨를 바꾼 적이 없으면 `null`). 나머지 넷은 텃밭, 성장 시뮬레이션, 작업 도메인이 붙기 전까지 `null`이다.
+
 ### 9.2 날씨 바꾸기
 
 `PUT /demo/weather`
@@ -828,7 +830,9 @@ STT로 받아 적고 LLM이 가족용 문장으로 정리한다. `issues`는 다
 { "condition": "RAIN", "animation": "rain_umbrella", "weatherNotice": "오후에 비가 와요. 물은 안 주셔도 돼요.", "regeneratedTasks": 3 }
 ```
 
-`condition`: `SUNNY`, `RAIN`, `HOT`. 작업을 즉시 다시 만든다.
+`condition`: `SUNNY`, `RAIN`, `HOT` (그 외는 `C002`). 작업을 즉시 다시 만든다.
+
+현재 구현: 날씨 덮어쓰기와 `animation`까지 동작한다. 작업 생성이 붙기 전까지 `weatherNotice`는 `null`, `regeneratedTasks`는 0이다.
 
 ### 9.3 시간 빨리 감기
 
@@ -842,6 +846,8 @@ STT로 받아 적고 LLM이 가족용 문장으로 정리한다. `issues`는 다
 { "stage": "FRUIT", "eventId": "evt_fruit_b14", "expectedHarvestDate": "2026-11-28" }
 ```
 
+현재 구현: 없다 (성장 시뮬레이션과 진화 이벤트가 먼저 필요하다).
+
 ### 9.4 초기화
 
 `POST /demo/reset`
@@ -851,6 +857,8 @@ STT로 받아 적고 LLM이 가족용 문장으로 정리한다. `issues`는 다
 ```json
 { "weather": "SUNNY", "stage": "FLOWER", "todayTaskGardens": 3 }
 ```
+
+현재 구현: 날씨만 `SUNNY`로 되돌린다. 응답은 9.1과 같은 형태이고 `weather` 외에는 `null`이다.
 
 ## 10. 에러 코드
 

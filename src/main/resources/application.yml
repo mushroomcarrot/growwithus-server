@@ -42,6 +42,16 @@ external:
 scheduler:
   enabled: ${SCHEDULER_ENABLED:true}
 
+# 기상청 단기예보 조회서비스 (docs/public-data.md). 인증키를 비워 두어도 부팅되고, 그때는 날씨 수집을 건너뛴다
+weather:
+  kma:
+    service-key: ${PUBLIC_DATA_SERVICE_KEY:}
+    max-attempts: ${KMA_MAX_ATTEMPTS:3}
+    retry-delay: ${KMA_RETRY_DELAY:1s}
+  sync:
+    # 농장 도메인이 붙기 전까지 수집할 격자. "nx:ny"를 콤마로 잇는다. 기본값은 용인시 처인구 대표 격자
+    default-grids: "${WEATHER_DEFAULT_GRIDS:64:119}"
+
 # LLM, STT, TTS. 제공자와 구현체가 정해질 때까지는 비워 두어도 부팅된다
 ai:
   llm:
