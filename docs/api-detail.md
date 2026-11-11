@@ -602,8 +602,15 @@ Refresh Token도 새로 발급하고 이전 토큰은 무효가 된다. 에러: 
 
 `POST /visits` | 권한 OWNER | 화면 DT_HARVEST
 
+| 필드 | 타입 | 필수 | 설명 |
+| --- | --- | --- | --- |
+| `gardenId` | String | O | |
+| `slotId` | String | O | |
+| `headcount` | Integer | X | 방문 인원, 1 이상. 생략하면 1명으로 저장한다 |
+| `memo` | String | X | |
+
 ```json
-// 요청
+// 요청 (인원 입력 화면이 없으면 headcount 생략)
 { "gardenId": "gdn_b14", "slotId": "slot_1128_10", "headcount": 3, "memo": "아이 둘이랑 가요" }
 
 // 응답
