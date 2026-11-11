@@ -4,17 +4,14 @@ import community.likelion.growwithusserver.common.response.GlobalResponse;
 import community.likelion.growwithusserver.common.security.AuthenticationToken;
 import community.likelion.growwithusserver.common.security.JwtTokenProvider;
 import community.likelion.growwithusserver.common.security.exception.TokenInvalidException;
-import community.likelion.growwithusserver.user.data.dto.request.PushTokenRequestDto;
 import community.likelion.growwithusserver.user.data.dto.request.RoleChangeRequestDto;
 import community.likelion.growwithusserver.user.data.dto.response.RoleChangeResponseDto;
 import community.likelion.growwithusserver.user.data.dto.response.UserMeResponseDto;
-import community.likelion.growwithusserver.user.data.entity.PushToken;
 import community.likelion.growwithusserver.user.data.entity.User;
 import community.likelion.growwithusserver.user.data.enums.NextStep;
 import community.likelion.growwithusserver.user.data.enums.UserRole;
 import community.likelion.growwithusserver.user.data.exception.RoleNotAllowedException;
 import community.likelion.growwithusserver.user.data.exception.UserNotFoundException;
-import community.likelion.growwithusserver.user.data.repository.PushTokenRepository;
 import community.likelion.growwithusserver.user.data.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,7 +21,6 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -32,7 +28,6 @@ import java.util.List;
 @Slf4j
 public class UserService {
     private final UserRepository userRepository;
-    private final PushTokenRepository pushTokenRepository;
     private final JwtTokenProvider tokenProvider;
 
     @Transactional(readOnly = true)
@@ -113,26 +108,5 @@ public class UserService {
                 .refreshToken(authenticationToken.getRefreshToken())
                 .nextStep(resolveNextStep(user))
                 .build());
-    }
-
-    @Transactional
-    public GlobalResponse<Void> registerPushToken(String username, PushTokenRequestDto pushTokenRequestDto) {
-        User user = getUserEntity(username);
-        LocalDateTime now = LocalDateTime.now();
-
-        PushToken pushToken = pushTokenRepository.findByToken(pushTokenRequestDto.getToken())
-                .orElseGet(() -> PushToken.builder()
-                        .token(pushTokenRequestDto.getToken())
-                        .createdAt(now)
-                        .build());
-
-        // 같은 토큰이 이미 있으면 (기기 재로그인 등) 소유 사용자만 갱신한다
-        pushToken.setUser(user);
-        pushToken.setPlatform(pushTokenRequestDto.getPlatform());
-        pushToken.setUpdatedAt(now);
-        pushTokenRepository.save(pushToken);
-        log.info("[registerPushToken] 푸시 토큰 등록: {} ({})", username, pushTokenRequestDto.getPlatform());
-
-        return GlobalResponse.ok();
     }
 }

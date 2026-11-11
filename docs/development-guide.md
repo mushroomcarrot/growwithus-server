@@ -107,7 +107,33 @@ public GlobalResponse<TaskPhotoResponseDto> uploadPhoto(@PathVariable String tas
 - `RestClient externalRestClient` 빈을 주입받아 `externalRestClient.mutate().baseUrl("https://...").build()`로 파생해서 쓴다. 타임아웃이 이미 걸려 있으므로 `RestClient.create()`나 `RestTemplate`을 새로 만들지 않는다
 - 외부 API 클라이언트는 그 데이터를 쓰는 도메인의 `client/` 패키지에 둔다 (예: `weather/client/KmaClient`)
 - API 키는 `${ENV_VAR}`로 받고 `.env.example`에 추가한다
+- 아직 만들어지지 않은 도메인이나 외부 서비스에 기대는 코드는 인터페이스와 기본 빈(`@ConditionalOnMissingBean`)으로 접점을 만든다 (`LlmClient`, `HarvestGardenReader`). 구현체를 `@Component`로 등록하면 기본 빈이 빠진다
 - LLM, STT, TTS는 `LlmClient`, `SttClient`, `TtsClient` 인터페이스로만 호출한다. 실패하면 `AiClientException`이 나오므로, 규칙 기반 대체가 있는 로직(오늘의 작업 생성 등)은 이 예외를 잡아 대체한다
+
+## 알림 발송
+
+알림은 `NotificationService.send(...)`만 호출한다. `Notification` 엔티티나 저장소를 도메인에서 직접 쓰지 않는다. 프론트가 웹이라 기기 푸시는 없고, 저장한 알림을 화면이 `GET /notifications`로 가져간다.
+
+```java
+notificationService.send(NotificationSendDto.builder()
+        .receiver(owner)                       // 수신자 User 엔티티
+        .type(NotificationType.CARE_DONE)
+        .title("순자 할머니가 토순이를 돌봤어요")
+        .body(careLog.getSummary())
+        .targetScreen("DT_DIARY")              // 눌렀을 때 이동할 화면 코드 (api-spec.md 3장). 없으면 생략
+        .targetId(IdPrefix.CARE_LOG.format(careLog.getId()))
+        .build());
+```
+
+- 호출한 서비스 메서드의 트랜잭션에 참여한다. 그 작업이 롤백되면 알림도 저장되지 않는다
+- 새 알림 종류가 필요하면 `NotificationType`에 추가하고 `api-detail.md` 7.1과 `architecture.md`의 표를 함께 고친다
+- 문구는 짧고 쉬운 말로 쓴다 (관리사 화면은 읽어주기를 쓴다)
+
+## 날씨 조회
+
+- 날씨가 필요하면 `WeatherService`만 쓴다. `WeatherForecastRepository`를 도메인에서 직접 보지 않는다. 그래야 시연 날씨 덮어쓰기(`PUT /demo/weather`)가 모든 화면에 똑같이 반영된다
+- 현재 날씨는 `getCurrentWeather(nx, ny)`, 시간대별 예보는 `getForecasts(...)`, 적산온도용 일별 기온은 `getDailyWeather(...)`
+- `getCurrentWeather`는 수집된 값이 없으면 비어 있다. 비어 있을 때의 처리를 호출한 쪽에서 정한다
 
 ## 배치 작업
 
@@ -222,6 +248,7 @@ log.error("[logout] 유효하지 않은 Access Token으로 로그아웃 시도")
 
 - `./gradlew build`는 DB 없이 실패한다. `./gradlew compileJava` 또는 `./gradlew build -x test`를 쓴다
 - DB가 필요 없는 단위 테스트는 `./gradlew test --tests 'community.likelion.growwithusserver.common.*'`처럼 패키지를 지정해 돌린다. 테스트 메서드 이름은 한국어로 써도 된다
+- 서비스 단위 테스트는 저장소를 Mockito(`@ExtendWith(MockitoExtension.class)`)로 대체해 DB 없이 돌게 쓴다 (예: `VisitServiceTest`)
 - jjwt는 0.12.x API다: `Jwts.builder().subject()`, `.signWith(key, Jwts.SIG.HS256)`, `Jwts.parser().verifyWith(key).build().parseSignedClaims()`. 구버전 `setSubject`/`parseClaimsJws`는 컴파일되지 않는다
 - Spring Boot 4의 Jackson은 `tools.jackson.databind.ObjectMapper`다 (`com.fasterxml` 아님)
 - prod는 `ddl-auto: validate`라 새 엔티티나 컬럼을 추가하면 prod DB 스키마도 직접 맞춰야 한다

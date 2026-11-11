@@ -11,8 +11,9 @@
 3. [docs/planning.md](docs/planning.md): 기획안 (문제 정의, 핵심 기능, 활용 데이터, 기술 구성, 시연 시나리오)
 4. [docs/commit-convention.md](docs/commit-convention.md): 커밋 메시지 컨벤션 (태그, 형식, 작성 규칙)
 5. [docs/github-convention.md](docs/github-convention.md): 브랜치 전략, Issue 및 PR 작성 가이드 (템플릿은 `.github/`)
-6. [docs/api-spec.md](docs/api-spec.md): 대신텃밭 API 명세 요약 (공통 규칙, 권한, enum, 화면 코드, API 54개, 핵심 로직, 시연 시나리오)
+6. [docs/api-spec.md](docs/api-spec.md): 대신텃밭 API 명세 요약 (공통 규칙, 권한, enum, 화면 코드, API 53개, 핵심 로직, 시연 시나리오)
 7. [docs/api-detail.md](docs/api-detail.md): API 상세 명세서 (엔드포인트별 요청, 응답 예시, 에러 코드)
+8. [docs/public-data.md](docs/public-data.md): 사용하는 공공데이터와 API 명세 (기상청 단기예보, 모범음식점, 농어촌체험휴양마을, 인증키 규칙, 처인구 격자와 실제 데이터)
 
 ## 문서 갱신 (필수)
 
@@ -27,7 +28,7 @@ Java 21, Spring Boot 4.1, Gradle, MariaDB, Redis, JWT (jjwt 0.12.x), Swagger
 
 1. `./gradlew compileJava`: 컴파일 확인
 2. `./gradlew build`는 DB 없이 실패한다 (`contextLoads`가 실제 MariaDB 연결 필요). DB 없이 빌드하려면 `./gradlew build -x test`
-3. DB 없이 도는 단위 테스트: `./gradlew test --tests 'community.likelion.growwithusserver.common.*'`
+3. DB 없이 도는 단위 테스트: `./gradlew test --tests 'community.likelion.growwithusserver.common.*'` (`common` 자리에 `notification`, `harvest`, `weather`, `demo`도 가능)
 
 ## 권한
 
@@ -47,6 +48,7 @@ Java 21, Spring Boot 4.1, Gradle, MariaDB, Redis, JWT (jjwt 0.12.x), Swagger
 4. 현재 사용자는 컨트롤러에서 `SecurityUtil.getUsername()`으로 가져와 서비스에 넘긴다
 5. API 경로는 `docs/api-spec.md` 그대로 쓴다. `/api/v1` 같은 접두어를 붙이지 않는다
 6. 페이지네이션, 파일 업로드, 외부 ID, 날짜 형식, 외부 API 호출, 배치는 `common`의 공통 모듈을 쓴다. 도메인마다 새로 만들지 않는다
+7. 알림은 `NotificationService.send(...)`로만 보내고, 날씨는 `WeatherService`로만 조회한다
 
 ## Git
 

@@ -1,6 +1,6 @@
 # 대신텃밭 API 명세 요약
 
-> 원본: Notion "API 명세서 (초안)" 데이터베이스 (API 54개). 필드 단위 Request, Response, Example은 Notion 각 페이지를 기준으로 한다.
+> 원본: Notion "API 명세서 (초안)" 데이터베이스 (API 54개). 이 문서는 쓰지 않는 푸시 토큰 등록을 뺀 53개를 담는다. 필드 단위 Request, Response, Example은 Notion 각 페이지를 기준으로 한다.
 >
 > 엔드포인트별 요청, 응답 필드는 [api-detail.md](api-detail.md)를 본다.
 
@@ -85,7 +85,6 @@
 | POST | /auth/logout | 로그아웃 | USER, OWNER, CARETAKER | DT_MY |
 | GET | /users/me | 내 정보와 역할 (홈 분기 기준) | USER, OWNER, CARETAKER | DT_LOGIN, DT_HOME, DT_CARE_TODAY, DT_MY |
 | PUT | /users/me/role | 역할 선택 및 변경 | USER, OWNER, CARETAKER | DT_ROLE, DT_MY |
-| POST | /users/me/push-tokens | 푸시 토큰 등록 | USER, OWNER, CARETAKER | DT_HOME, DT_CARE_TODAY |
 
 ### 4.2 Farm, Caretaker (10)
 
@@ -216,11 +215,16 @@
 
 명세를 기준으로 맞춰 나간다. 현재 코드 상태는 [architecture.md](architecture.md)를 본다.
 
-4.1 User의 8개 API는 명세대로 구현했다. 경로 접두어는 명세를 따라 `/api/v1` 없이 쓰기로 정했다.
+4.1 User의 8개, 4.4 Harvest의 5개, 4.6 Notification의 2개 API와 4.8 시연의 3개(state, weather, reset)를 구현했다. 경로 접두어는 명세를 따라 `/api/v1` 없이 쓰기로 정했다.
 
 | 항목 | 명세 | 현재 구현 |
 | --- | --- | --- |
 | ID 형식 | `usr_minji`처럼 읽기 쉬운 예시 ID | `usr_12`처럼 접두어에 숫자 PK를 붙인 문자열. 클라이언트는 ID를 불투명한 문자열로 다룬다 |
 | `/users/me`의 `owner`, `caretaker` | 프로필 요약 | 프로필 도메인 구현 전까지 `null` |
 | `nextStep`의 `OWNER_HOME`, `CARE_TODAY` | 프로필 등록 후 반환 | 프로필 도메인 구현 전까지 `PROFILE_OWNER`, `PROFILE_CARE`까지만 반환 |
-| 4.2 이후 API | 46개 | 미구현 (경로별 권한만 매핑됨) |
+| 4.4 Harvest | 텃밭 기준으로 동작 | 텃밭 도메인 구현 전까지 `/gardens/{gardenId}/harvest`, `visit-slots`, `outings`, `POST /visits`는 `C404` |
+| 방문 슬롯 ID | `slot_1128_10` | `slot_20261128_10` (연도 포함) |
+| 나들이 추천 | 체험농장, 식당 | 공공데이터에서 고른 처인구의 실제 장소 7곳을 시드로 넣는다 ([public-data.md](public-data.md)) |
+| 푸시 | 알림과 함께 기기 푸시 발송 | 프론트가 웹이라 기기 푸시는 없다. 알림은 저장만 하고 화면이 `GET /notifications`를 다시 조회해 확인한다. `POST /users/me/push-tokens`는 삭제했다 |
+| 4.8 시연 | 날씨, 작업 재생성, 빨리 감기, 초기화 | 날씨 덮어쓰기와 초기화(날씨만) 동작. `POST /demo/fast-forward` 없음 |
+| 그 외 API | 35개 (4.2, 4.3, 4.5, `/internal/weather/sync`를 뺀 4.7, `/demo/fast-forward`) | 미구현 (경로별 권한만 매핑됨) |
