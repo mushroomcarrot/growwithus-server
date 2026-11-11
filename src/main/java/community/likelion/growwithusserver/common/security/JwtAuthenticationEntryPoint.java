@@ -4,7 +4,6 @@ import tools.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import community.likelion.growwithusserver.common.response.ErrorCode;
-import community.likelion.growwithusserver.common.response.GlobalResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
@@ -19,9 +18,6 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException) throws IOException {
-        response.setContentType("application/json;charset=UTF-8");
-        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        GlobalResponse<?> errorResponse = GlobalResponse.error(ErrorCode.VERIFICATION_INVALID);
-        response.getWriter().write(objectMapper.writeValueAsString(errorResponse));
+        SecurityErrorWriter.write(response, objectMapper, ErrorCode.VERIFICATION_INVALID);
     }
 }

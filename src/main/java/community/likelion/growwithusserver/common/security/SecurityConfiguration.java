@@ -20,6 +20,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
 
@@ -32,6 +33,7 @@ public class SecurityConfiguration {
     private final JwtTokenProvider tokenProvider;
     private final AuthenticationEntryPoint authenticationEntryPoint;
     private final AccessDeniedHandler accessDeniedHandler;
+    private final ObjectMapper objectMapper;
 
     private static final String USER = "USER";
     private static final String OWNER = "OWNER";
@@ -41,6 +43,12 @@ public class SecurityConfiguration {
 
     @Value("${cors.allowed-origins}")
     private List<String> allowedOrigins;
+
+    @Value("${internal.service-key}")
+    private String internalServiceKey;
+
+    @Value("${demo.enabled}")
+    private boolean demoEnabled;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
@@ -70,6 +78,11 @@ public class SecurityConfiguration {
                                 "/swagger-resources/**",
                                 "/webjars/**"
                         ).permitAll()
+                        // 로컬 저장소에 올린 파일 (file.storage=local)
+                        .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
+                        // 내부 배치, 시연: 헤더 검증은 InternalServiceKeyFilter, DemoModeFilter가 한다
+                        .requestMatchers("/internal/**").hasRole("SYSTEM")
+                        .requestMatchers("/demo/**").hasRole("DEMO")
                         // User
                         .requestMatchers(HttpMethod.POST, "/auth/signup", "/auth/login", "/auth/refresh").permitAll()
                         .requestMatchers(HttpMethod.GET, "/auth/username-check").permitAll()
@@ -104,6 +117,14 @@ public class SecurityConfiguration {
 
         httpSecurity.addFilterBefore(
                 new JwtAuthenticationFilter(tokenProvider),
+                UsernamePasswordAuthenticationFilter.class
+        );
+        httpSecurity.addFilterBefore(
+                new InternalServiceKeyFilter(internalServiceKey, objectMapper),
+                UsernamePasswordAuthenticationFilter.class
+        );
+        httpSecurity.addFilterBefore(
+                new DemoModeFilter(demoEnabled, objectMapper),
                 UsernamePasswordAuthenticationFilter.class
         );
 

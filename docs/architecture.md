@@ -2,7 +2,7 @@
 
 > 코드의 현재 상태를 그대로 기록한 문서다. 기능을 추가하거나 바꾸면 이 문서도 함께 갱신한다 ([development-guide.md](development-guide.md#문서-갱신-규칙)).
 >
-> 마지막 갱신: 2026-11-11, 인증 및 사용자 API를 명세에 맞춤 (아이디 로그인, 역할 선택, nextStep, 경로 접두어 제거), product 예제 도메인 삭제
+> 마지막 갱신: 2026-11-11, 공통 모듈 추가 (커서 페이지네이션, 파일 업로드, 내부 및 시연 API 필터, 외부 ID, 날짜 직렬화, 외부 API 클라이언트, AI 클라이언트 인터페이스, 스케줄러)
 
 ## 한눈에 보기
 
@@ -16,7 +16,9 @@
 | 인증 | JWT (jjwt 0.12.6, HS256), Stateless |
 | API 문서 | springdoc-openapi 3.0.3 (`/swagger-ui.html`) |
 | 베이스 패키지 | `community.likelion.growwithusserver` |
-| 시간대 | JVM 기본 `Asia/Seoul` (`GrowwithusServerApplication.main`에서 `TimeZone.setDefault`) |
+| 시간대 | JVM 기본 `Asia/Seoul` (`GrowwithusServerApplication.main`에서 `TimeZone.setDefault`), Jackson도 `Asia/Seoul` |
+| 외부 호출 | `RestClient` (JDK `HttpClient`, 연결 3초, 읽기 30초 타임아웃) |
+| 스케줄러 | `@EnableScheduling` (`scheduler.enabled`로 끌 수 있음) |
 | 앱 클래스 | `GrowwithusServerApplication` |
 
 ## 패키지 구조
@@ -25,6 +27,30 @@
 community.likelion.growwithusserver/
 ├── GrowwithusServerApplication.java  # main()에서 JVM 기본 시간대를 Asia/Seoul로 고정
 ├── common/                         # 공통 모듈 (도메인에 의존하지 않음, 예외: JwtTokenProvider가 UserRepository 참조)
+│   ├── ai/
+│   │   ├── LlmClient, SttClient, TtsClient  # AI 호출 공통 인터페이스
+│   │   ├── AiProperties            # ai.llm, ai.stt, ai.tts 설정 (apiKey, baseUrl, model, voice)
+│   │   ├── AiClientConfiguration   # 구현체가 없을 때 쓰는 기본 빈 (항상 AiClientException)
+│   │   └── AiClientException       # C502
+│   ├── file/
+│   │   ├── FileUploadService       # uploadImage / uploadAudio: 검증 후 저장, URL 반환
+│   │   ├── FileStorage             # 저장소 추상화 (store)
+│   │   ├── LocalFileStorage        # 로컬 디스크 구현 (file.storage=local)
+│   │   ├── FileWebConfiguration    # 로컬 저장 파일을 /uploads/**로 제공
+│   │   ├── AudioDurationReader     # wav, m4a 헤더에서 재생 길이 읽기
+│   │   └── exception/              # FileNotSupportedException (C4001), FileUploadFailedException (C5001)
+│   ├── http/
+│   │   └── RestClientConfiguration # externalRestClient 빈 (타임아웃 설정)
+│   ├── id/
+│   │   ├── IdPrefix                # 외부 ID 형식 (usr_12): format / parse
+│   │   └── InvalidIdException      # C002
+│   ├── pagination/
+│   │   ├── CursorPageRequest       # 쿼리 cursor, limit (기본 20, 1~50)
+│   │   └── CursorPageResponse<T>   # {items, nextCursor}
+│   ├── scheduler/
+│   │   └── SchedulingConfiguration # @EnableScheduling
+│   ├── time/
+│   │   └── DateTimes               # LocalDateTime을 +09:00 OffsetDateTime으로 변환
 │   ├── redis/
 │   │   ├── RedisConfiguration      # RedisTemplate<String, Object>, 키와 값 모두 String 직렬화
 │   │   └── RedisService            # setValues / getValues / deleteValues / hasKey
@@ -38,6 +64,9 @@ community.likelion.growwithusserver/
 │   │   ├── SecurityConfiguration   # 필터 체인, 경로 권한, CORS, RoleHierarchy, PasswordEncoder
 │   │   ├── JwtTokenProvider        # 토큰 발급, 검증, 블랙리스트, Redis RT 저장
 │   │   ├── JwtAuthenticationFilter # Authorization 헤더를 읽어 SecurityContext에 등록
+│   │   ├── InternalServiceKeyFilter # /internal/**: X-Service-Key 검증 후 ROLE_SYSTEM 부여
+│   │   ├── DemoModeFilter          # /demo/**: X-Demo-Mode: true 검증 후 ROLE_DEMO 부여
+│   │   ├── SecurityErrorWriter     # 필터 단계의 GlobalResponse 에러 응답 작성
 │   │   ├── JwtAuthenticationEntryPoint  # 401 응답 (C4011)
 │   │   ├── JwtAccessDeniedHandler  # 403 응답 (C403, 역할 미선택 사용자는 C4031)
 │   │   ├── SecurityUtil            # getUsername(): 현재 사용자 로그인 아이디
@@ -81,23 +110,35 @@ community.likelion.growwithusserver/
 | 순서 | 경로 | 권한 |
 | --- | --- | --- |
 | 1 | `/swagger-ui/**`, `/v3/api-docs/**`, `/swagger-resources/**`, `/webjars/**` | 공개 |
-| 2 | POST `/auth/signup`, `/auth/login`, `/auth/refresh`, GET `/auth/username-check` | 공개 |
-| 3 | `/auth/logout` | USER, OWNER, CARETAKER |
-| 4 | `/users/me/badges` | OWNER |
-| 5 | `/users/me/**` | USER, OWNER, CARETAKER |
-| 6 | `/farms/*/plots/**` | USER, OWNER |
-| 7 | `/farms/**`, `/crops/**` | USER, OWNER, CARETAKER |
-| 8 | POST `/owners/me/profile` | USER, OWNER |
-| 9 | `/owners/**` | OWNER |
-| 10 | POST `/caretakers/me/profile` | USER, CARETAKER |
-| 11 | `/caretakers/**` | CARETAKER |
-| 12 | `/tts` | USER, CARETAKER |
-| 13 | `/caretaker/**`, `/gardens/*/stage-checks` | CARETAKER |
-| 14 | `/gardens/**`, `/care-logs/**`, `/events/**`, `/leagues/**`, `/quests/**`, `/quizzes/**`, `/visits/**` | OWNER |
-| 15 | `/notifications/**` | OWNER, CARETAKER |
-| 16 | 그 외 모든 경로 | 인증만 필요 |
+| 2 | GET `/uploads/**` | 공개 (로컬 저장소 파일) |
+| 3 | `/internal/**` | SYSTEM (`X-Service-Key` 헤더) |
+| 4 | `/demo/**` | DEMO (`X-Demo-Mode: true` 헤더) |
+| 5 | POST `/auth/signup`, `/auth/login`, `/auth/refresh`, GET `/auth/username-check` | 공개 |
+| 6 | `/auth/logout` | USER, OWNER, CARETAKER |
+| 7 | `/users/me/badges` | OWNER |
+| 8 | `/users/me/**` | USER, OWNER, CARETAKER |
+| 9 | `/farms/*/plots/**` | USER, OWNER |
+| 10 | `/farms/**`, `/crops/**` | USER, OWNER, CARETAKER |
+| 11 | POST `/owners/me/profile` | USER, OWNER |
+| 12 | `/owners/**` | OWNER |
+| 13 | POST `/caretakers/me/profile` | USER, CARETAKER |
+| 14 | `/caretakers/**` | CARETAKER |
+| 15 | `/tts` | USER, CARETAKER |
+| 16 | `/caretaker/**`, `/gardens/*/stage-checks` | CARETAKER |
+| 17 | `/gardens/**`, `/care-logs/**`, `/events/**`, `/leagues/**`, `/quests/**`, `/quizzes/**`, `/visits/**` | OWNER |
+| 18 | `/notifications/**` | OWNER, CARETAKER |
+| 19 | 그 외 모든 경로 | 인증만 필요 |
 
-ADMIN은 RoleHierarchy로 위 모든 권한을 갖는다. `/internal/**`, `/demo/**`는 아직 매핑하지 않았다 (공통 모듈 작업에서 추가).
+ADMIN은 RoleHierarchy로 USER, OWNER, CARETAKER 권한을 갖는다. SYSTEM, DEMO는 `UserRole`이 아니고 필터가 헤더를 확인해 부여하는 권한이라 ADMIN도 헤더가 있어야 한다.
+
+### 내부 배치, 시연 API
+
+| 경로 | 필터 | 통과 조건 | 실패 응답 | principal |
+| --- | --- | --- | --- | --- |
+| `/internal/**` | `InternalServiceKeyFilter` | `X-Service-Key` 헤더가 `internal.service-key`와 같음. 서버에 키가 비어 있으면 항상 거부 | 401 `C4014` | `system` (`ROLE_SYSTEM`) |
+| `/demo/**` | `DemoModeFilter` | `demo.enabled=true`이고 `X-Demo-Mode: true` 헤더가 있음 | 403 `C4032` | `demo` (`ROLE_DEMO`) |
+
+JWT가 함께 와도 이 경로에서는 헤더 검증 결과가 인증을 대신한다. 아직 `/internal`, `/demo` 컨트롤러는 없다.
 
 ### DTO
 
@@ -115,6 +156,56 @@ ADMIN은 RoleHierarchy로 위 모든 권한을 갖는다. `/internal/**`, `/demo
 | `RoleChangeResponseDto` | `role`, `accessToken`, `refreshToken`, `nextStep` |
 
 `userId`는 `usr_` 접두어에 PK를 붙인 문자열이다 (예: `usr_12`, `User.getPublicId()`).
+
+## 공통 모듈
+
+### 외부 ID (`IdPrefix`)
+
+명세의 접두어 ID 형식을 쓰기로 정했다 (2026-11-11). DB PK는 `Long`(IDENTITY) 그대로 두고, API로 주고받을 때만 `IdPrefix.XXX.format(id)`로 `접두어_숫자` 문자열을 만든다. 받을 때는 `IdPrefix.XXX.parse(publicId)`로 PK를 얻고 형식이 틀리면 `C002`다. 명세 예시의 `usr_minji`, `gdn_b14` 같은 값은 예시일 뿐이고 실제 값은 `usr_12`, `gdn_3`처럼 나간다.
+
+| `IdPrefix` | 접두어 | `IdPrefix` | 접두어 |
+| --- | --- | --- | --- |
+| `USER` | `usr` | `CARE_LOG` | `cl` |
+| `GARDEN` | `gdn` | `VOICE_MEMO` | `vm` |
+| `FARM` | `farm` | `PHOTO` | `pht` |
+| `CARETAKER` | `crt` | `EVENT` | `evt` |
+| `TASK` | `tsk` | `VISIT` | `vst` |
+
+### 커서 페이지네이션
+
+| 클래스 | 내용 |
+| --- | --- |
+| `CursorPageRequest` | 쿼리 `cursor`(생략 시 첫 페이지), `limit`(기본 20, 1~50, 위반 시 `C002`). `getFetchSize()`는 limit + 1, `getCursorId(IdPrefix)`는 커서를 PK로 변환 |
+| `CursorPageResponse<T>` | `items`, `nextCursor`(마지막 페이지면 `null`). `of(limit + 1건 조회 결과, limit, 커서 추출 함수)`로 만들고 `map`으로 DTO 변환 |
+
+`nextCursor`는 이번 페이지 마지막 항목의 외부 ID다. 사용 예시는 [development-guide.md](development-guide.md#커서-페이지네이션)를 본다.
+
+### 파일 업로드
+
+| 항목 | 내용 |
+| --- | --- |
+| 진입점 | `FileUploadService.uploadImage(MultipartFile, directory)`, `uploadAudio(MultipartFile, directory)`. 반환값은 업로드 URL |
+| 사진 검증 | 확장자 jpg, jpeg, png이고 파일 앞부분(매직 넘버)이 실제 JPEG, PNG여야 함. 10MB 이하 |
+| 음성 검증 | 확장자 m4a, wav. 헤더에서 읽은 길이가 60초 이하 (wav는 `data` 크기와 초당 바이트 수, m4a는 `mvhd` 박스). 길이를 읽을 수 없으면 거부. 20MB 이하 |
+| 위반 시 | `C4001` (multipart 상한 초과도 `C4001`) |
+| 저장 | 원본 이름 대신 `UUID.확장자`로 `FileStorage.store` 호출 |
+| 저장소 | `FileStorage` 인터페이스. 현재 구현은 `LocalFileStorage` (`file.storage=local`): `file.upload-dir/{directory}/{파일}`에 저장하고 `file.base-url/uploads/{directory}/{파일}`을 돌려줌. S3는 구현체를 추가하고 `file.storage` 값으로 고른다 |
+| multipart 상한 | 파일 20MB, 요청 25MB (`spring.servlet.multipart`) |
+
+### 날짜와 시각 직렬화
+
+- `LocalDate`는 `YYYY-MM-DD`, `OffsetDateTime`은 `2026-11-10T09:30:00+09:00` 형식으로 나간다 (`spring.jackson.time-zone=Asia/Seoul`, `write-dates-with-context-time-zone=true`).
+- 다른 오프셋으로 들어온 시각도 +09:00으로 바꿔 읽고 쓴다.
+- 엔티티의 `LocalDateTime`을 응답에 담을 때는 `DateTimes.toOffset(...)`으로 `OffsetDateTime`으로 바꾼다 (초 단위로 자름).
+
+### 외부 API, AI 클라이언트
+
+- `externalRestClient` (`RestClient`): 연결 타임아웃 `external.http.connect-timeout`(3초), 읽기 타임아웃 `external.http.read-timeout`(30초). 도메인 클라이언트는 `externalRestClient.mutate().baseUrl(...).build()`로 파생해서 쓴다.
+- `LlmClient.complete(systemPrompt, userPrompt)`, `SttClient.transcribe(audio, filename)`, `TtsClient.synthesize(text)`: 인터페이스만 있다. 제공자가 정해지지 않아 구현체는 아직 없고, 기본 빈은 호출 즉시 `AiClientException`(`C502`)을 던진다. 구현체를 `@Component`로 등록하면 기본 빈은 자동으로 빠진다.
+
+### 스케줄러
+
+`SchedulingConfiguration`이 `@EnableScheduling`을 켠다. `scheduler.enabled=false`면 `@Scheduled`가 돌지 않는다. 배치 작업 구조는 [development-guide.md](development-guide.md#배치-작업)를 본다. 아직 등록된 배치 작업은 없다.
 
 ### 응답 형식
 
@@ -227,22 +318,27 @@ ADMIN은 RoleHierarchy로 위 모든 권한을 갖는다. `/internal/**`, `/demo
 | ErrorCode | code | HTTP | 메시지 | 사용처 |
 | --- | --- | --- | --- | --- |
 | `INVALID_REQUEST` | C001 | 400 | 잘못된 요청입니다. | 미사용 |
-| `INVALID_PARAMETER` | C002 | 400 | 유효하지 않은 파라미터입니다. | `@Valid` 검증 실패, 읽을 수 없는 본문 (잘못된 enum 값 포함), 필수 쿼리 누락, `RoleNotAllowedException` |
+| `INVALID_PARAMETER` | C002 | 400 | 유효하지 않은 파라미터입니다. | `@Valid` 검증 실패, 읽을 수 없는 본문 (잘못된 enum 값 포함), 필수 쿼리 누락, `RoleNotAllowedException`, `InvalidIdException` |
+| `FILE_NOT_SUPPORTED` | C4001 | 400 | 지원하지 않는 파일입니다. | `FileNotSupportedException` (형식, 크기, 길이 위반), multipart 상한 초과 |
 | `VERIFICATION_INVALID` | C4011 | 401 | 인증 정보가 유효하지 않습니다. | EntryPoint (미인증 접근), `AuthenticationInfoException` |
 | `PASSWORD_INVALID` | C4012 | 401 | 비밀번호가 일치하지 않습니다. | `PasswordInvalidException` |
 | `TOKEN_INVALID` | C4013 | 401 | 유효하지 않은 토큰입니다. | `TokenInvalidException` |
+| `SERVICE_KEY_INVALID` | C4014 | 401 | 서비스 키가 유효하지 않습니다. | `InternalServiceKeyFilter` |
 | `ACCESS_DENIED` | C403 | 403 | 승인되지 않은 사용자입니다. | AccessDeniedHandler (권한 부족) |
 | `ROLE_NOT_SELECTED` | C4031 | 403 | 역할을 먼저 선택해야 합니다. | AccessDeniedHandler (역할 선택 전 `USER`의 접근) |
+| `DEMO_MODE_REQUIRED` | C4032 | 403 | 시연 모드에서만 사용할 수 있습니다. | `DemoModeFilter` (헤더 없음 또는 비활성화) |
 | `USER_DATA_NOT_FOUND` | C4041 | 404 | 사용자를 찾을 수 없습니다. | `UserNotFoundException` |
 | `DATA_NOT_FOUND` | C404 | 404 | 정보를 불러올 수 없습니다. | 매핑되지 않은 경로 (`NoResourceFoundException`), 단순 조회 실패 |
 | `USERNAME_DUPLICATION` | C4092 | 409 | 이미 사용 중인 아이디입니다. | `UsernameDuplicationException` |
 | `UNKNOWN_ERROR` | C500 | 500 | 오류가 발생하였습니다. | 처리되지 않은 모든 예외 |
+| `FILE_UPLOAD_FAILED` | C5001 | 500 | 파일 저장에 실패했습니다. | `FileUploadFailedException` |
+| `EXTERNAL_API_ERROR` | C502 | 502 | 외부 서비스 호출에 실패했습니다. | `AiClientException` |
 
 ## 설정
 
 | 파일 | 내용 |
 | --- | --- |
-| `application.yml` | 공통: `.env` import(`optional:file:.env[.properties]`), 활성 프로필(`SPRING_PROFILES_ACTIVE`, 기본 `local`), JPA open-in-view off, JWT 만료 시간, Swagger 경로 |
+| `application.yml` | 공통: `.env` import(`optional:file:.env[.properties]`), 활성 프로필(`SPRING_PROFILES_ACTIVE`, 기본 `local`), JPA open-in-view off, multipart 상한, Jackson 시간대, JWT 만료 시간, 파일 저장소 종류, 외부 호출 타임아웃, 스케줄러, AI 설정, Swagger 경로 |
 | `application-local.yml` | 모든 값에 개발용 기본값, `ddl-auto: update`, SQL 로그 on |
 | `application-prod.yml` | 기본값 없음 (누락 시 부팅 실패), `ddl-auto: validate`, SQL 로그 off |
 | `.env.example` | 환경변수 목록과 로컬 기본값. `.env`로 복사해서 쓰고, `.env`는 `.gitignore`에 포함 |
@@ -262,6 +358,18 @@ ADMIN은 RoleHierarchy로 위 모든 권한을 갖는다. `/internal/**`, `/demo
 | `JWT_ACCESS_TOKEN_EXPIRE_TIME` | `3600000` (1시간) | ms |
 | `JWT_REFRESH_TOKEN_EXPIRE_TIME` | `604800000` (7일) | ms |
 | `CORS_ALLOWED_ORIGINS` | `*` | 콤마 구분, `allowedOriginPatterns`로 적용 |
+| `INTERNAL_SERVICE_KEY` | `local-internal-service-key` | `/internal/**`의 `X-Service-Key` 값. **배포 전 반드시 교체** |
+| `DEMO_ENABLED` | `true` | `/demo/**` 사용 여부. prod에서 `false`로 두면 시연 API가 모두 막힌다 |
+| `SCHEDULER_ENABLED` | `true` | `@Scheduled` 사용 여부 (prod에도 같은 기본값) |
+| `FILE_STORAGE` | `local` | 파일 저장소 구현체 (prod에도 같은 기본값) |
+| `FILE_UPLOAD_DIR` | `./uploads` | 로컬 저장소 폴더. `.gitignore`에 포함 |
+| `FILE_BASE_URL` | `http://localhost:8080` | 업로드 URL 앞에 붙는 서버 주소 |
+| `EXTERNAL_HTTP_CONNECT_TIMEOUT`, `EXTERNAL_HTTP_READ_TIMEOUT` | `3s`, `30s` | 외부 API 호출 타임아웃 (prod에도 같은 기본값) |
+| `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL` | (없음) | LLM 연결 설정. 비워 두어도 부팅된다 |
+| `STT_API_KEY`, `STT_BASE_URL`, `STT_MODEL` | (없음) | STT 연결 설정 |
+| `TTS_API_KEY`, `TTS_BASE_URL`, `TTS_MODEL`, `TTS_VOICE` | (없음) | TTS 연결 설정 |
+
+prod에서 기본값이 없어 반드시 넣어야 하는 값: DB, Redis, `JWT_SECRET_KEY`, `CORS_ALLOWED_ORIGINS`, `INTERNAL_SERVICE_KEY`, `DEMO_ENABLED`, `FILE_UPLOAD_DIR`, `FILE_BASE_URL`.
 
 ## 로컬 실행
 
@@ -274,6 +382,7 @@ docker run -d -p 6379:6379 redis:7
 
 - 컴파일만: `./gradlew compileJava`
 - DB 없이 빌드: `./gradlew build -x test` (`contextLoads` 테스트가 실제 MariaDB를 요구)
+- DB 없이 도는 단위 테스트만: `./gradlew test --tests 'community.likelion.growwithusserver.common.*'`
 - Swagger: http://localhost:8080/swagger-ui.html
 
 ## 알려진 이슈 / 결정 대기
@@ -286,4 +395,6 @@ docker run -d -p 6379:6379 redis:7
 | prod `ddl-auto: validate` | 스키마 자동 생성 안 함 | prod DB에 테이블을 미리 만들어야 부팅됨 (마이그레이션 도구 없음) |
 | `@CreatedDate` 미동작 | `@EnableJpaAuditing` 없음 | 감사 필드는 서비스에서 `LocalDateTime.now()`로 직접 채운다 |
 | 검증 실패 메시지 | 클라이언트에는 C002 고정 메시지만 반환 | 어떤 필드가 틀렸는지는 서버 로그에만 남음 |
-| 테스트 | `contextLoads` 하나뿐 | |
+| 테스트 | `contextLoads`와 `common` 단위 테스트 (페이지네이션, ID, 파일 검증, 필터, 날짜 직렬화) | 도메인 테스트는 없음 |
+| AI 클라이언트 구현체 | 제공자 미정, 인터페이스와 기본 빈만 있음 | `LlmClient`, `SttClient`, `TtsClient` 호출은 항상 `C502`. 제공자가 정해지면 구현체를 추가한다 |
+| 파일 저장소 | 로컬 디스크만 구현 | 서버를 여러 대 띄우거나 재배포로 디스크가 초기화되면 파일이 사라진다. 필요하면 S3 구현체를 추가한다 |

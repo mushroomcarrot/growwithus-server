@@ -39,6 +39,12 @@
 - 다른 도메인의 사용자 엔티티가 필요하면 `UserService.getUserEntity(username)`을 쓴다
 - `nextStep`은 `UserService.resolveNextStep(user)`로만 계산한다. 다른 곳에서 같은 분기를 다시 만들지 않는다
 
+## 외부 ID
+
+- DB PK는 `Long`으로 두고, API로 주고받는 ID는 `IdPrefix`로 `접두어_숫자` 문자열을 만든다 (예: `IdPrefix.GARDEN.format(garden.getId())`는 `gdn_3`)
+- 경로 변수나 본문으로 받은 ID는 `IdPrefix.GARDEN.parse(gardenId)`로 PK를 얻는다. 형식이 틀리면 C002가 나간다
+- 새 종류의 ID가 필요하면 `IdPrefix`에 항목을 추가한다
+
 ## 응답
 
 - 컨트롤러는 `ResponseEntity`가 아니라 `GlobalResponse<T>`를 직접 반환한다. 상태 코드는 예외 핸들러가 정한다
@@ -49,6 +55,93 @@ public GlobalResponse<OrderResponseDto> getOrder(@RequestParam Long id) {
     return orderService.getOrder(id);
 }
 ```
+
+## 커서 페이지네이션
+
+목록 API는 `CursorPageRequest`로 받고 `CursorPageResponse<T>`로 돌려준다. 다음 페이지가 있는지는 한 건 더 조회해서(limit + 1) 판단한다.
+
+```java
+// Controller
+@GetMapping("/gardens/{gardenId}/diary")
+public GlobalResponse<CursorPageResponse<DiaryItemDto>> getDiary(@PathVariable String gardenId,
+                                                                 @Valid @ModelAttribute CursorPageRequest pageRequest) {
+    return diaryService.getDiary(SecurityUtil.getUsername(), gardenId, pageRequest);
+}
+
+// Service: 최신순(id 내림차순), cursor보다 작은 id부터 limit + 1건 조회
+Long cursorId = pageRequest.getCursorId(IdPrefix.CARE_LOG);   // 첫 페이지면 null
+List<CareLog> fetched = careLogRepository.findPage(garden, cursorId, PageRequest.of(0, pageRequest.getFetchSize()));
+
+CursorPageResponse<DiaryItemDto> page = CursorPageResponse
+        .of(fetched, pageRequest.getLimit(), careLog -> IdPrefix.CARE_LOG.format(careLog.getId()))
+        .map(DiaryItemDto::from);
+return GlobalResponse.ok(page);
+
+// Repository
+@Query("select c from CareLog c where c.garden = :garden and (:cursorId is null or c.id < :cursorId) order by c.id desc")
+List<CareLog> findPage(Garden garden, Long cursorId, Pageable pageable);
+```
+
+## 파일 업로드
+
+- `multipart/form-data`로 받은 `MultipartFile`을 `FileUploadService.uploadImage(file, "care-photos")` 또는 `uploadAudio(file, "voice-memos")`에 넘기면 검증 후 저장하고 URL을 돌려준다
+- 형식, 크기, 길이 검증은 `FileUploadService`가 한다. 도메인에서 다시 검사하지 않는다 (위반 시 C4001)
+- `directory`는 도메인별로 고정된 이름을 쓴다. 사용자 입력을 넣지 않는다
+- 저장소를 직접 다루지 않는다. `FileStorage`는 `FileUploadService`만 쓴다
+
+```java
+@PostMapping(value = "/caretaker/tasks/{taskId}/photos", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+public GlobalResponse<TaskPhotoResponseDto> uploadPhoto(@PathVariable String taskId, @RequestPart("file") MultipartFile file) {
+    return taskService.uploadPhoto(SecurityUtil.getUsername(), taskId, file);
+}
+```
+
+## 날짜와 시각
+
+- 응답 DTO의 날짜는 `LocalDate`, 시각은 `OffsetDateTime`으로 둔다. 각각 `YYYY-MM-DD`, `2026-11-10T09:30:00+09:00`으로 나간다
+- 엔티티의 `LocalDateTime`은 `DateTimes.toOffset(entity.getCreatedAt())`로 바꿔 담는다. 응답 DTO에 `LocalDateTime`을 그대로 두면 오프셋이 빠진다
+- `@JsonFormat`으로 필드마다 형식을 따로 정하지 않는다
+
+## 외부 API 호출
+
+- `RestClient externalRestClient` 빈을 주입받아 `externalRestClient.mutate().baseUrl("https://...").build()`로 파생해서 쓴다. 타임아웃이 이미 걸려 있으므로 `RestClient.create()`나 `RestTemplate`을 새로 만들지 않는다
+- 외부 API 클라이언트는 그 데이터를 쓰는 도메인의 `client/` 패키지에 둔다 (예: `weather/client/KmaClient`)
+- API 키는 `${ENV_VAR}`로 받고 `.env.example`에 추가한다
+- LLM, STT, TTS는 `LlmClient`, `SttClient`, `TtsClient` 인터페이스로만 호출한다. 실패하면 `AiClientException`이 나오므로, 규칙 기반 대체가 있는 로직(오늘의 작업 생성 등)은 이 예외를 잡아 대체한다
+
+## 배치 작업
+
+배치 로직은 서비스 메서드 하나에 두고, 스케줄러와 내부 API가 같은 메서드를 호출한다. 스케줄러나 컨트롤러에 로직을 쓰지 않는다.
+
+```java
+// 로직: 서비스
+@Service
+public class WeatherSyncService {
+    @Transactional
+    public WeatherSyncResponseDto sync(List<String> farmIds) { ... }
+}
+
+// 주기 실행: <domain>/scheduler
+@Component
+@RequiredArgsConstructor
+public class WeatherSyncScheduler {
+    private final WeatherSyncService weatherSyncService;
+
+    @Scheduled(cron = "0 0 * * * *")   // 1시간마다. 시간대는 JVM 기본(Asia/Seoul)
+    public void run() {
+        weatherSyncService.sync(List.of());
+    }
+}
+
+// 수동 실행: /internal 컨트롤러 (X-Service-Key 검증은 필터가 한다)
+@PostMapping("/internal/weather/sync")
+public GlobalResponse<WeatherSyncResponseDto> sync(@RequestBody(required = false) WeatherSyncRequestDto request) {
+    return GlobalResponse.ok(weatherSyncService.sync(request == null ? List.of() : request.getFarmIds()));
+}
+```
+
+- `/internal/**`와 `/demo/**`의 헤더 검증과 권한은 필터와 `SecurityConfiguration`에 이미 있다. 컨트롤러에서 헤더를 다시 확인하지 않는다
+- 스케줄러 메서드는 예외가 밖으로 나가면 로그만 남고 끝난다. 실패를 알아야 하면 서비스에서 로그를 남긴다
 
 ## 예외
 
@@ -121,13 +214,14 @@ log.error("[logout] 유효하지 않은 Access Token으로 로그아웃 시도")
 
 - 공통은 `application.yml`, 프로필별 값은 `application-local.yml` / `application-prod.yml`
 - 모든 값은 `${ENV_VAR:기본값}` 형태로 환경변수 우선
-- prod에는 기본값을 두지 않는다. 누락되면 부팅이 실패하는 편이 낫다
+- prod에는 기본값을 두지 않는다. 누락되면 부팅이 실패하는 편이 낫다. 예외: 환경과 무관한 튜닝 값(타임아웃, 스케줄러 사용 여부, 저장소 종류)과 아직 제공자가 정해지지 않은 AI 설정은 `application.yml`에 기본값을 둔다
 - 새 환경변수를 추가하면 `.env.example`에도 추가한다. 비밀 값은 주석 처리한 줄과 생성 방법을 적는다
 - 날짜와 시간은 JVM 기본 시간대(Asia/Seoul)를 따른다. 코드에서 `ZoneId`를 따로 하드코딩하지 않는다
 
 ## 주의할 점
 
 - `./gradlew build`는 DB 없이 실패한다. `./gradlew compileJava` 또는 `./gradlew build -x test`를 쓴다
+- DB가 필요 없는 단위 테스트는 `./gradlew test --tests 'community.likelion.growwithusserver.common.*'`처럼 패키지를 지정해 돌린다. 테스트 메서드 이름은 한국어로 써도 된다
 - jjwt는 0.12.x API다: `Jwts.builder().subject()`, `.signWith(key, Jwts.SIG.HS256)`, `Jwts.parser().verifyWith(key).build().parseSignedClaims()`. 구버전 `setSubject`/`parseClaimsJws`는 컴파일되지 않는다
 - Spring Boot 4의 Jackson은 `tools.jackson.databind.ObjectMapper`다 (`com.fasterxml` 아님)
 - prod는 `ddl-auto: validate`라 새 엔티티나 컬럼을 추가하면 prod DB 스키마도 직접 맞춰야 한다

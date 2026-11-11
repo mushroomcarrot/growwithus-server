@@ -1,5 +1,6 @@
 package community.likelion.growwithusserver.user.data.entity;
 
+import community.likelion.growwithusserver.common.id.IdPrefix;
 import jakarta.persistence.*;
 import community.likelion.growwithusserver.user.data.enums.UserRole;
 import lombok.AllArgsConstructor;
@@ -23,7 +24,6 @@ import java.util.List;
 @Table(name = "user")
 public class User implements UserDetails {
     private static final long serialVersionUID = 6014984039564979072L;
-    private static final String PUBLIC_ID_PREFIX = "usr_";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -58,7 +58,7 @@ public class User implements UserDetails {
 
     // API 응답에 쓰는 외부 노출용 ID (예: usr_12)
     public String getPublicId() {
-        return PUBLIC_ID_PREFIX + id;
+        return IdPrefix.USER.format(id);
     }
 
     @Override
