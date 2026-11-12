@@ -16,6 +16,7 @@
 8. [docs/public-data.md](docs/public-data.md): 사용하는 공공데이터와 API 명세 (기상청 단기예보, 모범음식점, 농어촌체험휴양마을, 인증키 규칙, 처인구 격자와 실제 데이터)
 9. [docs/ai-integration.md](docs/ai-integration.md): AI 핵심 로직, 로컬 모델 연결, 남은 도메인 연동과 검증 상태
 10. [docs/voice-api.md](docs/voice-api.md): 음성 초안과 확정 API, 작업 소유권 접점, DB 준비와 검증 상태
+11. [docs/local-demo.md](docs/local-demo.md): Docker 기반 로컬 모델, 시연 계정, 녹음과 가족 일기 확인 절차
 
 ## 문서 갱신 (필수)
 

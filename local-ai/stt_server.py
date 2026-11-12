@@ -114,7 +114,7 @@ def load_model():
     model_path = os.environ.get("WHISPER_MODEL_PATH", "")
     if not model_path or not Path(model_path).is_dir():
         raise SystemExit("Set WHISPER_MODEL_PATH to an existing local faster-whisper model directory.")
-    for name in ("model.bin", "config.json", "tokenizer.json", "preprocessor_config.json"):
+    for name in ("model.bin", "config.json", "tokenizer.json"):
         if not (Path(model_path) / name).is_file():
             raise SystemExit(f"Local model is incomplete: {name}")
     os.environ["HF_HUB_OFFLINE"] = "1"

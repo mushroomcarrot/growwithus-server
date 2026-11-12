@@ -16,6 +16,7 @@ public enum IdPrefix {
     VOICE_MEMO("vm"),
     PHOTO("pht"),
     EVENT("evt"),
+    DIARY("dry"),
     VISIT("vst"),
     NOTIFICATION("ntf");
 

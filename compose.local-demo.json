@@ -1,0 +1,82 @@
+{
+  "name": "growwithus-local-demo",
+  "services": {
+    "db": {
+      "image": "mariadb:11.4",
+      "environment": {
+        "MARIADB_DATABASE": "growwithus_demo",
+        "MARIADB_USER": "growwithus",
+        "MARIADB_PASSWORD": "${LOCAL_DB_PASSWORD:?Run the preparation script}",
+        "MARIADB_ROOT_PASSWORD": "${LOCAL_DB_ROOT_PASSWORD:?Run the preparation script}"
+      },
+      "command": ["--innodb-buffer-pool-size=128M", "--max-connections=40"],
+      "volumes": ["demo-db:/var/lib/mysql"],
+      "healthcheck": {"test": ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"], "interval": "5s", "timeout": "5s", "retries": 30},
+      "restart": "unless-stopped"
+    },
+    "redis": {
+      "image": "redis:7.4-alpine",
+      "environment": {"REDISCLI_AUTH": "${LOCAL_REDIS_PASSWORD:?Run the preparation script}"},
+      "command": ["redis-server", "--requirepass", "${LOCAL_REDIS_PASSWORD}", "--maxmemory", "128mb", "--maxmemory-policy", "noeviction", "--appendonly", "yes"],
+      "volumes": ["demo-redis:/data"],
+      "healthcheck": {"test": ["CMD", "redis-cli", "ping"], "interval": "5s", "timeout": "3s", "retries": 20},
+      "restart": "unless-stopped"
+    },
+    "ollama": {
+      "image": "ollama/ollama:latest",
+      "environment": {"OLLAMA_HOST": "127.0.0.1:11434", "OLLAMA_NO_CLOUD": "1", "OLLAMA_NUM_PARALLEL": "1", "OLLAMA_MAX_LOADED_MODELS": "1", "OLLAMA_CONTEXT_LENGTH": "4096"},
+      "volumes": ["demo-ollama:/root/.ollama"],
+      "ports": ["127.0.0.1:8080:8080"],
+      "healthcheck": {"test": ["CMD", "ollama", "list"], "interval": "5s", "timeout": "5s", "retries": 30},
+      "mem_limit": "4g",
+      "restart": "unless-stopped"
+    },
+    "ollama-init": {
+      "image": "ollama/ollama:latest",
+      "network_mode": "service:ollama",
+      "environment": {"OLLAMA_HOST": "127.0.0.1:11434", "OLLAMA_NO_CLOUD": "1"},
+      "entrypoint": ["ollama", "pull", "qwen2.5:3b"],
+      "depends_on": {"ollama": {"condition": "service_healthy"}},
+      "restart": "no"
+    },
+    "whisper-init": {
+      "build": {"context": "./local-ai"},
+      "entrypoint": ["python", "download_model.py", "--model", "base", "--output", "/models/base"],
+      "volumes": ["demo-whisper:/models"],
+      "restart": "no"
+    },
+    "stt": {
+      "build": {"context": "./local-ai"},
+      "network_mode": "service:ollama",
+      "environment": {"WHISPER_MODEL_PATH": "/models/base", "HF_HUB_OFFLINE": "1", "OMP_NUM_THREADS": "4"},
+      "volumes": ["demo-whisper:/models:ro"],
+      "depends_on": {"ollama": {"condition": "service_healthy"}, "whisper-init": {"condition": "service_completed_successfully"}},
+      "healthcheck": {"test": ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/health', timeout=3)"], "interval": "5s", "timeout": "5s", "start_period": "90s", "retries": 20},
+      "mem_limit": "2g",
+      "restart": "unless-stopped"
+    },
+    "backend": {
+      "build": {"context": "."},
+      "network_mode": "service:ollama",
+      "environment": {
+        "SPRING_PROFILES_ACTIVE": "local,local-demo",
+        "DB_HOST": "db", "DB_NAME": "growwithus_demo", "DB_USERNAME": "growwithus", "DB_PASSWORD": "${LOCAL_DB_PASSWORD}",
+        "REDIS_HOST": "redis", "REDIS_PASSWORD": "${LOCAL_REDIS_PASSWORD}",
+        "JWT_SECRET_KEY": "${LOCAL_JWT_SECRET:?Run the preparation script}",
+        "INTERNAL_SERVICE_KEY": "${LOCAL_SERVICE_KEY:?Run the preparation script}",
+        "LOCAL_DEMO_PASSWORD": "${LOCAL_DEMO_PASSWORD:?Run the preparation script}",
+        "LOCAL_DEMO_STARTED_ON": "${LOCAL_DEMO_STARTED_ON:?Run the preparation script}",
+        "CORS_ALLOWED_ORIGINS": "http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173",
+        "AI_LOCAL_ENABLED": "true", "AI_LOCAL_MODEL": "qwen2.5:3b", "AI_LOCAL_BASE_URL": "http://127.0.0.1:11434",
+        "AI_LOCAL_STT_ENABLED": "true", "AI_LOCAL_STT_BASE_URL": "http://127.0.0.1:8765",
+        "EXTERNAL_HTTP_READ_TIMEOUT": "90s", "FILE_UPLOAD_DIR": "/app/uploads", "FILE_BASE_URL": "http://localhost:8080",
+        "SCHEDULER_ENABLED": "false", "DEMO_ENABLED": "true", "CARE_ALLOWANCE_PER_TASK": "0"
+      },
+      "volumes": ["demo-uploads:/app/uploads"],
+      "depends_on": {"db": {"condition": "service_healthy"}, "redis": {"condition": "service_healthy"}, "stt": {"condition": "service_healthy"}, "ollama-init": {"condition": "service_completed_successfully"}},
+      "mem_limit": "1g",
+      "restart": "unless-stopped"
+    }
+  },
+  "volumes": {"demo-db": {}, "demo-redis": {}, "demo-ollama": {}, "demo-whisper": {}, "demo-uploads": {}}
+}

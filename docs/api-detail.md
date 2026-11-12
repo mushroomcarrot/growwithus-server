@@ -432,27 +432,49 @@ Refresh Token도 새로 발급하고 이전 토큰은 무효가 된다. 에러: 
 
 `GET /gardens/{gardenId}/diary?filter=ALL&cursor=&limit=20` | 권한 OWNER | 화면 DT_DIARY
 
-`filter`: `ALL`, `PHOTO`, `STAGE`
+`filter`: `ALL`, `PHOTO`, `STAGE`. 본인 소유 텃밭만 조회한다. 최신 저장 순으로 반환하며 `limit`은 1~50이다. `nextCursor`는 `dry_숫자` 형식의 불투명 커서다. 날짜 대신 응답 커서를 그대로 보낸다.
 
 ```json
 {
   "items": [
     {
+      "diaryId": "dry_12",
       "type": "CARE_LOG",
       "date": "2026-11-10",
-      "careLogId": "cl_1110_01",
-      "taskTypes": ["SUPPORT", "PRUNE"],
-      "summary": "지지대를 세우고 곁순을 정리했어요",
+      "careLogId": "cl_8",
+      "eventId": null,
+      "taskTypes": ["CHECK"],
+      "transcript": "잎과 흙을 살펴봤어요. 잎에 작은 점이 보였어요.",
+      "summary": "잎과 흙을 살폈어요. 잎의 작은 점은 다시 확인할게요.",
       "photoUrl": "...",
       "caretakerName": "박순자",
-      "hearted": false
+      "hearted": false,
+      "fromStage": null,
+      "toStage": null,
+      "createdAt": "2026-11-10T10:21:00+09:00"
     },
-    { "type": "STAGE_CHANGE", "date": "2026-11-05", "fromStage": "SPROUT", "toStage": "FLOWER" },
-    { "type": "REST_DAY", "date": "2026-11-04", "message": "오늘은 쉬는 날이었어요" }
+    {
+      "diaryId": "dry_11",
+      "type": "STAGE_CHANGE",
+      "date": "2026-11-05",
+      "careLogId": null,
+      "eventId": "evt_3",
+      "taskTypes": [],
+      "transcript": null,
+      "summary": "작물이 다음 단계로 자랐어요.",
+      "photoUrl": null,
+      "caretakerName": null,
+      "hearted": false,
+      "fromStage": "SPROUT",
+      "toStage": "FLOWER",
+      "createdAt": "2026-11-05T09:00:00+09:00"
+    }
   ],
-  "nextCursor": "2026-11-03"
+  "nextCursor": "dry_11"
 }
 ```
+
+돌봄 완료와 단계 상승 시 원래 저장 트랜잭션 안에서 일기 스냅샷을 추가한다. `transcript`는 확정 메모의 STT 원문이며 없으면 `null`이다. `summary`는 확정 정리문 또는 작업 완료 문구다. `PHOTO`는 사진이 있는 항목, `STAGE`는 성장 항목만 반환한다. `hearted`는 연결된 돌봄 기록의 현재 하트 수를 반영한다. 하트 전송 API, REST_DAY 생성, 과거 기록의 일괄 이관은 아직 구현하지 않았다. 새 테이블 준비는 `db/manual/diary.sql`을 확인한다.
 
 ### 4.6 미확인 진화 이벤트
 

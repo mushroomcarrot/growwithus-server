@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>대신텃밭 AI 기능 시연</title>
+<style>
+*{box-sizing:border-box}body{font-family:system-ui,sans-serif;background:#f6f7ef;color:#20352b;max-width:1080px;margin:32px auto;padding:0 20px;line-height:1.6}h1{font-size:30px;margin-bottom:4px}h2{font-size:21px}section{background:white;border:1px solid #dce5d8;border-radius:16px;padding:22px;margin:18px 0}button{background:#276147;color:white;border:0;border-radius:8px;padding:12px 18px;margin:5px 4px 5px 0;font-size:16px;cursor:pointer}button:disabled{opacity:.45;cursor:wait}input,select,textarea{font:inherit;max-width:100%;padding:9px;border:1px solid #b8c9b8;border-radius:6px}textarea{width:100%;min-height:90px}label{display:block;margin:12px 0 5px}.muted{color:#657467}#notice{white-space:pre-wrap;border-left:4px solid #276147;padding:12px;background:#eaf0e5;min-height:48px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}article{border-top:1px solid #e0e7dc;padding:14px 0}article img{max-width:240px;border-radius:8px}.result{white-space:pre-wrap;overflow-wrap:anywhere;background:#f1f5ed;padding:12px;border-radius:8px}audio{display:block;margin-top:12px;width:100%}small{display:block}
+</style></head><body>
+<h1>대신텃밭 AI 기능 시연</h1>
+<p class="muted">로컬 시연용 가상 농장과 기온 자료를 사용합니다. 음성은 설치한 로컬 모델로 인식합니다. 실제 농장 운영용 화면이 아닙니다.</p>
+<p id="notice" role="status" aria-live="polite">설정 파일의 시연 비밀번호로 로그인해 주세요.</p>
+<section><h2>1. 시연 계정 연결</h2>
+<label for="password">시연 비밀번호</label><input id="password" type="password" autocomplete="off" placeholder=".env.local-demo의 LOCAL_DEMO_PASSWORD">
+<div><button id="loginCare">관리사 연결</button><button id="loginOwner">가족 연결</button><button id="loginAdmin">날씨 제어 연결</button></div>
+<small id="sessions" class="muted">연결한 계정 없음. 비밀번호와 토큰은 브라우저 저장소에 보관하지 않습니다.</small>
+</section>
+<section><h2>2. 관리사 오늘 할 일</h2><button id="loadTasks">오늘 할 일 새로 보기</button><p id="weatherNotice"></p>
+<label for="task">진행할 작업</label><select id="task"><option value="">관리사 연결 후 조회해 주세요</option></select>
+<p id="taskDescription"></p>
+<label>말로 남기기</label><button id="record">녹음 시작</button><button id="stopRecord" disabled>녹음 끝내기</button><span id="recordStatus"></span>
+<label for="audioFile">또는 음성 파일 선택 (60초 이하)</label><input id="audioFile" type="file" accept="audio/*,.webm,.m4a,.mp4,.wav"><audio id="playback" controls></audio>
+<button id="sendAudio">음성 정리하기</button><button id="recover">마지막 메모 복구 조회</button>
+<label for="transcript">말씀하신 원문</label><textarea id="transcript" readonly></textarea>
+<label for="summary">가족에게 보낼 문장</label><textarea id="summary"></textarea>
+<p id="memoState" class="muted"></p><button id="retry">분석 다시 시도</button><button id="confirm">맞아요, 보낼게요</button>
+<label for="photo">작업 사진</label><input id="photo" type="file" accept="image/png,image/jpeg"><button id="uploadPhoto">사진 저장</button>
+<div><button id="complete">작업 완료</button></div>
+<label for="observed">작물 모습을 확인했나요?</label><select id="observed"><option value="FLOWER">꽃이 보여요</option><option value="FRUIT">열매가 보여요</option><option value="NO_CHANGE">아직 변화가 없어요</option></select>
+<button id="checkStage">성장 단계 확인</button>
+</section>
+<section><h2>3. 가족에게 전해진 기록</h2><button id="loadFamily">가족 기록 새로 보기</button>
+<div class="grid"><div><h3>성장 단계</h3><div id="growth" class="result">가족 계정을 연결해 주세요.</div></div><div><h3>수확 안내</h3><div id="harvest" class="result"></div></div></div>
+<div id="diary"></div><button id="moreDiary" hidden>이전 기록 더 보기</button>
+</section>
+<section><h2>날씨 시연</h2><p class="muted">날씨 제어 계정을 연결하면 사용할 수 있습니다.</p>
+<button data-weather="SUNNY">맑음</button><button data-weather="RAIN">비</button><button data-weather="HOT">더움</button></section>
+<script src="/local-demo/app.js" defer></script></body></html>

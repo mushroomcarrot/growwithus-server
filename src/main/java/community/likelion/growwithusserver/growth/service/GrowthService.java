@@ -85,7 +85,8 @@ public class GrowthService {
         }
         state.setStage(result.stage()); state.setAccumulatedGdd(result.accumulatedGdd()); state.setProgress(result.progress());
         state.setExpectedHarvestDate(result.expectedHarvestDate()); state.setUpdatedAt(LocalDateTime.now()); states.save(state);
-        String explanation = "날씨의 누적 기온으로 계산한 예상 단계예요. 실제 모습은 관리사가 확인해요.";
+        String explanation = weather.simulated() ? "시연용 가상 기온으로 계산한 단계예요. 실제 수확 예측이 아니에요."
+                : "날씨의 누적 기온으로 계산한 예상 단계예요. 실제 모습은 관리사가 확인해요.";
         String eventId = null;
         if (before != null && result.stage().ordinal() > before.ordinal()) {
             GrowthEvent event = events.save(GrowthEvent.builder().gardenId(garden.gardenId()).fromStage(before).toStage(result.stage())

@@ -109,7 +109,7 @@ class RecognitionTest(unittest.TestCase):
             return "model"
         fake_module = SimpleNamespace(WhisperModel=construct)
         with tempfile.TemporaryDirectory(dir=self.temp_root) as directory:
-            for name in ("model.bin", "config.json", "tokenizer.json", "preprocessor_config.json"):
+            for name in ("model.bin", "config.json", "tokenizer.json"):
                 (Path(directory) / name).write_bytes(b"fixture")
             with patch.dict(os.environ, {"WHISPER_MODEL_PATH": directory}):
                 with patch.dict("sys.modules", {"faster_whisper": fake_module}):

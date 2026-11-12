@@ -19,7 +19,9 @@ python -m venv local-ai/.venv
 .\local-ai\.venv\Scripts\python.exe -m pip install -r local-ai/requirements.txt
 ```
 
-한국어를 지원하는 다국어 faster-whisper 모델을 별도로 다운로드한다. 영어 전용 `.en` 모델을 쓰지 않는다. 모델 폴더에 `model.bin`, `config.json`, `tokenizer.json`, `preprocessor_config.json`이 모두 있어야 한다. 모델과 라이브러리의 이용 조건은 배포 전에 확인한다.
+한국어를 지원하는 다국어 faster-whisper 모델을 별도로 다운로드한다. 영어 전용 `.en` 모델을 쓰지 않는다. 모델 폴더에 `model.bin`, `config.json`, `tokenizer.json`이 있어야 한다. `preprocessor_config.json`은 선택 파일이다. 공식 base 저장소에 없는 선택 파일 때문에 시작을 막지 않는다. 모델과 라이브러리의 이용 조건은 배포 전에 확인한다.
+
+Windows에서는 [로컬 시연 환경](../docs/local-demo.md)의 Docker 실행 절차를 먼저 권장한다. Python 3.12 컨테이너에 라이브러리를 설치하고 `download_model.py`를 명시적으로 실행해 모델을 준비한다. 추론 서버가 요청 중 모델을 다운로드하는 경로는 없다.
 
 서버는 모델 이름으로 자동 다운로드하지 않는다. 모델 폴더를 지정하지 않았거나 필요한 파일이 없으면 시작하지 않는다. `local_files_only=True`와 `HF_HUB_OFFLINE=1`을 적용한다.
 
@@ -55,7 +57,7 @@ AI_LOCAL_STT_BASE_URL=http://127.0.0.1:8765
 4. 한 번에 한 건만 인식한다. 처리 중 추가 요청은 503이며 자동으로 큐에 무한히 쌓지 않는다.
 5. 음성 파일과 원문을 디스크에 저장하거나 로그에 남기지 않는다. 오류 응답에 내부 예외를 포함하지 않는다.
 6. 서버는 loopback에 고정되어 있고 CORS를 허용하지 않는다. 인증 없는 작업 서버이므로 외부에 공개하지 않는다.
-7. Java는 기존 공통 읽기 타임아웃 30초를 사용한다. 모델이 느려 이를 넘으면 C502이며 5초 응답 목표 충족은 아직 검증하지 않았다.
+7. Java는 공통 읽기 타임아웃을 사용한다. 기본 30초, 로컬 시연 Compose는 90초다. 모델이 느려 이를 넘으면 C502이며 5초 응답 목표 충족은 아직 검증하지 않았다.
 
 | 로컬 상태 | Java 처리 |
 | --- | --- |

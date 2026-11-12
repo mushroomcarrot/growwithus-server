@@ -2,7 +2,7 @@
 
 > 코드의 현재 상태를 그대로 기록한 문서다. 기능을 추가하거나 바꾸면 이 문서도 함께 갱신한다 ([development-guide.md](development-guide.md#문서-갱신-규칙)).
 >
-> 마지막 갱신: 2026-11-13, 연결 중단 후 마지막 음성 메모 복구 조회와 처리 만료 상태 표시 추가. 실제 농장과 텃밭 조회 연결, DB 및 배포 검증은 남아 있음
+> 마지막 갱신: 2026-11-13, 로컬 모델 Compose와 시연 계정, 녹음 콘솔, 돌봄과 성장의 가족 일기 연결 추가. 실제 모델과 DB 부팅, 팀 농장 조회 연결, 배포 검증은 남아 있음
 
 ## 한눈에 보기
 
@@ -483,7 +483,7 @@ ADMIN은 RoleHierarchy로 USER, OWNER, CARETAKER 권한을 갖는다. SYSTEM은 
 | `name` | String | not null, 20자 |
 | `password` | String | not null, BCrypt |
 | `role` | `UserRole` | not null, `EnumType.STRING` |
-| `profileRegistered` | boolean | not null, 기본 false. 현재 역할의 프로필 등록 여부 |
+| `profileRegistered` 갱신 | 관리사 등록 시 true, 역할 복원 시 프로필 존재 확인 | 실제 주인 프로필의 등록 연결은 남아 있다. local-demo 시드 계정은 등록 완료 상태다 |
 | `registeredAt` | LocalDateTime | updatable=false, `AuthService.signUp`에서 직접 채움 |
 | `modifiedAt` | LocalDateTime | `@UpdateTimestamp` |
 
@@ -645,18 +645,18 @@ docker run -d -p 6379:6379 redis:7
 
 | 항목 | 현재 상태 | 영향 |
 | --- | --- | --- |
-| `profileRegistered` 갱신 | 주인, 관리사 프로필 도메인이 아직 없어 항상 false | `nextStep`이 `PROFILE_OWNER`, `PROFILE_CARE`에서 멈춘다. 프로필 등록 API를 만들 때 true로 바꾸고, 역할을 되돌렸을 때 기존 프로필이 있으면 true로 복원하도록 맞춘다 |
-| `/users/me`의 `owner`, `caretaker` | 항상 `null` | 프로필, 텃밭 도메인을 만들 때 `UserService.getMe`에서 채운다 |
+| `profileRegistered` 갱신 | 관리사 등록 시 true, 역할 복원 시 프로필 존재 확인 | 실제 주인 프로필의 등록 연결은 남아 있다. local-demo 시드 계정은 등록 완료 상태다 |
+| `/users/me`의 프로필 | 관리사는 실제 프로필과 돌봄 수, 주인은 OwnerSummaryReader로 조회 | 기본 주인 조회는 빈 결과다. local-demo 전용 조회와 별개로 운영 어댑터가 필요하다 |
 | 기존 로컬 DB의 `user` 테이블 | `ddl-auto: update`는 예전 `email` 컬럼(not null)을 지우지 않는다 | 가입 시 insert가 실패한다. 로컬 DB의 `user`, `product` 테이블을 직접 drop하고 다시 띄운다 |
 | prod `ddl-auto: validate` | 스키마 자동 생성 안 함 | prod DB에 테이블을 미리 만들어야 부팅됨 (마이그레이션 도구 없음) |
 | `@CreatedDate` 미동작 | `@EnableJpaAuditing` 없음 | 감사 필드는 서비스에서 `LocalDateTime.now()`로 직접 채운다 |
 | 검증 실패 메시지 | 클라이언트에는 C002 고정 메시지만 반환 | 어떤 필드가 틀렸는지는 서버 로그에만 남음 |
 | 테스트 | `contextLoads`, `common` 단위 테스트 (페이지네이션, ID, 파일 검증, 필터, 날짜 직렬화), `notification`, `harvest`, `weather`, `demo` 서비스 단위 테스트 (저장소는 Mockito로 대체) | 실제 DB를 쓰는 저장소 쿼리 테스트는 없음 |
 | AI 실행 환경 | LLM과 STT는 선택적 로컬 구현, TTS는 기본 빈만 있음 | 모델과 faster-whisper를 별도 준비해야 하며 실제 모델 실행은 미검증. TTS는 여전히 C502. 배포 서버에서 노트북의 localhost에 접근할 수 없음 |
-| 시연 계정 | 가입 API로는 ADMIN을 만들 수 없음 | 시연 전에 DB에서 시연 계정의 `role`을 `ADMIN`으로 직접 바꾼다. 시연이 끝나면 prod `DEMO_ENABLED=false` |
+| 시연 계정 | local-demo가 전용 DB에 관리사, 주인, ADMIN을 시드 | 일반 가입으로 ADMIN을 만들지 않는다. 운영에서 local-demo를 켜지 않는다 |
 | 음성 메모 API | 작업 조회는 구현, 실제 텃밭 조회 어댑터가 없음 | 농장과 텃밭 도메인 연결 및 MariaDB 잠금 검사가 필요. STT 실패 시 파일 보존과 재시도 구현, DB 실패 시 파일 보상 삭제는 남아 있음 |
 | 브라우저 녹음 길이 | 공통 업로드 모듈은 webm과 조각 mp4 길이를 읽지 못함 | 로컬 STT를 활성화하면 작업 서버에서 디코딩된 전체 길이를 60초 이하로 다시 검사한다. 실제 브라우저 파일 시험은 남아 있음 |
-| 텃밭 조회 구현체 | `HarvestGardenReader`의 구현체가 없음 (텃밭, 농장, 관리사, 성장 시뮬레이션 도메인 미구현) | `/gardens/{gardenId}/harvest`, `visit-slots`, `outings`, `POST /visits`가 항상 `C404`다. 텃밭 도메인에서 구현체를 등록해야 동작한다. 시연용 방문 시드도 그때 넣는다 |
+| 텃밭 조회 구현체 | 기본 조회는 빈 결과, local-demo만 가상 텃밭 제공 | 실제 서비스에는 팀 텃밭 조회 어댑터가 필요하다. 시연 작물과 기온은 운영 자료가 아니다 |
 | 방문 슬롯 정원의 동시성 | 정원은 조회 후 저장으로 확인 | 같은 슬롯에 동시에 예약이 들어오면 정원을 1건 넘길 수 있다. 같은 텃밭의 같은 날 중복은 유니크 제약으로 막힌다 |
 | 관리사별 방문 가능 시간 | 데이터가 없어 주말 고정 시간(10, 11, 14, 15시)을 쓴다 | 관리사가 시간을 고르게 하려면 프로필에 가능 시간을 추가하고 `VisitSlotPolicy`를 고친다 |
 | 나들이 추천 데이터 | 실제 장소 7곳을 시드로 넣는다. 식당은 원본에 좌표가 없어 좌표를 확인한 4곳만 넣었고, 그중 2곳(국수59, 백암제일식당)은 가게가 있는 길의 좌표다 | 거리가 100m쯤 어긋날 수 있다. 예시 6곳이 이미 들어간 DB에는 시드가 다시 들어가지 않으므로 `outing` 테이블을 비우고 다시 띄운다. 식당을 더 넣으려면 주소를 좌표로 바꾸는 방법이 필요하다 |
@@ -664,3 +664,16 @@ docker run -d -p 6379:6379 redis:7
 | 날씨 수집 인증키 | `PUBLIC_DATA_SERVICE_KEY`가 비어 있으면 수집을 건너뜀 | `weather_forecast`가 비어 `getCurrentWeather`는 시연 날씨가 있을 때만 값을 준다. 로컬 `.env`와 배포 환경에 키를 넣어야 한다 |
 | 시연 API | 날씨 덮어쓰기만 동작 | `PUT /demo/weather`의 `weatherNotice`, `regeneratedTasks`와 `GET /demo/state`의 단계, 할 일 수는 비어 있다. `POST /demo/fast-forward`와 시드 재적재는 없다. 작업 생성, 성장 시뮬레이션, 진화 이벤트, 텃밭 도메인이 생기면 `DemoService`에 붙인다 |
 | 파일 저장소 | 로컬 디스크만 구현 | 서버를 여러 대 띄우거나 재배포로 디스크가 초기화되면 파일이 사라진다. 필요하면 S3 구현체를 추가한다 |
+
+## 가족 일기와 로컬 시연 환경
+
+1. `diary` 패키지의 `DiaryListener`는 `CareCompleted`, `GrowthChanged` 이벤트를 원래 트랜잭션 안에서 수신한다. `DiaryEntry`에 원문, 확정 정리문, 사진, 단계와 원본 ID를 저장한다. 일기 저장 실패는 원래 완료 처리까지 롤백한다. `entry_type, source_id` 유니크 제약으로 원본을 한 번만 기록한다.
+2. `DiaryService`는 실제 텃밭 소유권 확인 후 `GET /gardens/{gardenId}/diary`를 반환한다. ALL, PHOTO, STAGE 필터, ID 내림차순 dry_ 커서, 1~50개 제한을 사용한다. 현재 페이지 돌봄의 하트 상태는 CareLog를 묶어서 조회한다. REST_DAY, 하트 보내기, 기존 기록의 이관은 미구현이다.
+3. 새 테이블은 `src/main/resources/db/manual/diary.sql`에 있다. 운영 DB에는 사전 검토와 적용이 필요하다. local-demo는 전용 MariaDB에서 ddl-auto=update로 준비한다.
+4. `demo/local`은 local-demo 프로필에만 등록된다. 가상 B14 텃밭, 농장, 주인 요약, 합성 기온을 제공한다. 사용자와 돌봄 기록은 실제 저장소를 쓴다. 단일 시연 텃밭의 변경 잠금은 전용 주인 사용자 행으로 직렬화한다. 운영용 텃밭 행 잠금의 대체 구현이 아니다.
+5. `LocalDemoSeeder`는 환경변수의 비밀번호로 전용 사용자 세 명과 관리사 프로필을 생성한다. 기존 계정의 역할이나 비밀번호가 다르면 덮어쓰지 않고 중단한다. 초기 성장 상승은 가족 일기도 만든다. 주인 등록 API의 첫 일기 자동 연결을 대신하지 않는다.
+6. `compose.local-demo.json`은 MariaDB, Redis, Ollama, faster-whisper, Spring을 구성한다. 모델 설치 작업이 완료된 뒤 서비스를 시작하며 backend와 stt는 ollama의 네트워크 공간을 사용한다. 기존 loopback 주소 검증을 완화하지 않는다. 호스트에는 127.0.0.1:8080만 공개하고 모델, DB, Redis 포트는 공개하지 않는다.
+7. `scripts/start-local-demo.ps1`은 무작위 설정을 한 번만 만들고 기존 설정과 볼륨을 유지한다. `scripts/smoke_local_demo.py`는 실행된 서버를 검사한다. 기본 검사는 음성과 완료를 not_tested로 표시하며, 실제 음성을 지정했을 때만 해당 흐름을 검사한다.
+8. `/local-demo`와 스크립트만 로그인 없이 볼 수 있다. 실제 API와 `/local-demo/status`는 토큰이 필요하다. 전용 HTML과 JS는 static 폴더 밖에 있어 프로필을 끄면 제공되지 않는다. 이 콘솔은 기능 검사 화면이며 팀 프론트를 대체하지 않는다.
+9. STT 모델의 필수 파일은 model.bin, config.json, tokenizer.json이다. 공식 base 모델에 없는 preprocessor_config.json은 선택 파일로 처리한다. 추론 시 자동 다운로드와 유료 API 전환은 없다. Qwen2.5 3B는 텍스트 전용이므로 기본 구성의 사진 검증은 null이다. TTS 공급자는 여전히 준비되지 않았다.
+10. Java 핵심 JUnit 60개, STT Python 21개, 시연 도구 Python 7개를 통과했다. 실제 Docker, 전체 Gradle 빌드, DB 쿼리와 잠금, 브라우저 녹음, 모델 추론은 작성 환경에서 검증하지 못했다. 상세 실행 절차는 [local-demo.md](local-demo.md)를 따른다.

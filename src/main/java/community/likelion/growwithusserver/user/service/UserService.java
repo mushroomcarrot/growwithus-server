@@ -31,6 +31,7 @@ public class UserService {
     private final JwtTokenProvider tokenProvider;
     private final community.likelion.growwithusserver.caretaker.data.repository.CaretakerProfileRepository caretakerProfiles;
     private final community.likelion.growwithusserver.care.data.repository.CareLogRepository careLogs;
+    private final community.likelion.growwithusserver.user.profile.OwnerSummaryReader ownerProfiles;
 
     public User getUserForUpdate(String username) {
         return userRepository.findByUsernameForUpdate(username).orElseThrow(UserNotFoundException::new);
@@ -70,6 +71,12 @@ public class UserService {
     @Transactional(readOnly = true)
     public GlobalResponse<UserMeResponseDto> getMe(String username) {
         User user = getUserEntity(username);
+        UserMeResponseDto.OwnerSummary owner = null;
+        if (user.getRole() == UserRole.OWNER || user.getRole() == UserRole.ADMIN) {
+            owner = ownerProfiles.findByUsername(username).map(p -> UserMeResponseDto.OwnerSummary.builder()
+                    .nickname(p.nickname()).district(p.district())
+                    .gardenId(community.likelion.growwithusserver.common.id.IdPrefix.GARDEN.format(p.gardenId())).build()).orElse(null);
+        }
         UserMeResponseDto.CaretakerSummary caretaker = null;
         if (user.getRole() == UserRole.CARETAKER || user.getRole() == UserRole.ADMIN) {
             caretaker = caretakerProfiles.findByUsername(username).map(p -> UserMeResponseDto.CaretakerSummary.builder()
@@ -84,7 +91,7 @@ public class UserService {
                 .username(user.getUsername())
                 .role(user.getRole())
                 .nextStep(resolveNextStep(user))
-                .owner(null)
+                .owner(owner)
                 .caretaker(caretaker)
                 .build());
     }
