@@ -21,7 +21,8 @@ CREATE TABLE IF NOT EXISTS care_task (
     created_at DATETIME(6) NOT NULL,
     completed_at DATETIME(6) NULL,
     CONSTRAINT uk_task_garden_date_type UNIQUE (garden_id, task_date, task_type),
-    INDEX idx_task_caretaker_date (caretaker_username, task_date)
+    INDEX idx_task_caretaker_date (caretaker_username, task_date),
+    INDEX idx_task_garden_completed (garden_id, completed_at)
 );
 CREATE TABLE IF NOT EXISTS care_task_photo (
     id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,

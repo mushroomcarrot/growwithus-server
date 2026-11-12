@@ -1,6 +1,7 @@
 package community.likelion.growwithusserver.common.file;
 
 import community.likelion.growwithusserver.common.file.exception.FileNotSupportedException;
+import community.likelion.growwithusserver.common.file.exception.FileUploadFailedException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -29,6 +30,38 @@ class FileUploadServiceTest {
     @BeforeEach
     void setUp() {
         fileUploadService = new FileUploadService(new LocalFileStorage(uploadDir.toString(), "http://localhost:8080/"));
+    }
+
+    @Test
+    void readsOriginalStoredAudioForRetry() {
+        byte[] audio = {0x1a, 0x45, (byte) 0xdf, (byte) 0xa3, 1};
+        String url = fileUploadService.uploadAudio(new MockMultipartFile("audio", "recording.webm", "audio/webm", audio), "voice-memos");
+        assertThat(fileUploadService.readStoredAudio(url)).isEqualTo(audio);
+    }
+
+    @Test
+    void rejectsRemoteUrlsOtherDirectoriesAndPathTraversal() {
+        String name = "00000000-0000-0000-0000-000000000000.webm";
+        for (String url : new String[]{
+                "https://example.test/uploads/voice-memos/" + name,
+                "http://localhost:8080/uploads/care-photos/" + name,
+                "http://localhost:8080/uploads/voice-memos/../" + name,
+                "http://localhost:8080/uploads/voice-memos/%2e%2e%2f" + name,
+                "http://localhost:8080/uploads/voice-memos/" + name + "?download=1"}) {
+            assertThatThrownBy(() -> fileUploadService.readStoredAudio(url)).isInstanceOf(FileUploadFailedException.class);
+        }
+    }
+
+    @Test
+    void rejectsMissingAndOversizedStoredAudio() throws Exception {
+        String name = "00000000-0000-0000-0000-000000000000.wav";
+        String url = "http://localhost:8080/uploads/voice-memos/" + name;
+        assertThatThrownBy(() -> fileUploadService.readStoredAudio(url)).isInstanceOf(FileUploadFailedException.class);
+        Files.createDirectories(uploadDir.resolve("voice-memos"));
+        try (var file = new java.io.RandomAccessFile(uploadDir.resolve("voice-memos").resolve(name).toFile(), "rw")) {
+            file.setLength(FileUploadService.MAX_AUDIO_SIZE + 1);
+        }
+        assertThatThrownBy(() -> fileUploadService.readStoredAudio(url)).isInstanceOf(FileUploadFailedException.class);
     }
 
     @Test

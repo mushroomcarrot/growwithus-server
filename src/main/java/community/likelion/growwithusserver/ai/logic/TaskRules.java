@@ -95,6 +95,13 @@ public final class TaskRules {
         return context.guidance().stream().map(Guidance::type).toList();
     }
 
+    public LocalDate historyStart(LocalDate date, List<Guidance> guidance) {
+        long days = Math.max(14, guidance.stream().mapToLong(Guidance::minimumIntervalDays).max().orElse(14));
+        LocalDate start = date.minusDays(days);
+        LocalDate databaseMinimum = LocalDate.of(1000, 1, 1);
+        return start.isBefore(databaseMinimum) ? databaseMinimum : start;
+    }
+
     public boolean needsObservation(Context context, List<Type> pendingTypes, boolean alreadyHasCheck) {
         if (alreadyHasCheck || pendingTypes.isEmpty()) return false;
         var available = validate(context, pendingTypes, 120);

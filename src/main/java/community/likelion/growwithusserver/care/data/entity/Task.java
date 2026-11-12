@@ -11,7 +11,8 @@ import java.time.LocalDateTime;
 
 @Data @Builder @NoArgsConstructor @AllArgsConstructor
 @Entity
-@Table(name = "care_task", uniqueConstraints = @UniqueConstraint(name = "uk_task_garden_date_type",
+@Table(name = "care_task", indexes = @Index(name = "idx_task_garden_completed", columnList = "garden_id,completed_at"),
+        uniqueConstraints = @UniqueConstraint(name = "uk_task_garden_date_type",
         columnNames = {"garden_id", "task_date", "task_type"}))
 public class Task {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
