@@ -39,6 +39,36 @@ class FileUploadServiceTest {
         assertThat(fileUploadService.readStoredAudio(url)).isEqualTo(audio);
     }
 
+    @Test void deletesOnlyValidatedStoredAudioAndCanRepeatDeletion() throws Exception {
+        var storage = new LocalFileStorage(uploadDir.toString(), "http://localhost:8080/");
+        byte[] audio = {0x1a, 0x45, (byte) 0xdf, (byte) 0xa3, 1};
+        String url = fileUploadService.uploadAudio(new MockMultipartFile("audio", "recording.webm", "audio/webm", audio), "voice-memos");
+        Path saved = uploadDir.resolve("voice-memos").resolve(url.substring(url.lastIndexOf('/') + 1));
+        storage.deleteAudio(url); assertThat(Files.exists(saved)).isFalse();
+        storage.deleteAudio(url);
+    }
+
+    @Test void deletingAudioRejectsOtherDirectoriesRemoteUrlsAndTraversal() throws Exception {
+        String photo = fileUploadService.uploadImage(new MockMultipartFile("photo", "photo.png", "image/png", PNG), "care-photos");
+        var storage = new LocalFileStorage(uploadDir.toString(), "http://localhost:8080");
+        String name = "00000000-0000-0000-0000-000000000000.webm";
+        for (String url : new String[]{photo, "https://example.test/uploads/voice-memos/" + name,
+                "http://localhost:8080/uploads/voice-memos/../" + name, "http://localhost:8080/uploads/voice-memos/" + name + "?x=1"}) {
+            assertThatThrownBy(() -> storage.deleteAudio(url)).isInstanceOf(FileUploadFailedException.class);
+        }
+        assertThat(Files.exists(uploadDir.resolve("care-photos").resolve(photo.substring(photo.lastIndexOf('/') + 1)))).isTrue();
+    }
+
+    @Test void audioCleanupNeverDeletesADirectory() throws Exception {
+        String filename = "00000000-0000-0000-0000-000000000000.wav";
+        Path directory = uploadDir.resolve("voice-memos").resolve(filename);
+        Files.createDirectories(directory);
+        var storage = new LocalFileStorage(uploadDir.toString(), "http://localhost:8080");
+        assertThatThrownBy(() -> storage.deleteAudio("http://localhost:8080/uploads/voice-memos/" + filename))
+                .isInstanceOf(FileUploadFailedException.class);
+        assertThat(Files.isDirectory(directory)).isTrue();
+    }
+
     @Test
     void rejectsRemoteUrlsOtherDirectoriesAndPathTraversal() {
         String name = "00000000-0000-0000-0000-000000000000.webm";

@@ -57,7 +57,7 @@ docker compose --env-file .env.local-demo -f compose.local-demo.json stop
 
 1. `local-demo` 프로필에서만 가상 농장 조회와 전용 계정 시드가 활성화된다. 실제 사용자, 작업, 메모, 사진, 성장, 일기는 MariaDB에 저장한다. 비밀번호가 기존 시드 계정과 다르면 기존 계정을 변경하지 않고 시작을 중단한다. 기본 프로필에서는 실제 팀 텃밭 조회 구현체가 여전히 필요하다.
 2. 가족 일기는 새 돌봄 완료와 성장 상승을 원래 트랜잭션 안에서 저장한다. 기존 돌봄 기록의 일괄 이관, REST_DAY, 하트 보내기, XP 보상, 주인 홈 API는 이번 연결 범위에 포함되지 않는다. 운영 스키마에는 `db/manual/diary.sql`을 검토해 반영해야 한다.
-3. 작성 환경에서는 Docker가 없어 Compose 부팅, Java 21 전체 빌드, 실제 MariaDB 쿼리와 잠금, 모델 다운로드와 추론, 브라우저 녹음은 아직 실행하지 못했다. Java 핵심 JUnit 68개, Python 28개, Node 화면 로직 10개는 통과했지만 전체 연동 성공을 의미하지 않는다. Java 검사는 캐시 의존성과 JDK 25의 release 21로 수행했다. Node 검사는 DOM과 네트워크 대역을 사용하며 실제 브라우저 검사는 아니다.
+3. 작성 환경에서는 Docker가 없어 Compose 부팅, Java 21 전체 빌드, 실제 MariaDB 쿼리와 잠금, 모델 다운로드와 추론, 브라우저 녹음은 아직 실행하지 못했다. Java 핵심 JUnit 77개, Python 30개, Node 화면 로직 10개는 통과했지만 전체 연동 성공을 의미하지 않는다. Java 검사는 캐시 의존성과 JDK 25의 release 21로 수행했다. Node 검사는 DOM과 네트워크 대역을 사용하며 실제 브라우저 검사는 아니다.
 4. 시연 영상과 배포 링크 제출 준비는 실제 실행 검사를 마친 뒤 진행한다. 운영 서버, HTTPS 주소, 최신 팀 코드 통합은 별도 확인이 필요하다. 공개 인터넷에서 이 로컬 시연 프로필을 운영하지 않는다.
 
 
@@ -87,3 +87,10 @@ docker compose --env-file .env.local-demo -f compose.local-demo.json --profile e
 2. 페이지를 새로고침하면 메모리의 예약 ID를 잃는다. 아직 예약 목록 조회나 예약 생성 응답 유실을 복구하는 화면은 없다. 시연 중 이미 예약했다면 중복 예약 오류로 다시 만들지 않는다.
 3. 취소 요청의 네트워크 응답을 놓치면 같은 화면에서 수동 재시도할 수 있다. 서버의 이미 취소된 C4095 응답도 취소 완료로 표시한다. 다른 권한 오류나 기한 오류를 성공으로 처리하지 않는다.
 4. 예약 정원에는 농장 날짜 잠금과 현재 예약 잠금 조회를 추가했으나 실제 MariaDB 동시 실행은 아직 확인하지 못했다. 새 visit_booking_day 테이블이 필요하며 운영 스키마는 수동 검토한다.
+
+
+Git Bash에서는 저장소 루트에서 다음처럼 시작 스크립트를 실행할 수 있다. 실행 정책은 이 PowerShell 프로세스에만 적용하며 시스템 설정을 바꾸지 않는다.
+
+```bash
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/start-local-demo.ps1
+```

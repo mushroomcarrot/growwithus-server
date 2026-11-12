@@ -219,7 +219,7 @@ public class VoiceMemoSelfTest {
                 sttCalls++;
                 return stt.transcribe(bytes, filename);
             }, (system, input) -> llm.complete(system, input), JsonMapper.builder().build());
-            store = new VoiceMemoStore(repository, access);
+            store = new VoiceMemoStore(repository, access, upload);
             service = new VoiceMemoService(access, upload, analysis, store);
         }
     }

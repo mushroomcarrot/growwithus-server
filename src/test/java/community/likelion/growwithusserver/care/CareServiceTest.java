@@ -124,7 +124,8 @@ class CareServiceTest {
             default -> throw new AssertionError(method);
         });
         var voice = new VoiceMemoStore(memoRepo,
-                new VoiceTaskAccess(new TaskVoiceReader(tasks, gardens)));
+                new VoiceTaskAccess(new TaskVoiceReader(tasks, gardens)),
+                new community.likelion.growwithusserver.common.file.FileUploadService((directory, filename, input, size, type) -> { throw new AssertionError("No upload expected"); }));
         var attempt = voice.createPending("care", 1L, "https://example.test/uploads/voice-memos/test.webm");
         voice.finish("care", attempt, new VoiceAnalysis.Result(
                 "I watered and saw leaf spots.", "Watered today. We will watch the leaves.",

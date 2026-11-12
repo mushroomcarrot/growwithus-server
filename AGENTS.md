@@ -18,6 +18,7 @@
 10. [docs/voice-api.md](docs/voice-api.md): 음성 초안과 확정 API, 작업 소유권 접점, DB 준비와 검증 상태
 11. [docs/local-demo.md](docs/local-demo.md): Docker 기반 로컬 모델, 시연 계정, 녹음과 가족 일기 확인 절차
 12. [docs/ai-handoff.md](docs/ai-handoff.md): 이슈별 구현 범위, 프론트 계약, 팀 도메인 접점과 최종 검사 순서
+13. [docs/ai-presentation.md](docs/ai-presentation.md): AI 설명 초안, 실제 시연 순서와 예상 질문 답변
 
 ## 문서 갱신 (필수)
 

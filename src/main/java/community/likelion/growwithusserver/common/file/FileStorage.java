@@ -17,4 +17,8 @@ public interface FileStorage {
     default byte[] readAudio(String storedUrl) {
         throw new community.likelion.growwithusserver.common.file.exception.FileUploadFailedException();
     }
+
+    default void deleteAudio(String storedUrl) {
+        throw new community.likelion.growwithusserver.common.file.exception.FileUploadFailedException();
+    }
 }

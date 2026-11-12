@@ -2,7 +2,7 @@
 
 > 코드의 현재 상태를 그대로 기록한 문서다. 기능을 추가하거나 바꾸면 이 문서도 함께 갱신한다 ([development-guide.md](development-guide.md#문서-갱신-규칙)).
 >
-> 마지막 갱신: 2026-11-13, 방문 예약 정원과 중복 취소의 잠금 처리, 로컬 시연의 예약과 취소 연결 추가. 실제 MariaDB 동시성 검증과 팀 도메인 통합은 남아 있음
+> 마지막 갱신: 2026-11-13, 음성 초안 롤백 시 파일 정리, 깨진 음성 예외 분리, AI 발표와 시연 준비 자료 추가. 실제 모델과 DB 부팅, 전체 빌드 검증은 남아 있음
 
 ## 한눈에 보기
 
@@ -654,7 +654,7 @@ docker run -d -p 6379:6379 redis:7
 | 테스트 | `contextLoads`, `common` 단위 테스트 (페이지네이션, ID, 파일 검증, 필터, 날짜 직렬화), `notification`, `harvest`, `weather`, `demo` 서비스 단위 테스트 (저장소는 Mockito로 대체) | 실제 DB를 쓰는 저장소 쿼리 테스트는 없음 |
 | AI 실행 환경 | LLM과 STT는 선택적 로컬 구현, TTS는 기본 빈만 있음 | 모델과 faster-whisper를 별도 준비해야 하며 실제 모델 실행은 미검증. TTS는 여전히 C502. 배포 서버에서 노트북의 localhost에 접근할 수 없음 |
 | 시연 계정 | local-demo가 전용 DB에 관리사, 주인, ADMIN을 시드 | 일반 가입으로 ADMIN을 만들지 않는다. 운영에서 local-demo를 켜지 않는다 |
-| 음성 메모 API | 작업 조회는 구현, 실제 텃밭 조회 어댑터가 없음 | 농장과 텃밭 도메인 연결 및 MariaDB 잠금 검사가 필요. STT 실패 시 파일 보존과 재시도 구현, DB 실패 시 파일 보상 삭제는 남아 있음 |
+| 음성 메모 API | 작업 조회는 구현, 실제 텃밭 조회 어댑터가 없음 | 농장과 텃밭 도메인 연결 및 MariaDB 잠금 검사가 필요. STT 실패 시 파일 보존과 재시도 구현, 초안 롤백 파일 정리는 구현, 커밋 결과 불확실 시 보존. 실제 DB 검사 필요 |
 | 브라우저 녹음 길이 | 공통 업로드 모듈은 webm과 조각 mp4 길이를 읽지 못함 | 로컬 STT를 활성화하면 작업 서버에서 디코딩된 전체 길이를 60초 이하로 다시 검사한다. 실제 브라우저 파일 시험은 남아 있음 |
 | 텃밭 조회 구현체 | 기본 조회는 빈 결과, local-demo만 가상 텃밭 제공 | 실제 서비스에는 팀 텃밭 조회 어댑터가 필요하다. 시연 작물과 기온은 운영 자료가 아니다 |
 | 방문 슬롯 정원의 동시성 | 농장과 날짜 잠금 행, 현재 예약 ID 잠금 조회로 정원 확인 추가 | visit_booking_day 수동 스키마 적용과 실제 MariaDB 경쟁 요청 검사가 필요하다. 대역 검사는 DB 잠금 증거가 아니다 |
@@ -676,7 +676,7 @@ docker run -d -p 6379:6379 redis:7
 7. `scripts/start-local-demo.ps1`은 무작위 설정을 한 번만 만들고 기존 설정과 볼륨을 유지한다. `scripts/smoke_local_demo.py`는 실행된 서버를 검사한다. 기본 검사는 음성과 완료를 not_tested로 표시하며, 실제 음성을 지정했을 때만 해당 흐름을 검사한다.
 8. `/local-demo`와 스크립트만 로그인 없이 볼 수 있다. 실제 API와 `/local-demo/status`는 토큰이 필요하다. 전용 HTML과 JS는 static 폴더 밖에 있어 프로필을 끄면 제공되지 않는다. 이 콘솔은 기능 검사 화면이며 팀 프론트를 대체하지 않는다.
 9. STT 모델의 필수 파일은 model.bin, config.json, tokenizer.json이다. 공식 base 모델에 없는 preprocessor_config.json은 선택 파일로 처리한다. 추론 시 자동 다운로드와 유료 API 전환은 없다. Qwen2.5 3B는 텍스트 전용이므로 기본 구성의 사진 검증은 null이다. TTS 공급자는 여전히 준비되지 않았다.
-10. Java 핵심 JUnit 68개, STT Python 21개, 시연 도구 Python 7개를 통과했다. 실제 Docker, 전체 Gradle 빌드, DB 쿼리와 잠금, 브라우저 녹음, 모델 추론은 작성 환경에서 검증하지 못했다. 상세 실행 절차는 [local-demo.md](local-demo.md)를 따른다.
+10. Java 핵심 JUnit 77개, STT Python 23개, 시연 도구 Python 7개를 통과했다. 실제 Docker, 전체 Gradle 빌드, DB 쿼리와 잠금, 브라우저 녹음, 모델 추론은 작성 환경에서 검증하지 못했다. 상세 실행 절차는 [local-demo.md](local-demo.md)를 따른다.
 
 ## 모델 평가와 시연 화면 보완
 
@@ -686,7 +686,7 @@ docker run -d -p 6379:6379 redis:7
 4. 시연 콘솔은 계정별 토큰을 메모리에서 관리한다. 401이면 계정별 갱신 요청을 공유하고 원래 요청을 한 번만 다시 보낸다. 403과 네트워크 오류는 자동 재전송하지 않는다. 새 음성을 선택한 상태에서 이전 메모로 완료하지 못하게 검사한다.
 5. 원문에서 추출된 이상 징후를 한글 문구로 표시하며 수정 확정 시 오래된 태그를 지운다. 읽어주기는 브라우저 speechSynthesis이고 서버 TTS와 별개다. 마이크 권한 대기 중 작업이 바뀌면 받은 스트림을 종료한다. 기본 자동 녹음은 59초로 인코딩 여유를 둔다.
 6. 음성 처리 유효 시간은 HTTP 읽기 제한의 2배 + 30초이고 최소 2분이다. 기본 30초 설정은 2분, local-demo의 90초 설정은 3분 30초다. STT 다음 LLM을 기다리는 정상 요청을 먼저 만료시키지 않도록 한다. 재시도와 늦은 결과의 토큰 검사는 유지한다.
-7. 핵심 JUnit 68개, Python 28개, Node 시연 로직 10개가 통과했다. Node는 DOM과 fetch 대역 검사이며 실제 마이크와 브라우저 화면 검사와 다르다. 운영 DB, 모델, 전체 Gradle 빌드는 미검증이다. 팀 전달 기준과 남은 항목은 [ai-handoff.md](ai-handoff.md)를 따른다.
+7. 핵심 JUnit 77개, Python 30개, Node 시연 로직 10개가 통과했다. Node는 DOM과 fetch 대역 검사이며 실제 마이크와 브라우저 화면 검사와 다르다. 운영 DB, 모델, 전체 Gradle 빌드는 미검증이다. 팀 전달 기준과 남은 항목은 [ai-handoff.md](ai-handoff.md)를 따른다.
 
 ## 방문 예약 동시 요청 보완
 
@@ -696,6 +696,15 @@ docker run -d -p 6379:6379 redis:7
 4. 관련 DB는 InnoDB와 실제 트랜잭션을 사용해야 한다. 정원 보장을 검증하려면 같은 농장의 서로 다른 텃밭으로 마지막 자리의 경쟁 요청, 새 날짜 동시 생성, 취소와 예약 경쟁을 실행해야 한다. 실제 DB 검사는 아직 수행하지 않았다. 기존 날짜 유니크 제약은 그대로 유지한다.
 5. 로컬 시연 화면에서 가족 토큰으로 방문 시간 조회, 1명 예약, 이번 화면의 예약 취소를 호출한다. 성공 응답의 예약 ID를 메모리에 보관하며 새로고침 후 예약 이력 조회는 제공하지 않는다. 취소 응답을 놓친 뒤 재시도해 C4095를 받으면 이미 취소된 화면으로 복구한다. 예약 생성 응답 유실의 멱등 처리는 별도 남은 항목이다.
 6. 시연 수확 조회의 돌봄 수는 CareLogRepository.countByGardenId로 실제 완료 수를 반환한다. 시연용 고정 0을 쓰지 않는다.
-7. 핵심 JUnit 68개, Python 28개, Node 화면 로직 10개가 통과했다. 예약 정원 경계 검사 3개는 저장소 대역을 사용한다. UserService와 보안 의존성까지 필요한 VisitServiceTest는 이 환경의 부분 클래스패스 검사에 포함되지 않았다. 전체 Gradle 빌드와 실제 DB 검증이 필요하다.
+7. 핵심 JUnit 77개, Python 30개, Node 화면 로직 10개가 통과했다. 예약 정원 경계 검사 3개는 저장소 대역을 사용한다. UserService와 보안 의존성까지 필요한 VisitServiceTest는 이 환경의 부분 클래스패스 검사에 포함되지 않았다. 전체 Gradle 빌드와 실제 DB 검증이 필요하다.
 
 MariaDB 잠금 참고: https://mariadb.com/docs/server/reference/sql-statements/data-manipulation/selecting-data/for-update
+
+## 음성 초안 롤백과 파일 보존
+
+1. FileStorage에 deleteAudio를 추가하고 LocalFileStorage가 자신의 base URL과 voice-memos 아래의 UUID 음성 파일만 처리한다. 다른 디렉터리, 외부 URL, 경로 이동, 심볼릭 링크와 디렉터리 삭제를 거부한다. 재시도 읽기에도 같은 경로 검증을 사용한다.
+2. VoiceMemoStore.createPending은 초안 검증과 DB 저장 전에 FileUploadService.deleteAudioOnRollback으로 Spring 트랜잭션 완료 콜백을 등록한다. 확실한 ROLLED_BACK일 때만 새 음성을 삭제한다. 정상 커밋과 UNKNOWN 결과에서는 보존하며 처리 결과 저장과 재시도에는 삭제 콜백을 등록하지 않는다.
+3. 삭제 실패는 로그에 남기고 원래 비즈니스 오류를 유지한다. 실제 트랜잭션이 없는 직접 호출에서는 삭제하지 않는다. 파일 복사 도중의 부분 파일이나 사진 DB 저장 실패의 정리는 이 변경 범위가 아니다.
+4. Python STT 작업 서버는 PyAV InvalidDataError를 잘못된 음성으로 구분해 HTTP 400을 반환한다. Java는 INVALID_AUDIO로 저장하며 같은 깨진 파일의 재시도를 권하지 않는다. 일반 모델 내부 오류는 503을 유지한다. 실제 코덱 시험은 아직 하지 않았다.
+5. 핵심 JUnit 77개, STT Python 23개, 도구 Python 7개, Node 화면 로직 10개가 통과했다. Spring 트랜잭션 완료 콜백과 로컬 파일 삭제는 실제 라이브러리 및 임시 파일로 검사했으며 DB 커밋 자체는 대역이다. 모델, HTTP 인증과 MariaDB의 전체 통합 검사는 남아 있다.
+6. AI 역할 설명, 2분 시연 준비와 예상 질문 답변은 [ai-presentation.md](ai-presentation.md)에 정리했다. 자체 학습, 모델 성능, 사진 판별, 서버 TTS의 미구현 범위를 구분하며 실제 측정 전 점수나 응답 시간을 주장하지 않는다.

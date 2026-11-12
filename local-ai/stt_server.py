@@ -13,6 +13,15 @@ MAX_AUDIO_BYTES = 20 * 1024 * 1024
 MAX_DURATION_SECONDS = 60
 MAX_TEXT_LENGTH = 8000
 
+INVALID_DECODE_ERRORS = (ValueError, EOFError)
+try:
+    from av.error import InvalidDataError
+except ImportError:
+    # 모델 없는 경계 검사도 실행할 수 있다. 실제 인식에는 faster-whisper와 PyAV가 필요하다.
+    pass
+else:
+    INVALID_DECODE_ERRORS += (InvalidDataError,)
+
 
 class InvalidAudio(ValueError):
     pass
@@ -27,7 +36,7 @@ def transcribe(model, audio):
         raise InvalidAudio("Invalid audio size")
     try:
         segments, info = model.transcribe(io.BytesIO(audio), language="ko", beam_size=1, vad_filter=True)
-    except (ValueError, EOFError) as exc:
+    except INVALID_DECODE_ERRORS as exc:
         raise InvalidAudio("Cannot decode audio") from exc
     duration = info.duration
     if not math.isfinite(duration) or duration <= 0 or duration > MAX_DURATION_SECONDS:

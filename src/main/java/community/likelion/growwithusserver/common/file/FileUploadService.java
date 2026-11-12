@@ -6,6 +6,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -51,13 +53,27 @@ public class FileUploadService {
         return store(directory, audio.extension(), audio.bytes(), audio.contentType());
     }
 
-    // 음성 인식 실패 시 저장 파일이 남지 않도록, 저장과 분리해서 먼저 검증할 수 있다.
+    // 파일 형식 검증을 저장과 분리해 먼저 수행할 수 있다.
     public void validateAudio(MultipartFile file) {
         inspectAudio(file);
     }
 
     public byte[] readStoredAudio(String storedUrl) {
         return fileStorage.readAudio(storedUrl);
+    }
+
+    /** 새 음성의 초안 트랜잭션이 확실히 롤백된 경우에만 업로드 파일을 정리한다. */
+    public void deleteAudioOnRollback(String storedUrl) {
+        if (!TransactionSynchronizationManager.isActualTransactionActive()
+                || !TransactionSynchronizationManager.isSynchronizationActive()) return;
+        TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronization() {
+                    @Override public void afterCompletion(int status) {
+                        if (status != STATUS_ROLLED_BACK) return;
+                        try { fileStorage.deleteAudio(storedUrl); }
+                        catch (RuntimeException ex) { log.warn("[deleteAudioOnRollback] 롤백된 음성 파일 정리 실패"); }
+                    }
+                });
     }
 
     private record AudioData(byte[] bytes, String extension, String contentType) {}

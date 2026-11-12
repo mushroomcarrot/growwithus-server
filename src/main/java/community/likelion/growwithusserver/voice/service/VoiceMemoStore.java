@@ -21,6 +21,7 @@ import java.time.LocalDateTime;
 public class VoiceMemoStore {
     private final VoiceMemoRepository repository;
     private final VoiceTaskAccess taskAccess;
+    private final community.likelion.growwithusserver.common.file.FileUploadService uploads;
     @org.springframework.beans.factory.annotation.Value("${external.http.read-timeout:30s}")
     private java.time.Duration readTimeout = java.time.Duration.ofSeconds(30);
 
@@ -36,6 +37,7 @@ public class VoiceMemoStore {
 
     @Transactional
     public Attempt createPending(String username, Long taskId, String audioUrl) {
+        uploads.deleteAudioOnRollback(audioUrl);
         taskAccess.requireOpenForUpdate(taskId, username);
         VoiceMemo memo = VoiceMemo.builder().taskId(taskId).caretakerUsername(username).audioUrl(audioUrl)
                 .issueCodes("").status(VoiceMemoStatus.DRAFT).processingStatus(VoiceProcessingStatus.PROCESSING)

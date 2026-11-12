@@ -119,6 +119,27 @@ class RecognitionTest(unittest.TestCase):
 
 
 class HttpBoundaryTest(unittest.TestCase):
+    def test_corrupt_container_is_invalid_audio_not_a_retryable_server_failure(self):
+        class DecoderInvalidData(Exception):
+            pass
+        model = Model()
+        model.transcribe = lambda *args, **kwargs: (_ for _ in ()).throw(DecoderInvalidData("private decoder details"))
+        handler = Handler(model)
+        with patch("stt_server.INVALID_DECODE_ERRORS", (ValueError, EOFError, DecoderInvalidData)):
+            handler.do_POST()
+        self.assertEqual(handler.status, 400)
+        self.assertEqual(handler.result(), {"error": "invalid_audio"})
+        self.assertFalse(handler.server.inference_lock.locked())
+
+    def test_internal_model_failure_remains_retryable_and_releases_worker(self):
+        model = Model()
+        model.transcribe = lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("private model details"))
+        handler = Handler(model)
+        handler.do_POST()
+        self.assertEqual(handler.status, 503)
+        self.assertEqual(handler.result(), {"error": "inference_failed"})
+        self.assertFalse(handler.server.inference_lock.locked())
+
     def test_success(self):
         handler = Handler(Model())
         handler.do_POST()

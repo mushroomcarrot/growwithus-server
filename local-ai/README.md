@@ -76,3 +76,6 @@ python -m unittest discover -s local-ai -p 'test_*.py' -v
 Java 쪽 HTTP 검사는 `LocalSttSelfTest`와 JUnit 래퍼 `LocalSttTest`에 있다. 실제 모델 대신 Spring 모의 HTTP 서버로 요청 바이트, 길이 제한, 응답 검증과 비활성화 설정을 검사한다.
 
 공식 구현 참고: https://github.com/SYSTRAN/faster-whisper
+
+
+깨진 컨테이너의 PyAV InvalidDataError는 400으로 구분하며 일반 모델 내부 오류는 503이다. 두 경로 모두 작업 잠금을 해제하고 내부 예외나 원문을 응답에 노출하지 않는다. 모델 없는 예외 대역 검사는 수행했으며 실제 PyAV 파일 인식은 별도 검증이 필요하다.
