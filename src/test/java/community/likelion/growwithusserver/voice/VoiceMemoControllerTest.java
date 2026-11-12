@@ -15,6 +15,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 /** 컨트롤러와 공통 오류 매핑 검사. 실제 JWT 필터 체인 검사는 별도다. */
@@ -31,6 +32,10 @@ class VoiceMemoControllerTest {
                     .file(VoiceMemoSelfTest.audio())).andReturn().getResponse();
             assertEquals(200, uploaded.getStatus());
             assertTrue(uploaded.getContentAsString().contains("vm_1"));
+            var recovered = mvc.perform(get("/caretaker/tasks/tsk_1/voice-memos/latest")).andReturn().getResponse();
+            assertEquals(200, recovered.getStatus());
+            assertTrue(recovered.getContentAsString().contains("vm_1"));
+            assertTrue(recovered.getContentAsString().contains("READY"));
             var missing = mvc.perform(multipart("/caretaker/tasks/tsk_1/voice-memos")).andReturn().getResponse();
             assertEquals(400, missing.getStatus());
             assertTrue(missing.getContentAsString().contains("C002"));

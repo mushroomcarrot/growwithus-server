@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,6 +24,12 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 public class VoiceMemoController {
     private final VoiceMemoService service;
+
+    @GetMapping("/tasks/{taskId}/voice-memos/latest")
+    @Operation(summary = "작업의 마지막 음성 메모와 처리 상태 조회")
+    public GlobalResponse<VoiceMemoResponseDto> latest(@PathVariable String taskId) {
+        return service.latest(SecurityUtil.getUsername(), taskId);
+    }
 
     @PostMapping(value = "/tasks/{taskId}/voice-memos", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "음성 메모 인식과 초안 저장")

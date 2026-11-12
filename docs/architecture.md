@@ -2,7 +2,7 @@
 
 > 코드의 현재 상태를 그대로 기록한 문서다. 기능을 추가하거나 바꾸면 이 문서도 함께 갱신한다 ([development-guide.md](development-guide.md#문서-갱신-규칙)).
 >
-> 마지막 갱신: 2026-11-12, 작업별 반복 간격과 실제 완료 시각 기준 이력 조회, 음성 재시도 파일 검사 추가. 실제 농장과 텃밭 조회 연결, DB 및 배포 검증은 남아 있음
+> 마지막 갱신: 2026-11-13, 연결 중단 후 마지막 음성 메모 복구 조회와 처리 만료 상태 표시 추가. 실제 농장과 텃밭 조회 연결, DB 및 배포 검증은 남아 있음
 
 ## 한눈에 보기
 
@@ -130,6 +130,8 @@ community.likelion.growwithusserver/
 ## 음성 메모 도메인
 
 `voice/controller`, `service`, `data/{dto,entity,enums,exception,repository}`, `task` 패키지를 추가했다. `VoiceMemoService`는 파일과 모델 처리를 맡고, 트랜잭션이 필요한 초안 저장과 확정은 `VoiceMemoStore`가 맡는다. `TaskVoiceReader`는 `care_task`와 현재 텃밭 담당자를 검증한다. [voice-api.md](voice-api.md)에 재시도와 저장 구조를 정리했다.
+
+`GET /caretaker/tasks/{taskId}/voice-memos/latest`는 업로드 응답 유실 시 작업 ID로 마지막 저장 메모를 복구한다. 현재 담당자를 확인한 뒤 본인의 메모 하나만 조회하며 모델 호출이나 저장은 하지 않는다. 미완료 작업의 PROCESSING이 2분 동안 끝나지 않으면 `retryable=true`를 반환한다. 실제 retry는 같은 작업과 메모를 잠그고 처리 토큰을 교체한다. 특정 업로드의 멱등 키를 대신하지는 않는다.
 
 ### 관리사 작업과 성장 상태
 

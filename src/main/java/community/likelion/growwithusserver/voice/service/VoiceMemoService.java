@@ -26,6 +26,10 @@ public class VoiceMemoService {
     private final VoiceMemoAnalysisService analysisService;
     private final VoiceMemoStore store;
 
+    public GlobalResponse<VoiceMemoResponseDto> latest(String username, String publicTaskId) {
+        return GlobalResponse.ok(store.latest(username, IdPrefix.TASK.parse(publicTaskId)));
+    }
+
     // 모델과 파일 처리는 DB 트랜잭션 밖에서 수행한다.
     public GlobalResponse<VoiceMemoResponseDto> create(String username, String publicTaskId, MultipartFile audio) {
         Long taskId = IdPrefix.TASK.parse(publicTaskId);

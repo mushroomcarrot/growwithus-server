@@ -180,6 +180,9 @@ public class VoiceMemoSelfTest {
                             yield memo;
                         }
                         case "findById", "findForUpdate" -> Optional.ofNullable(rows.get((Long) args[0]));
+                        case "findFirstByTaskIdAndCaretakerUsernameOrderByIdDesc" -> rows.values().stream()
+                                .filter(m -> m.getTaskId().equals(args[0]) && m.getCaretakerUsername().equals(args[1]))
+                                .max(java.util.Comparator.comparing(VoiceMemo::getId));
                         case "findConfirmedIssues" -> rows.values().stream().filter(m -> m.getStatus() == VoiceMemoStatus.CONFIRMED
                                 && ((List<?>) args[0]).contains(m.getTaskId()) && !m.getConfirmedAt().isBefore((java.time.LocalDateTime) args[1])).toList();
                         case "findAccessById" -> {

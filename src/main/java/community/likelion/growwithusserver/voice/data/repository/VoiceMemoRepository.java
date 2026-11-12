@@ -10,6 +10,8 @@ import org.springframework.data.repository.query.Param;
 import java.util.Optional;
 
 public interface VoiceMemoRepository extends JpaRepository<VoiceMemo, Long> {
+    Optional<VoiceMemo> findFirstByTaskIdAndCaretakerUsernameOrderByIdDesc(Long taskId, String caretakerUsername);
+
     interface Access {
         Long getTaskId();
         String getCaretakerUsername();

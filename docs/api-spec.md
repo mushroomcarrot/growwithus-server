@@ -1,6 +1,6 @@
 # 대신텃밭 API 명세 요약
 
-> 원본: Notion "API 명세서 (초안)" 데이터베이스 (API 54개). 쓰지 않는 푸시 토큰 등록을 제외하고 음성 재시도 API를 추가했다. 작업 브랜치의 구현 범위와 추가 상태 필드는 [ai-integration.md](ai-integration.md), [voice-api.md](voice-api.md)를 함께 확인한다.
+> 원본: Notion "API 명세서 (초안)" 데이터베이스 (API 54개). 쓰지 않는 푸시 토큰 등록을 제외하고 음성 재시도와 복구 조회 API를 추가했다. 작업 브랜치의 구현 범위와 추가 상태 필드는 [ai-integration.md](ai-integration.md), [voice-api.md](voice-api.md)를 함께 확인한다.
 >
 > 엔드포인트별 요청, 응답 필드는 [api-detail.md](api-detail.md)를 본다.
 
@@ -129,13 +129,14 @@
 | DELETE | /visits/{visitId} | 방문 예약 취소 (하루 전까지) | OWNER | DT_HARVEST |
 | GET | /gardens/{gardenId}/outings | 처인 나들이 추천 (체험농장, 식당) | OWNER | DT_HARVEST |
 
-### 4.5 Task (7)
+### 4.5 Task (8)
 
 | Method | Endpoint | 기능 | 권한 | 화면 |
 | --- | --- | --- | --- | --- |
 | GET | /caretaker/tasks/today | 오늘 할 일 카드 (AI 생성) | CARETAKER | DT_CARE_TODAY |
 | POST | /caretaker/tasks/{taskId}/photos | 작업 인증 사진 (AI 사진 확인) | CARETAKER | DT_CARE_PHOTO |
 | POST | /caretaker/tasks/{taskId}/voice-memos | 말로 남기기 (STT, LLM 정리) | CARETAKER | DT_CARE_TODAY, DT_CARE_VOICE |
+| GET | /caretaker/tasks/{taskId}/voice-memos/latest | 마지막 저장 음성 메모와 처리 상태 복구 조회 | CARETAKER | DT_CARE_VOICE |
 | POST | /caretaker/voice-memos/{voiceMemoId}/confirm | 음성 메모 확정 (맞아요, 보낼게요) | CARETAKER | DT_CARE_VOICE |
 | POST | /caretaker/voice-memos/{voiceMemoId}/retry | 실패한 음성 인식 또는 문장 정리 재시도 | CARETAKER | DT_CARE_VOICE |
 | POST | /caretaker/tasks/{taskId}/complete | 작업 완료 (돌봄 기록 생성, 가족 알림) | CARETAKER | DT_CARE_TODAY, DT_CARE_PHOTO, DT_CARE_DONE |

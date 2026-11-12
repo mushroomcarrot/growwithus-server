@@ -24,6 +24,14 @@ public class VoiceMemoStore {
 
     public record Attempt(Long memoId, Long taskId, String token, String audioUrl, String transcript) {}
 
+    @Transactional(readOnly = true)
+    public VoiceMemoResponseDto latest(String username, Long taskId) {
+        taskAccess.requireOwned(taskId, username);
+        var memo = repository.findFirstByTaskIdAndCaretakerUsernameOrderByIdDesc(taskId, username)
+                .orElseThrow(() -> new VoiceMemoException(ErrorCode.DATA_NOT_FOUND));
+        return response(username, memo);
+    }
+
     @Transactional
     public Attempt createPending(String username, Long taskId, String audioUrl) {
         taskAccess.requireOpenForUpdate(taskId, username);
@@ -40,8 +48,7 @@ public class VoiceMemoStore {
         VoiceMemo memo = ownedLocked(username, memoId);
         if (memo.getStatus() == VoiceMemoStatus.CONFIRMED || memo.getProcessingStatus() == VoiceProcessingStatus.READY
                 || memo.getProcessingStatus() == VoiceProcessingStatus.INVALID_AUDIO
-                || (memo.getProcessingStatus() == VoiceProcessingStatus.PROCESSING
-                    && memo.getProcessingStartedAt().isAfter(LocalDateTime.now().minusMinutes(2)))) {
+                || processingActive(memo)) {
             throw new VoiceMemoException(ErrorCode.ALREADY_PROCESSED);
         }
         taskAccess.requireOpenForUpdate(memo.getTaskId(), username);
@@ -118,8 +125,14 @@ public class VoiceMemoStore {
                 .issues(memo.getIssueCodes().isEmpty() ? java.util.List.of() : java.util.List.of(memo.getIssueCodes().split(",")))
                 .status(memo.getStatus()).processingStatus(memo.getProcessingStatus())
                 .retryable(!completed && memo.getStatus() == VoiceMemoStatus.DRAFT
-                        && (memo.getProcessingStatus() == VoiceProcessingStatus.STT_FAILED || memo.getProcessingStatus() == VoiceProcessingStatus.LLM_FAILED))
+                        && (memo.getProcessingStatus() == VoiceProcessingStatus.STT_FAILED || memo.getProcessingStatus() == VoiceProcessingStatus.LLM_FAILED
+                            || (memo.getProcessingStatus() == VoiceProcessingStatus.PROCESSING && !processingActive(memo))))
                 .processingError(memo.getProcessingError()).build();
+    }
+
+    private boolean processingActive(VoiceMemo memo) {
+        return memo.getProcessingStatus() == VoiceProcessingStatus.PROCESSING && memo.getProcessingStartedAt() != null
+                && memo.getProcessingStartedAt().isAfter(LocalDateTime.now().minusMinutes(2));
     }
 
     public record ConfirmedMemo(String voiceMemoId, String transcript, String summary, java.util.List<String> issues) {}

@@ -705,6 +705,8 @@ STT로 받아 적고 LLM이 가족용 문장으로 정리한다. `issues`는 다
 
 ### 6.4 음성 메모 확정
 
+연결 중단으로 업로드 응답을 받지 못했다면 먼저 `GET /caretaker/tasks/{taskId}/voice-memos/latest`를 호출한다. 마지막 저장 메모 하나와 업로드 응답과 같은 처리 상태를 반환한다. 본인 담당 작업만 조회 가능하며 저장된 메모가 없으면 C404다. PROCESSING 상태의 처리 시작 후 2분이 지나면 `retryable=true`로 표시되어 같은 메모 ID로 retry할 수 있다. 조회는 새 파일이나 메모를 만들지 않는다. 복구 순서와 중복 녹음 시 주의점은 [voice-api.md](voice-api.md)를 본다.
+
 `POST /caretaker/voice-memos/{voiceMemoId}/confirm` | 권한 CARETAKER | 화면 DT_CARE_VOICE
 
 ```json
