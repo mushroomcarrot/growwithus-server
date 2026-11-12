@@ -6,6 +6,7 @@
   let tasks = [], memo = null, photoId = null, audio = null, playbackUrl = null;
   let recorder = null, stream = null, diaryCursor = null, selectionVersion = 0;
   let activeGarden = "gdn_1";
+  let visitId = null;
   const tell = text => { $("notice").textContent = text; };
   const taskId = () => { if (!$("task").value) throw new Error("진행할 작업을 골라 주세요."); return $("task").value; };
   async function refreshSession(actor, session) {
@@ -32,7 +33,10 @@
       return api(actor, path, options, true);
     }
     const result = await response.json();
-    if (!response.ok || result.error?.code) throw new Error(result.error?.message || ("요청 실패: " + response.status));
+    if (!response.ok || result.error?.code) {
+      const error = new Error(result.error?.message || ("요청 실패: " + response.status));
+      error.status = response.status; error.code = result.error?.code; throw error;
+    }
     return result.data;
   }
   function action(id, fn) {
@@ -195,6 +199,33 @@
     diaryCursor = null; await loadDiary(); tell("가족 기록을 불러왔어요.");
   }
   action("loadFamily", loadFamily); action("moreDiary", () => loadDiary(true));
+  action("loadSlots", async () => {
+    const slots = await api("owner", `/gardens/${activeGarden}/visit-slots`);
+    $("slot").replaceChildren(new Option("방문 시간을 골라 주세요", ""));
+    for (const slot of slots) {
+      const option = new Option(`${slot.date} ${slot.startTime}~${slot.endTime}${slot.available ? "" : " (예약 불가)"}`, slot.slotId);
+      option.disabled = !slot.available; $("slot").append(option);
+    }
+    $("slot").value = "";
+    tell("방문할 시간을 골라 주세요. 실제 예약 시 정원을 다시 확인해요.");
+  });
+  action("reserveVisit", async () => {
+    if (!$("slot").value) throw new Error("먼저 방문할 시간을 골라 주세요.");
+    const visit = await api("owner", "/visits", { method: "POST", body: { gardenId: activeGarden, slotId: $("slot").value, headcount: 1, memo: $("visitMemo").value || null } });
+    visitId = visit.visitId;
+    $("visitState").textContent = `${visit.date} ${visit.startTime} 방문 예약 완료 (${visitId})`;
+    tell("방문을 예약했어요. 관리사에게 방문 알림을 보냈어요.");
+  });
+  action("cancelVisit", async () => {
+    if (!visitId) throw new Error("이번 화면에서 예약한 방문이 없어요.");
+    try { await api("owner", `/visits/${visitId}`, { method: "DELETE" }); }
+    catch (error) {
+      // 이전 취소 응답을 놓쳤더라도 이미 취소된 같은 예약이면 화면 상태를 복구한다.
+      if (error.status !== 409 || error.code !== "C4095") throw error;
+    }
+    visitId = null; $("visitState").textContent = "방문을 취소했어요.";
+    tell("방문을 취소했어요. 다른 시간을 보려면 방문 가능한 시간을 다시 불러와 주세요.");
+  });
   function readAloud(text) {
     if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) throw new Error("이 브라우저는 읽어주기를 지원하지 않아요.");
     if (!text?.trim()) throw new Error("먼저 읽을 내용을 불러와 주세요.");

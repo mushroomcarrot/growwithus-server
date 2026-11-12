@@ -107,3 +107,43 @@ test("editing the summary before confirmation clears stale automatic issue label
   assert.doesNotMatch(app.elements.get("issues").textContent, /잎에 점이 있어요/);
   assert.match(app.elements.get("memoState").textContent, /확정했어요/);
 });
+
+function familyResponse(url) {
+  if (url.endsWith("/growth")) return reply({ stage: "FLOWER", progress: .4, explanation: "fixture" });
+  if (url.endsWith("/harvest")) return reply({ expectedDate: null, message: "fixture" });
+  if (url.endsWith("/diary")) return reply({ items: [], nextCursor: null });
+  if (url.endsWith("/visit-slots")) return reply([
+    { slotId: "slot_20261128_10", date: "2026-11-28", startTime: "10:00", endTime: "11:00", available: true },
+    { slotId: "slot_20261128_11", date: "2026-11-28", startTime: "11:00", endTime: "12:00", available: false }
+  ]);
+  if (url === "/visits") return reply({ visitId: "vst_1", date: "2026-11-28", startTime: "10:00", status: "RESERVED" });
+  return reply(null);
+}
+
+test("family visit uses the selected slot and cancels only the created reservation", async () => {
+  const app = harness(async url => familyResponse(url));
+  await app.click("loginOwner"); await app.click("reserveVisit");
+  assert.equal(app.calls.filter(c => c.url === "/visits").length, 0);
+  await app.click("loadSlots"); assert.equal(app.elements.get("slot").children[2].disabled, true);
+  app.elements.get("slot").value = "slot_20261128_10"; await app.click("reserveVisit");
+  const request = app.calls.find(c => c.url === "/visits");
+  assert.deepEqual(JSON.parse(request.options.body), { gardenId: "gdn_1", slotId: "slot_20261128_10", headcount: 1, memo: null });
+  assert.match(app.elements.get("visitState").textContent, /vst_1/);
+  await app.click("cancelVisit"); await app.click("cancelVisit");
+  assert.equal(app.calls.filter(c => c.url === "/visits/vst_1").length, 1);
+});
+
+test("a lost cancellation response preserves the reservation id for manual recovery", async () => {
+  let cancellations = 0;
+  const app = harness(async url => {
+    if (url === "/visits/vst_1") {
+      if (++cancellations === 1) throw new Error("network disconnected");
+      return { ok: false, status: 409, json: async () => ({ data: null, error: { code: "C4095", message: "이미 취소됐어요" } }) };
+    }
+    return familyResponse(url);
+  });
+  await app.click("loginOwner"); app.elements.get("slot").value = "slot_20261128_10"; await app.click("reserveVisit");
+  await app.click("cancelVisit"); assert.equal(cancellations, 1);
+  await app.click("cancelVisit"); assert.equal(cancellations, 2);
+  assert.match(app.elements.get("visitState").textContent, /취소했어요/);
+});

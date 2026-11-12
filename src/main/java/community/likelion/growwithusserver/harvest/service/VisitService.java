@@ -13,7 +13,6 @@ import community.likelion.growwithusserver.harvest.data.exception.VisitAlreadyCa
 import community.likelion.growwithusserver.harvest.data.exception.VisitAlreadyReservedException;
 import community.likelion.growwithusserver.harvest.data.exception.VisitCancelDeadlinePassedException;
 import community.likelion.growwithusserver.harvest.data.exception.VisitNotFoundException;
-import community.likelion.growwithusserver.harvest.data.exception.VisitSlotFullException;
 import community.likelion.growwithusserver.harvest.data.exception.VisitSlotNotBookableException;
 import community.likelion.growwithusserver.harvest.garden.HarvestGarden;
 import community.likelion.growwithusserver.harvest.garden.HarvestGardenReader;
@@ -50,6 +49,7 @@ public class VisitService {
     private final HarvestGardenReader harvestGardenReader;
     private final UserService userService;
     private final NotificationService notificationService;
+    private final VisitCapacityGuard capacity;
 
     // 주말 슬롯과 예약 가능 여부. from, to를 생략하면 내일부터 2주다.
     @Transactional(readOnly = true)
@@ -96,12 +96,7 @@ public class VisitService {
             log.error("[reserve] 같은 날 예약이 이미 있음: {} ({})", username, slot.date());
             throw new VisitAlreadyReservedException();
         }
-        long reserved = visitRepository.countByFarmIdAndVisitDateAndStartTimeAndStatus(
-                garden.getFarmId(), slot.date(), slot.startTime(), VisitStatus.RESERVED);
-        if (reserved >= VisitSlotPolicy.SLOT_CAPACITY) {
-            log.error("[reserve] 정원이 찬 슬롯: {} ({})", username, slot.slotId());
-            throw new VisitSlotFullException();
-        }
+        capacity.requireCapacity(garden.getFarmId(), slot);
 
         User owner = userService.getUserEntity(username);
         Visit visit = Visit.builder()
@@ -173,7 +168,7 @@ public class VisitService {
     }
 
     private Visit getVisitEntity(Long id) {
-        return visitRepository.findById(id)
+        return visitRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> {
                     log.error("[getVisitEntity] 방문 예약 조회 실패: {}", id);
                     return new VisitNotFoundException();

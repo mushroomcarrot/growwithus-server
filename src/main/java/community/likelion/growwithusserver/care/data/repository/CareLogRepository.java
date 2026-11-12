@@ -7,4 +7,5 @@ public interface CareLogRepository extends JpaRepository<CareLog, Long> {
     List<CareLog> findAllByCaretakerUsernameAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(String username,
             LocalDateTime from, LocalDateTime to);
     long countByCaretakerUsername(String username);
+    long countByGardenId(Long gardenId);
 }

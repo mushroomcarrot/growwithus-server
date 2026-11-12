@@ -11,7 +11,7 @@
 | #8 성장 | 적산온도 계산, 관찰 보정, 상태와 이벤트, 가족 일기, 알림, 수확 응답에 저장 예측일 반영 | 실제 온도 자료와 작물별 기준, MariaDB 잠금과 프론트 검증. 시연 수치는 가상 자료 |
 | #12 작업 인증 | 사진 저장, 선택적 로컬 비전 연결, 완료 검증, 돌봄 기록, 가족 알림과 일기 | 실제 담당자 조회와 통합 검사. 기본 시연 모델은 비전 모델이 아니므로 aiCheck는 null |
 | #13 음성 | WEBM, MP4, M4A, WAV, STT와 문장 정리, 초안 보존, 확인과 수정, 재시도, 응답 유실 복구, 이상 징후 입력 연결 | 실제 한국어 녹음 품질과 지연, 서버 부팅, JWT와 DB 연동 검사 |
-| #14 수확과 방문 | 기존 팀 구현을 유지하고 저장 성장 예측일을 수확 안내에 연결 | 실제 텃밭과 농장 연결, 방문 슬롯 정원 동시성, 관리사 가능 시간, 예약 시연 데이터 |
+| #14 수확과 방문 | 기존 팀 구현에 성장 예측일, 예약 정원 잠금, 중복 취소 방지 추가 | 실제 텃밭과 농장 연결, 정원과 취소 잠금의 MariaDB 검사, 관리사 가능 시간. 로컬 시연은 실제 예약 API 호출 가능 |
 | #15 알림 | PR #24의 기존 구현 유지, 돌봄과 성장 알림에서 공통 서비스 호출 | 실제 저장과 읽기 요청 검증. 새로 구현한 것으로 중복 보고하지 않음 |
 
 ## 프론트 연동 기준
@@ -44,14 +44,22 @@
 
 ```powershell
 .\gradlew.bat compileJava
-.\gradlew.bat test --tests 'community.likelion.growwithusserver.ai.*' --tests 'community.likelion.growwithusserver.voice.*' --tests 'community.likelion.growwithusserver.care.*' --tests 'community.likelion.growwithusserver.growth.*' --tests 'community.likelion.growwithusserver.caretaker.*' --tests 'community.likelion.growwithusserver.diary.*' --tests 'community.likelion.growwithusserver.demo.LocalDemoDataTest'
+.\gradlew.bat test --tests 'community.likelion.growwithusserver.ai.*' --tests 'community.likelion.growwithusserver.voice.*' --tests 'community.likelion.growwithusserver.care.*' --tests 'community.likelion.growwithusserver.growth.*' --tests 'community.likelion.growwithusserver.caretaker.*' --tests 'community.likelion.growwithusserver.diary.*' --tests 'community.likelion.growwithusserver.harvest.*' --tests 'community.likelion.growwithusserver.demo.LocalDemoDataTest'
 python -m unittest discover -s local-ai -p 'test_*.py'
 python -m unittest discover -s scripts -p test_local_demo.py
 node --test scripts/test-local-demo-ui.cjs
 ```
 
-4. 운영 스키마에는 `voice_memo.sql`, `care_growth.sql`, `diary.sql`을 검토해 적용한다. 이미 있는 테이블은 누락 필드와 인덱스만 별도 마이그레이션한다. prod는 validate이며 자동 적용하지 않았다.
+4. 운영 스키마에는 `voice_memo.sql`, `care_growth.sql`, `diary.sql`, `visit_booking_day.sql`을 검토해 적용한다. 이미 있는 테이블은 누락 필드와 인덱스만 별도 마이그레이션한다. prod는 validate이며 자동 적용하지 않았다.
 5. 실제 DB에서 동시 완료, 확정과 완료 경쟁, 중복 일기 방지, 일기 또는 알림 저장 실패 시 원래 처리 롤백을 확인한다. 대역 저장소 검사만으로 DB 잠금과 트랜잭션이 검증된 것은 아니다.
 6. 배포 주소가 준비되면 HTTPS, 프론트 CORS, 실제 파일 접근, JWT 갱신, Android WEBM과 iPhone MP4를 확인한다. 로컬 Compose는 외부 Vercel 화면에 공개된 HTTPS 서버가 아니다.
 
 현재 실제 모델 추론, Docker 부팅, 운영 DB, 팀 프론트 연동 결과는 없다. 합성 평가 보고서도 실행 전에는 생성하지 않는다. GitHub 업로드가 성공하기 전에는 팀이 이 변경을 원격에서 받을 수 없으므로 브랜치 푸시 여부를 별도로 확인해야 한다.
+
+
+## 예약과 취소 추가 사항
+
+1. 마지막 자리의 경쟁 요청을 직렬화하기 위해 visit_booking_day 테이블을 추가했다. 운영 DB에 새 잠금 테이블을 준비해야 하며 기존 visit 행은 그대로 읽는다. 기본 시연은 ddl-auto=update이므로 전용 DB에서 자동 생성한다.
+2. 취소는 예약 행 잠금을 사용한다. 중복 취소는 기존 C4095이고 알림을 다시 만들지 않는다. 실제 DB에서 알림과 예약이 같이 롤백되는지 확인해야 한다.
+3. 로컬 콘솔에는 방문 슬롯, 1명 예약, 해당 화면에서 받은 예약 ID로 취소하는 경로를 추가했다. 새로고침 후 예약 목록과 생성 응답 유실 복구는 제공하지 않는다. 팀 프론트의 예약 취소 우선순위를 올린다는 의미는 아니다.
+4. 현재 검사 수는 핵심 Java 68개, Python 28개, 화면 대역 검사 10개다. 예약 서비스 전체 테스트와 DB 동시 실행은 이 환경에서 미검증이다.
