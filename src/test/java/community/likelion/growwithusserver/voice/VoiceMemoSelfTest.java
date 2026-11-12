@@ -38,6 +38,7 @@ public class VoiceMemoSelfTest {
         lifecycle();
         rejection();
         retry();
+        completedDuringAnalysis();
         System.out.println("Voice memo checks passed: " + checks);
     }
 
@@ -131,6 +132,23 @@ public class VoiceMemoSelfTest {
         rejects("C4095", () -> concurrent.store.finish("caretaker", first, analysis));
         concurrent.store.finish("caretaker", second, analysis);
         check(concurrent.rows.get(1L).getProcessingStatus() == VoiceProcessingStatus.READY, "최신 시도만 결과 저장");
+    }
+
+    private static void completedDuringAnalysis() {
+        Fixture stt = new Fixture();
+        stt.stt = (bytes, filename) -> { stt.completed = true; throw new AiClientException(); };
+        var failed = stt.service.create("caretaker", "tsk_1", audio()).getData();
+        check(failed.getProcessingStatus() == VoiceProcessingStatus.STT_FAILED && !failed.isRetryable(),
+                "완료된 작업에는 실행할 수 없는 재시도를 표시하지 않음");
+        check(stt.files == 1 && stt.rows.size() == 1, "분석 중 작업이 끝나도 음성 파일과 메모 보존");
+        rejects("C4095", () -> stt.service.retry("caretaker", "vm_1"));
+
+        Fixture llm = new Fixture();
+        llm.llm = (system, input) -> { llm.completed = true; throw new AiClientException(); };
+        var partial = llm.service.create("caretaker", "tsk_1", audio()).getData();
+        check(partial.getTranscript().equals(TRANSCRIPT) && !partial.isRetryable(),
+                "작업 완료 후 도착한 원문은 보존하고 재시도는 막음");
+        rejects("C4095", () -> llm.service.confirm("caretaker", "vm_1", null));
     }
 
     static MockMultipartFile audio() {

@@ -1,6 +1,8 @@
 package community.likelion.growwithusserver.care.service;
 
 import community.likelion.growwithusserver.ai.service.TaskPlanningService;
+import community.likelion.growwithusserver.ai.logic.TaskRules;
+import community.likelion.growwithusserver.care.data.enums.TaskStatus;
 import community.likelion.growwithusserver.care.data.repository.TaskRepository;
 import community.likelion.growwithusserver.care.garden.CareGardenReader;
 import community.likelion.growwithusserver.common.response.ErrorCode;
@@ -9,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.List;
 
 @Service @RequiredArgsConstructor
 public class TaskGenerationService {
@@ -25,11 +28,23 @@ public class TaskGenerationService {
     private TaskGenerationStore.Generated generate(String username, LocalDate date, java.util.Set<Long> selected) {
         if (!LocalDate.now().equals(date)) throw new VoiceMemoException(ErrorCode.INVALID_PARAMETER);
         var prepared = new ArrayList<TaskGenerationStore.Prepared>();
+        var today = tasks.findAllByCaretakerUsernameAndDateOrderByIdAsc(username, date);
         // 모델 호출 중에는 DB 행 잠금을 유지하지 않는다. 저장 단계에서 다시 검사한다.
         for (var garden : gardens.findAssigned(username)) {
             if (!selected.isEmpty() && !selected.contains(garden.gardenId())) continue;
             if (!username.equals(garden.caretakerUsername())) throw new VoiceMemoException(ErrorCode.ACCESS_DENIED);
-            if (tasks.existsByGardenIdAndDate(garden.gardenId(), date)) continue;
+            if (tasks.existsByGardenIdAndDate(garden.gardenId(), date)) {
+                var existing = today.stream().filter(t -> t.getGardenId().equals(garden.gardenId())).toList();
+                var pending = existing.stream().filter(t -> t.getStatus() == TaskStatus.TODO)
+                        .map(t -> t.getType()).toList();
+                var rules = new TaskRules();
+                if (rules.needsObservation(contexts.create(garden, date), pending,
+                        existing.stream().anyMatch(t -> t.getType() == TaskRules.Type.CHECK))) {
+                    prepared.add(new TaskGenerationStore.Prepared(garden.gardenId(),
+                            List.of(TaskRules.Type.CHECK), true));
+                }
+                continue;
+            }
             var result = planner.plan(contexts.create(garden, date), 120);
             prepared.add(new TaskGenerationStore.Prepared(garden.gardenId(), result.plan().tasks().stream()
                     .map(t -> t.type()).toList(), result.fallbackUsed()));

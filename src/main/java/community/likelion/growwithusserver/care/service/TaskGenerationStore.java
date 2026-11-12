@@ -28,20 +28,30 @@ public class TaskGenerationStore {
     public Generated save(String username, LocalDate date, List<Prepared> prepared) {
         days.ensureDay(username, date);
         days.lockDay(username, date).orElseThrow(() -> new VoiceMemoException(ErrorCode.DATA_NOT_FOUND));
-        int reserved = tasks.findAllByCaretakerUsernameAndDateOrderByIdAsc(username, date).stream().mapToInt(Task::getMinutes).sum();
+        var today = new java.util.ArrayList<>(tasks.findAllByCaretakerUsernameAndDateOrderByIdAsc(username, date));
+        int reserved = today.stream().mapToInt(Task::getMinutes).sum();
         int generated = 0;
         int fallback = 0;
         for (Prepared item : prepared) {
             if (reserved >= 120) break;
             var garden = access.garden(username, item.gardenId(), true);
-            if (tasks.existsByGardenIdAndDate(garden.gardenId(), date)) continue;
-            var plan = new TaskRules().validate(contexts.create(garden, date), item.candidates(), Math.max(0, 120 - reserved));
+            var context = contexts.create(garden, date);
+            var rules = new TaskRules();
+            var candidates = item.candidates();
+            if (tasks.existsByGardenIdAndDate(garden.gardenId(), date)) {
+                var existing = today.stream().filter(t -> t.getGardenId().equals(garden.gardenId())).toList();
+                var pending = existing.stream().filter(t -> t.getStatus() == TaskStatus.TODO).map(Task::getType).toList();
+                if (!rules.needsObservation(context, pending, existing.stream().anyMatch(t -> t.getType() == TaskRules.Type.CHECK))) continue;
+                candidates = List.of(TaskRules.Type.CHECK);
+            }
+            var plan = rules.validate(context, candidates, Math.max(0, 120 - reserved));
             if (plan.tasks().isEmpty()) continue;
             for (var planned : plan.tasks()) {
-                tasks.save(Task.builder().gardenId(garden.gardenId()).caretakerUsername(username).date(date)
+                var saved = tasks.save(Task.builder().gardenId(garden.gardenId()).caretakerUsername(username).date(date)
                         .type(planned.type()).title(planned.title()).description(planned.description())
                         .minutes(planned.minutes()).sourceId(planned.sourceId()).status(TaskStatus.TODO)
                         .createdAt(LocalDateTime.now()).build());
+                today.add(saved);
             }
             reserved += plan.totalMinutes();
             generated++;

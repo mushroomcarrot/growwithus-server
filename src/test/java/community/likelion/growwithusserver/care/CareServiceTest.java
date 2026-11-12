@@ -161,4 +161,53 @@ class CareServiceTest {
                 new TaskDtos.CompleteRequest("pht_2", null)));
         assertEquals(TaskStatus.TODO, stored.getFirst().getStatus());
     }
+
+    private TaskGenerationService generationWithoutModel() {
+        var planner = new community.likelion.growwithusserver.ai.service.TaskPlanningService((system, input) -> {
+            throw new AssertionError("repair must not invoke model");
+        }, tools.jackson.databind.json.JsonMapper.builder().build());
+        return new TaskGenerationService(tasks, gardens, contexts, planner, store());
+    }
+
+    @Test void addsOneObservationWhenWeatherHidesAllPendingWork() {
+        addGarden(1); store().save("care", LocalDate.now(), List.of(prepared(1)));
+        rain = true;
+        assertEquals(1, generationWithoutModel().generate("care", LocalDate.now()).generated());
+        assertEquals(2, stored.size());
+        var visible = new TaskVisibility(gardens, contexts).select("care", stored, LocalDate.now());
+        assertEquals(1, visible.tasks().size()); assertEquals(TaskRules.Type.CHECK, visible.tasks().getFirst().getType());
+        assertEquals(0, generationWithoutModel().generate("care", LocalDate.now()).generated());
+        assertEquals(2, stored.size());
+        assertTrue(stored.stream().mapToInt(Task::getMinutes).sum() <= 120);
+    }
+
+    @Test void rechecksWeatherAtSaveAndDoesNotRepairAlreadyCompletedGarden() {
+        addGarden(1); store().save("care", LocalDate.now(), List.of(prepared(1)));
+        var observation = new TaskGenerationStore.Prepared(1L, List.of(TaskRules.Type.CHECK), true);
+        assertEquals(0, store().save("care", LocalDate.now(), List.of(observation)).generated());
+        assertEquals(1, stored.size());
+        rain = true; stored.getFirst().setStatus(TaskStatus.DONE);
+        assertEquals(0, generationWithoutModel().generate("care", LocalDate.now()).generated());
+        assertEquals(1, stored.size());
+    }
+
+    @Test void repairKeepsSharedBudgetAndNeverAddsSecondObservation() {
+        addGarden(1); store().save("care", LocalDate.now(), List.of(prepared(1)));
+        rain = true; stored.getFirst().setMinutes(120);
+        assertEquals(0, generationWithoutModel().generate("care", LocalDate.now()).generated());
+        assertEquals(1, stored.size());
+        stored.getFirst().setMinutes(70);
+        generationWithoutModel().generate("care", LocalDate.now());
+        stored.getLast().setStatus(TaskStatus.DONE);
+        assertEquals(0, generationWithoutModel().generate("care", LocalDate.now()).generated());
+        assertEquals(2, stored.size());
+    }
+
+    @Test void duplicateGardenInputDoesNotDuplicateObservationInSameBatch() {
+        addGarden(1); store().save("care", LocalDate.now(), List.of(prepared(1)));
+        rain = true;
+        var observation = new TaskGenerationStore.Prepared(1L, List.of(TaskRules.Type.CHECK), true);
+        assertEquals(1, store().save("care", LocalDate.now(), List.of(observation, observation)).generated());
+        assertEquals(2, stored.size());
+    }
 }

@@ -62,7 +62,7 @@ public class VoiceMemoStore {
         memo.setProcessingStatus(analysis.fallbackUsed() ? VoiceProcessingStatus.LLM_FAILED : VoiceProcessingStatus.READY);
         memo.setProcessingError(analysis.fallbackUsed() ? ErrorCode.EXTERNAL_API_ERROR.getCode() : null);
         memo.setProcessingToken(null);
-        return response(memo);
+        return response(username, memo);
     }
 
     @Transactional
@@ -72,7 +72,7 @@ public class VoiceMemoStore {
                 ? VoiceProcessingStatus.INVALID_AUDIO : VoiceProcessingStatus.STT_FAILED);
         memo.setProcessingError(error.getCode());
         memo.setProcessingToken(null);
-        return response(memo);
+        return response(username, memo);
     }
 
     // 호출 측이 먼저 텃밭 접근 권한을 확인한다. 원문 없이 확정된 관찰 코드만 다음 날 생성에 전달한다.
@@ -111,12 +111,13 @@ public class VoiceMemoStore {
         return memo;
     }
 
-    private VoiceMemoResponseDto response(VoiceMemo memo) {
+    private VoiceMemoResponseDto response(String username, VoiceMemo memo) {
+        boolean completed = taskAccess.requireOwned(memo.getTaskId(), username).completed();
         return VoiceMemoResponseDto.builder().voiceMemoId(IdPrefix.VOICE_MEMO.format(memo.getId()))
                 .transcript(memo.getTranscript()).summary(memo.getSummary())
                 .issues(memo.getIssueCodes().isEmpty() ? java.util.List.of() : java.util.List.of(memo.getIssueCodes().split(",")))
                 .status(memo.getStatus()).processingStatus(memo.getProcessingStatus())
-                .retryable(memo.getStatus() == VoiceMemoStatus.DRAFT
+                .retryable(!completed && memo.getStatus() == VoiceMemoStatus.DRAFT
                         && (memo.getProcessingStatus() == VoiceProcessingStatus.STT_FAILED || memo.getProcessingStatus() == VoiceProcessingStatus.LLM_FAILED))
                 .processingError(memo.getProcessingError()).build();
     }

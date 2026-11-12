@@ -95,6 +95,13 @@ public final class TaskRules {
         return context.guidance().stream().map(Guidance::type).toList();
     }
 
+    public boolean needsObservation(Context context, List<Type> pendingTypes, boolean alreadyHasCheck) {
+        if (alreadyHasCheck || pendingTypes.isEmpty()) return false;
+        var available = validate(context, pendingTypes, 120);
+        return available.tasks().stream().anyMatch(t -> t.type() == Type.CHECK)
+                && available.tasks().stream().noneMatch(t -> pendingTypes.contains(t.type()));
+    }
+
     private boolean repeated(Context context, Guidance rule) {
         int interval = rule.type() == Type.WATER || rule.type() == Type.CHECK
                 ? rule.minimumIntervalDays() : Math.max(2, rule.minimumIntervalDays());
