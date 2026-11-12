@@ -47,6 +47,22 @@ public class FileUploadService {
     }
 
     public String uploadAudio(MultipartFile file, String directory) {
+        AudioData audio = inspectAudio(file);
+        return store(directory, audio.extension(), audio.bytes(), audio.contentType());
+    }
+
+    // 음성 인식 실패 시 저장 파일이 남지 않도록, 저장과 분리해서 먼저 검증할 수 있다.
+    public void validateAudio(MultipartFile file) {
+        inspectAudio(file);
+    }
+
+    public byte[] readStoredAudio(String storedUrl) {
+        return fileStorage.readAudio(storedUrl);
+    }
+
+    private record AudioData(byte[] bytes, String extension, String contentType) {}
+
+    private AudioData inspectAudio(MultipartFile file) {
         byte[] bytes = readBytes(file, MAX_AUDIO_SIZE);
         String extension = extensionOf(file);
 
@@ -75,7 +91,7 @@ public class FileUploadService {
             throw new FileNotSupportedException();
         }
 
-        return store(directory, extension, bytes, contentType);
+        return new AudioData(bytes, extension, contentType);
     }
 
     private byte[] readBytes(MultipartFile file, long maxSize) {

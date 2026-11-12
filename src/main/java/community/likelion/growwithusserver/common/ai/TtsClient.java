@@ -7,4 +7,9 @@ public interface TtsClient {
      * @return audio/mpeg 형식의 음성
      */
     byte[] synthesize(String text);
+
+    default byte[] synthesize(String text, double speed) {
+        if (Double.compare(speed, 0.9) != 0) throw new AiClientException();
+        return synthesize(text);
+    }
 }

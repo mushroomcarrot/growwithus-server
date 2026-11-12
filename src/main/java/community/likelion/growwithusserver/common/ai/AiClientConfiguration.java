@@ -10,12 +10,24 @@ import org.springframework.context.annotation.Configuration;
 // 호출하면 항상 AiClientException을 던지므로, 규칙 기반 대체 로직을 먼저 개발하고 시험할 수 있다.
 @Slf4j
 @Configuration
-@EnableConfigurationProperties(AiProperties.class)
+@EnableConfigurationProperties({AiProperties.class, LocalLlmProperties.class, LocalSttProperties.class})
 public class AiClientConfiguration {
 
     @Bean
+    @ConditionalOnMissingBean(VisionClient.class)
+    public VisionClient visionClient(org.springframework.web.client.RestClient externalRestClient,
+                                     LocalLlmProperties properties, tools.jackson.databind.ObjectMapper mapper) {
+        return properties.isEnabled() && !properties.getVisionModel().isBlank()
+                ? new OllamaVisionClient(externalRestClient, properties, mapper) : (image, task) -> java.util.Optional.empty();
+    }
+
+    @Bean
     @ConditionalOnMissingBean(LlmClient.class)
-    public LlmClient unconfiguredLlmClient() {
+    public LlmClient unconfiguredLlmClient(org.springframework.web.client.RestClient externalRestClient,
+                                          LocalLlmProperties localProperties) {
+        if (localProperties.isEnabled()) {
+            return new OllamaLlmClient(externalRestClient, localProperties);
+        }
         return (systemPrompt, userPrompt) -> {
             log.warn("[complete] LLM 구현체가 등록되지 않아 호출 실패 처리");
             throw new AiClientException();
@@ -24,7 +36,11 @@ public class AiClientConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(SttClient.class)
-    public SttClient unconfiguredSttClient() {
+    public SttClient unconfiguredSttClient(org.springframework.web.client.RestClient externalRestClient,
+                                          LocalSttProperties localSttProperties) {
+        if (localSttProperties.isEnabled()) {
+            return new LocalWhisperSttClient(externalRestClient, localSttProperties);
+        }
         return (audio, filename) -> {
             log.warn("[transcribe] STT 구현체가 등록되지 않아 호출 실패 처리");
             throw new AiClientException();

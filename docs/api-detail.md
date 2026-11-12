@@ -699,6 +699,10 @@ AI 사진 확인이 실패해도 사진은 저장하고 `aiCheck`는 `null`로 �
 
 STT로 받아 적고 LLM이 가족용 문장으로 정리한다. `issues`는 다음 날 작업 생성에 쓰인다.
 
+현재 작업 조회는 구현했으며 실제 텃밭 조회 어댑터 연결이 필요하다. 코드별 한글 문구와 상태 필드는 [voice-api.md](voice-api.md)를 본다. 원문은 요약과 분리해 저장하고, 확정된 메모만 후속 작업에 사용한다. 필수 `audio` 파트 누락은 C002, 담당 작업이 아니면 C403, 완료된 작업이면 C4095다.
+
+초안 응답에는 `processingStatus`, `retryable`, `processingError`가 추가된다. 정상 결과는 READY다. 인식 실패 시 파일을 보관하고 `STT_FAILED`, 원문과 요약 null, `retryable=true`로 반환한다. 정리만 실패하면 `LLM_FAILED`와 임시 요약을 제공한다. 이 경우 HTTP 응답은 성공이므로 화면은 처리 상태도 검사해야 한다. `POST /caretaker/voice-memos/{voiceMemoId}/retry`로 같은 초안을 재시도한다. 형식 및 길이가 잘못된 INVALID_AUDIO는 다시 녹음해야 한다.
+
 ### 6.4 음성 메모 확정
 
 `POST /caretaker/voice-memos/{voiceMemoId}/confirm` | 권한 CARETAKER | 화면 DT_CARE_VOICE
@@ -710,6 +714,8 @@ STT로 받아 적고 LLM이 가족용 문장으로 정리한다. `issues`는 다
 // 응답
 { "voiceMemoId": "vm_1110_b14", "status": "CONFIRMED" }
 ```
+
+본문을 생략하거나 빈 객체를 보내도 원래 요약으로 확정한다. 같은 확정 요청 재시도는 허용하고, 확정한 메모를 다른 문장으로 다시 바꾸면 C4095다. 초안 요약을 실제 수정하면 원문은 유지하고 이전 자동 추출 코드는 비운다. 상세 구현 및 남은 연결은 [voice-api.md](voice-api.md)를 본다.
 
 ### 6.5 작업 완료
 

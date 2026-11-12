@@ -54,6 +54,14 @@ weather:
 
 # LLM, STT, TTS. 제공자와 구현체가 정해질 때까지는 비워 두어도 부팅된다
 ai:
+  local-stt:
+    enabled: ${AI_LOCAL_STT_ENABLED:false}
+    base-url: ${AI_LOCAL_STT_BASE_URL:http://127.0.0.1:8765}
+  local:
+    enabled: ${AI_LOCAL_ENABLED:false}
+    base-url: ${AI_LOCAL_BASE_URL:http://127.0.0.1:11434}
+    model: ${AI_LOCAL_MODEL:}
+    vision-model: ${AI_LOCAL_VISION_MODEL:}
   llm:
     api-key: ${LLM_API_KEY:}
     base-url: ${LLM_BASE_URL:}
@@ -67,6 +75,9 @@ ai:
     base-url: ${TTS_BASE_URL:}
     model: ${TTS_MODEL:}
     voice: ${TTS_VOICE:}
+
+care:
+  allowance-per-task: ${CARE_ALLOWANCE_PER_TASK:0}
 
 springdoc:
   swagger-ui:

@@ -11,9 +11,11 @@
 3. [docs/planning.md](docs/planning.md): 기획안 (문제 정의, 핵심 기능, 활용 데이터, 기술 구성, 시연 시나리오)
 4. [docs/commit-convention.md](docs/commit-convention.md): 커밋 메시지 컨벤션 (태그, 형식, 작성 규칙)
 5. [docs/github-convention.md](docs/github-convention.md): 브랜치 전략, Issue 및 PR 작성 가이드 (템플릿은 `.github/`)
-6. [docs/api-spec.md](docs/api-spec.md): 대신텃밭 API 명세 요약 (공통 규칙, 권한, enum, 화면 코드, API 53개, 핵심 로직, 시연 시나리오)
+6. [docs/api-spec.md](docs/api-spec.md): 대신텃밭 API 명세 요약 (공통 규칙, 권한, enum, 화면 코드, API 목록, 핵심 로직, 시연 시나리오)
 7. [docs/api-detail.md](docs/api-detail.md): API 상세 명세서 (엔드포인트별 요청, 응답 예시, 에러 코드)
 8. [docs/public-data.md](docs/public-data.md): 사용하는 공공데이터와 API 명세 (기상청 단기예보, 모범음식점, 농어촌체험휴양마을, 인증키 규칙, 처인구 격자와 실제 데이터)
+9. [docs/ai-integration.md](docs/ai-integration.md): AI 핵심 로직, 로컬 모델 연결, 남은 도메인 연동과 검증 상태
+10. [docs/voice-api.md](docs/voice-api.md): 음성 초안과 확정 API, 작업 소유권 접점, DB 준비와 검증 상태
 
 ## 문서 갱신 (필수)
 

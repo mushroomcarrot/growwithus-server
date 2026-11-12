@@ -29,6 +29,12 @@ import java.util.List;
 public class UserService {
     private final UserRepository userRepository;
     private final JwtTokenProvider tokenProvider;
+    private final community.likelion.growwithusserver.caretaker.data.repository.CaretakerProfileRepository caretakerProfiles;
+    private final community.likelion.growwithusserver.care.data.repository.CareLogRepository careLogs;
+
+    public User getUserForUpdate(String username) {
+        return userRepository.findByUsernameForUpdate(username).orElseThrow(UserNotFoundException::new);
+    }
 
     @Transactional(readOnly = true)
     public User getUserEntity(String username) {
@@ -64,6 +70,13 @@ public class UserService {
     @Transactional(readOnly = true)
     public GlobalResponse<UserMeResponseDto> getMe(String username) {
         User user = getUserEntity(username);
+        UserMeResponseDto.CaretakerSummary caretaker = null;
+        if (user.getRole() == UserRole.CARETAKER || user.getRole() == UserRole.ADMIN) {
+            caretaker = caretakerProfiles.findByUsername(username).map(p -> UserMeResponseDto.CaretakerSummary.builder()
+                    .caretakerId(community.likelion.growwithusserver.common.id.IdPrefix.CARETAKER.format(p.getId()))
+                    .name(p.getName()).farmId(community.likelion.growwithusserver.common.id.IdPrefix.FARM.format(p.getFarmId()))
+                    .avatarUrl(p.getAvatarUrl()).completedTasks(careLogs.countByCaretakerUsername(username)).build()).orElse(null);
+        }
 
         return GlobalResponse.ok(UserMeResponseDto.builder()
                 .userId(user.getPublicId())
@@ -72,7 +85,7 @@ public class UserService {
                 .role(user.getRole())
                 .nextStep(resolveNextStep(user))
                 .owner(null)
-                .caretaker(null)
+                .caretaker(caretaker)
                 .build());
     }
 
@@ -95,7 +108,7 @@ public class UserService {
             log.info("[changeRole] 역할 변경: {} ({} > {})", username, user.getRole(), newRole);
             user.setRole(newRole);
             // 프로필은 역할별로 따로 있으므로 역할이 바뀌면 새 역할의 프로필을 다시 등록해야 한다
-            user.setProfileRegistered(false);
+            user.setProfileRegistered(newRole == UserRole.CARETAKER && caretakerProfiles.existsByUsername(username));
         }
 
         // 이전 역할이 담긴 토큰을 무효로 만들고 새 역할로 다시 발급한다

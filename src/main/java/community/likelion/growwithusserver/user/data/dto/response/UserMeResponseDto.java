@@ -41,5 +41,6 @@ public class UserMeResponseDto {
         private String name;
         private String farmId;
         private String avatarUrl;
+        private long completedTasks;
     }
 }

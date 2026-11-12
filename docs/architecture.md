@@ -2,7 +2,7 @@
 
 > 코드의 현재 상태를 그대로 기록한 문서다. 기능을 추가하거나 바꾸면 이 문서도 함께 갱신한다 ([development-guide.md](development-guide.md#문서-갱신-규칙)).
 >
-> 마지막 갱신: 2026-11-11, 기상청 날씨 수집 배치(`POST /internal/weather/sync`, 매시 15분 스케줄러) 추가, 나들이 추천 시드를 공공데이터의 실제 장소로 교체, 쓰지 않는 푸시 토큰 API 삭제
+> 마지막 갱신: 2026-11-12, 관리사 프로필, 작업 생성과 완료, 음성 재시도, 성장 상태와 단계 보정 추가. 실제 농장과 텃밭 조회 연결, DB 및 배포 검증은 남아 있음
 
 ## 한눈에 보기
 
@@ -30,7 +30,9 @@ community.likelion.growwithusserver/
 │   ├── ai/
 │   │   ├── LlmClient, SttClient, TtsClient  # AI 호출 공통 인터페이스
 │   │   ├── AiProperties            # ai.llm, ai.stt, ai.tts 설정 (apiKey, baseUrl, model, voice)
-│   │   ├── AiClientConfiguration   # 구현체가 없을 때 쓰는 기본 빈 (항상 AiClientException)
+│   │   ├── AiClientConfiguration   # 로컬 LLM 활성화 시 Ollama, 그 외 기본 빈은 AiClientException
+│   │   ├── OllamaLlmClient, LocalLlmProperties # loopback HTTP 전용, 기본 비활성화
+│   │   ├── LocalWhisperSttClient, LocalSttProperties, LocalAiAddress # 로컬 음성 인식 연결과 공통 주소 검증
 │   │   └── AiClientException       # C502
 │   ├── file/
 │   │   ├── FileUploadService       # uploadImage / uploadAudio: 검증 후 저장, URL 반환
@@ -125,6 +127,34 @@ community.likelion.growwithusserver/
         └── exception/     DemoWeatherNotAllowedException
 ```
 
+## 음성 메모 도메인
+
+`voice/controller`, `service`, `data/{dto,entity,enums,exception,repository}`, `task` 패키지를 추가했다. `VoiceMemoService`는 파일과 모델 처리를 맡고, 트랜잭션이 필요한 초안 저장과 확정은 `VoiceMemoStore`가 맡는다. `TaskVoiceReader`는 `care_task`와 현재 텃밭 담당자를 검증한다. [voice-api.md](voice-api.md)에 재시도와 저장 구조를 정리했다.
+
+### 관리사 작업과 성장 상태
+
+1. `care`는 `Task`, `TaskDay`, `TaskPhoto`, `CareLog`를 저장한다. 오늘 할 일 조회 시 미생성 작업을 만들며 담당자 전체의 하루 작업 시간을 120분으로 제한한다. 생성 저장 시 `TaskDay`와 텃밭 행을 잠그고 현재 날씨와 단계로 재검증한다. 작업 완료, 돌봄 기록과 알림은 한 트랜잭션이다.
+2. `caretaker`는 프로필과 월별 요약, TTS 캐시를 제공한다. 기본 SVG를 사용하며 AI 아바타 생성은 후순위다. 내 정보의 관리사 요약에는 누적 돌봄 횟수를 포함한다.
+3. `growth`는 `GrowthState`와 `GrowthEvent`를 저장한다. 관찰 보정과 완료된 날짜의 기온을 기준으로 재계산하고 단계 상승 알림을 보낸다. 물 주기 등의 단계 검증은 저장된 성장 상태를 우선한다.
+4. `CareGardenReader`와 `CaretakerFarmReader`는 실제 팀 도메인 어댑터가 필요하다. 기본 구현은 빈 결과다. 실제 자료 없이 농장이나 작물 기준값을 생성하지 않는다. 일기와 기존 수확 모듈의 연결도 남아 있다.
+5. 수동 스키마는 `src/main/resources/db/manual/voice_memo.sql`, `care_growth.sql`이다. prod 배포 전 적용 및 검증이 필요하다. 전체 연결 상태와 제한은 [ai-integration.md](ai-integration.md)를 기준으로 확인한다.
+
+`VoiceMemo` 엔티티는 `voice_memo` 테이블에 작업 PK, 관리사 로그인 아이디, 음성 URL, 원문, 요약, 이상 징후 코드, 대체 처리 여부, 상태, 생성 및 확정 시각을 저장한다. prod DB 준비용 수동 SQL은 `src/main/resources/db/manual/voice_memo.sql`이며 아직 DB에 적용하지 않았다. 작업과 사용자 FK 및 파일 보상 삭제는 남아 있다.
+
+## AI 핵심 로직
+
+`ai/logic`은 DB와 모델 없이 실행할 수 있는 계산 코드다. `ai/service`는 기존 `LlmClient`, `SttClient`와 Jackson으로 입출력을 연결한다. 음성 정리는 위 음성 메모 API에 연결했고 작업 추천 및 성장 계산의 컨트롤러와 저장 서비스 연결은 남아 있다. 상세 연결 규칙은 [ai-integration.md](ai-integration.md)를 본다.
+
+| 클래스 | 역할 |
+| --- | --- |
+| `TaskRules` | 단계별 재배 기준, 작업 이력, 비 예보와 관리사 잔여 시간에 따라 후보 검증. 근거가 없으면 관찰만 안내 |
+| `TaskPlanningService` | LLM이 작업 종류를 선택하고 규칙을 적용. 오류 또는 모델 미연결 시 같은 규칙의 대체 결과 반환 |
+| `GrowthCalculator` | 완료된 날짜의 기온으로 적산온도 재계산. 단계 확인을 기준으로 보정하고 누락 일수 표시. 단계 기준 수치는 호출자가 전달 |
+| `VoiceMemoAnalysisService` | STT 후 JSON 요약과 이상 징후 코드 검증. LLM 실패 시 원문 유지, STT 실패는 C502로 전달 |
+| `VoiceAnalysis.Issue` | 프론트에서 사용할 코드와 한글 문구 5개. 병명 진단이 아닌 관찰 분류 |
+
+음성 메모 외의 작업 저장, 중복 생성 방지, 관리사 프로필, 사진 확인과 TTS 구현은 남아 있다. `local-ai/stt_server.py`는 같은 호스트에서만 쓰는 별도 작업 서버이며 공개 API가 아니다. 재배 자료 수집 및 검증, 실제 모델 설치와 녹음 시험도 필요하다.
+
 ## API
 
 모든 응답은 `GlobalResponse<T>`로 감싸진다. 경로는 명세(`api-spec.md`)대로 접두어 없이 쓴다 (`/api/v1` 없음, 2026-11-11 결정).
@@ -149,6 +179,8 @@ community.likelion.growwithusserver/
 | PUT | `/demo/weather` | ADMIN + `X-Demo-Mode` | `DemoWeatherRequestDto` | `DemoWeatherResponseDto` | 시연 날씨 덮어쓰기 (SUNNY, RAIN, HOT) |
 | POST | `/demo/reset` | ADMIN + `X-Demo-Mode` | 없음 | `DemoStateResponseDto` | 시연 날씨를 SUNNY로 되돌림 |
 | POST | `/internal/weather/sync` | SYSTEM (`X-Service-Key`) | `WeatherSyncRequestDto` (본문 생략 가능) | `WeatherSyncResponseDto` | 기상청 단기예보와 초단기실황 수집. 스케줄러가 매시 15분에 같은 로직을 돌린다 |
+| POST | `/caretaker/tasks/{taskId}/voice-memos` | CARETAKER | multipart `audio` | `VoiceMemoResponseDto` | 음성 원문과 요약을 DRAFT로 저장. 실제 작업 조회 구현체가 없으면 C404 |
+| POST | `/caretaker/voice-memos/{voiceMemoId}/confirm` | CARETAKER | `VoiceMemoConfirmRequestDto` 선택 | `VoiceMemoConfirmResponseDto` | 본인 초안 확정. 같은 확정 요청은 재시도 가능 |
 
 텃밭 경로(`/gardens/{gardenId}/...`)와 `POST /visits`는 텃밭 도메인이 붙기 전까지 항상 `C404`다 ([알려진 이슈](#알려진-이슈--결정-대기)). `POST /demo/fast-forward`는 아직 없다.
 
@@ -215,6 +247,9 @@ ADMIN은 RoleHierarchy로 USER, OWNER, CARETAKER 권한을 갖는다. SYSTEM은 
 | `DemoWeatherRequestDto` | `condition` (`@NotNull`, `SUNNY`, `RAIN`, `HOT`만 허용. 그 외는 C002) |
 | `DemoWeatherResponseDto` | `condition`, `animation` (`sunny_happy`, `rain_umbrella`, `hot_sweat`), `weatherNotice` (작업 생성이 붙기 전까지 `null`), `regeneratedTasks` (작업 생성이 붙기 전까지 0) |
 | `DemoStateResponseDto` | `weather` (덮어쓴 적이 없으면 `null`), `stage`, `stageProgress`, `fastForwardDays`, `todayTaskGardens` (뒤의 넷은 해당 도메인이 붙기 전까지 `null`) |
+| `VoiceMemoResponseDto` | `voiceMemoId`, `transcript`, `summary`, `issues` (코드 목록), `status` (`DRAFT`) |
+| `VoiceMemoConfirmRequestDto` | `summary` (선택, 1~1000자, 공백만 있는 값은 C002) |
+| `VoiceMemoConfirmResponseDto` | `voiceMemoId`, `status` (`CONFIRMED`) |
 
 `userId`는 `usr_` 접두어에 PK를 붙인 문자열이다 (예: `usr_12`, `User.getPublicId()`).
 
@@ -248,7 +283,7 @@ ADMIN은 RoleHierarchy로 USER, OWNER, CARETAKER 권한을 갖는다. SYSTEM은 
 
 | 항목 | 내용 |
 | --- | --- |
-| 진입점 | `FileUploadService.uploadImage(MultipartFile, directory)`, `uploadAudio(MultipartFile, directory)`. 반환값은 업로드 URL |
+| 진입점 | `FileUploadService.uploadImage(MultipartFile, directory)`, `uploadAudio(MultipartFile, directory)`. 반환값은 업로드 URL. `validateAudio(MultipartFile)`로 저장 없이 음성을 먼저 검증할 수 있음 |
 | 사진 검증 | 확장자 jpg, jpeg, png이고 파일 앞부분(매직 넘버)이 실제 JPEG, PNG여야 함. 10MB 이하 |
 | 음성 검증 | 확장자 webm, m4a, mp4, wav이고 파일 앞부분이 실제 형식과 맞아야 함 (webm은 EBML 헤더, m4a와 mp4는 `ftyp` 박스, wav는 RIFF/WAVE). 헤더에서 길이를 읽으면 60초 이하 (wav는 `data` 크기와 초당 바이트 수, m4a와 mp4는 `mvhd` 박스). 길이를 읽을 수 없거나 0이면 (크롬 webm, 사파리 조각 mp4) 5MB 이하만 받는다. 60초 녹음 제한은 프론트도 건다 |
 | 위반 시 | `C4001` (multipart 상한 초과도 `C4001`) |
@@ -265,7 +300,9 @@ ADMIN은 RoleHierarchy로 USER, OWNER, CARETAKER 권한을 갖는다. SYSTEM은 
 ### 외부 API, AI 클라이언트
 
 - `externalRestClient` (`RestClient`): 연결 타임아웃 `external.http.connect-timeout`(3초), 읽기 타임아웃 `external.http.read-timeout`(30초). 도메인 클라이언트는 `externalRestClient.mutate().baseUrl(...).build()`로 파생해서 쓴다.
-- `LlmClient.complete(systemPrompt, userPrompt)`, `SttClient.transcribe(audio, filename)`, `TtsClient.synthesize(text)`: 인터페이스만 있다. 제공자가 정해지지 않아 구현체는 아직 없고, 기본 빈은 호출 즉시 `AiClientException`(`C502`)을 던진다. 구현체를 `@Component`로 등록하면 기본 빈은 자동으로 빠진다.
+- `LlmClient.complete(systemPrompt, userPrompt)`: 기본 빈은 `AiClientException`(`C502`)을 던진다. `AI_LOCAL_ENABLED=true`와 다운로드된 `AI_LOCAL_MODEL`을 지정하면 로컬 Ollama를 사용한다. `POST /api/chat`, JSON 출력, 비스트리밍 방식이다. loopback HTTP 주소만 허용하고 API 키를 전송하지 않는다. Ollama 서버도 `OLLAMA_NO_CLOUD=1`로 실행해야 한다.
+- `SttClient.transcribe(audio, filename)`: `AI_LOCAL_STT_ENABLED=true`이면 `LocalWhisperSttClient`로 로컬 Python 서버의 `/transcribe`를 호출한다. 원본 파일 이름은 보내지 않는다. 최대 20MB, 서버 디코딩 길이 60초 제한. 공통 업로드가 길이를 읽지 못하는 파일은 기존 5MB 제한도 적용된다. 형식 및 길이 오류는 C4001, 무음과 모델 실패는 C502다. 기본 비활성화 상태는 C502다.
+- `TtsClient.synthesize(text)`: 실제 구현체는 아직 없다. 기본 빈은 `AiClientException`(`C502`)을 던진다. 구현체를 `@Component`로 등록하면 기본 빈은 자동으로 빠진다.
 
 ### 스케줄러
 
@@ -532,7 +569,7 @@ ADMIN은 RoleHierarchy로 USER, OWNER, CARETAKER 권한을 갖는다. SYSTEM은 
 | `ROLE_NOT_SELECTED` | C4031 | 403 | 역할을 먼저 선택해야 합니다. | AccessDeniedHandler (역할 선택 전 `USER`의 접근) |
 | `DEMO_MODE_REQUIRED` | C4032 | 403 | 시연 모드에서만 사용할 수 있습니다. | `DemoModeFilter` (헤더 없음 또는 비활성화) |
 | `USER_DATA_NOT_FOUND` | C4041 | 404 | 사용자를 찾을 수 없습니다. | `UserNotFoundException` |
-| `DATA_NOT_FOUND` | C404 | 404 | 정보를 불러올 수 없습니다. | 매핑되지 않은 경로 (`NoResourceFoundException`), `NotificationNotFoundException`, `GardenNotFoundException`, `VisitNotFoundException` |
+| `DATA_NOT_FOUND` | C404 | 404 | 정보를 불러올 수 없습니다. | 매핑되지 않은 경로 (`NoResourceFoundException`), `NotificationNotFoundException`, `GardenNotFoundException`, `VisitNotFoundException`, `VoiceMemoException` (메모 또는 담당 작업 없음) |
 | `USERNAME_DUPLICATION` | C4092 | 409 | 이미 사용 중인 아이디입니다. | `UsernameDuplicationException` |
 | `ALREADY_PROCESSED` | C4095 | 409 | 이미 처리된 요청입니다. | `VisitAlreadyReservedException` (같은 날 예약 있음), `VisitAlreadyCanceledException`. 응원, 하트 등 다른 도메인도 이 코드를 쓴다 |
 | `VISIT_SLOT_FULL` | C4096 | 409 | 예약이 마감된 시간입니다. | `VisitSlotFullException` |
@@ -575,6 +612,11 @@ ADMIN은 RoleHierarchy로 USER, OWNER, CARETAKER 권한을 갖는다. SYSTEM은 
 | `KMA_MAX_ATTEMPTS`, `KMA_RETRY_DELAY` | `3`, `1s` | 기상청 호출 전체 시도 횟수와 다시 시도하기 전 대기 시간 (prod에도 같은 기본값) |
 | `WEATHER_DEFAULT_GRIDS` | `64:119` | 농장 도메인이 붙기 전까지 수집할 기상청 격자. `nx:ny`를 콤마로 잇는다. 기본값은 처인구 대표 격자 (prod에도 같은 기본값) |
 | `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL` | (없음) | LLM 연결 설정. 비워 두어도 부팅된다 |
+| `AI_LOCAL_ENABLED` | `false` | 로컬 Ollama 사용 여부. 유료 API로 자동 전환하지 않음 |
+| `AI_LOCAL_BASE_URL` | `http://127.0.0.1:11434` | loopback HTTP 주소만 허용 |
+| `AI_LOCAL_MODEL` | (없음) | 미리 다운로드한 로컬 모델. 활성화 시 필수, cloud 이름 거부 |
+| `AI_LOCAL_STT_ENABLED` | `false` | 로컬 음성 인식 작업 서버 사용 여부 |
+| `AI_LOCAL_STT_BASE_URL` | `http://127.0.0.1:8765` | 음성 인식 작업 서버, loopback HTTP 주소만 허용 |
 | `STT_API_KEY`, `STT_BASE_URL`, `STT_MODEL` | (없음) | STT 연결 설정 |
 | `TTS_API_KEY`, `TTS_BASE_URL`, `TTS_MODEL`, `TTS_VOICE` | (없음) | TTS 연결 설정 |
 
@@ -605,9 +647,10 @@ docker run -d -p 6379:6379 redis:7
 | `@CreatedDate` 미동작 | `@EnableJpaAuditing` 없음 | 감사 필드는 서비스에서 `LocalDateTime.now()`로 직접 채운다 |
 | 검증 실패 메시지 | 클라이언트에는 C002 고정 메시지만 반환 | 어떤 필드가 틀렸는지는 서버 로그에만 남음 |
 | 테스트 | `contextLoads`, `common` 단위 테스트 (페이지네이션, ID, 파일 검증, 필터, 날짜 직렬화), `notification`, `harvest`, `weather`, `demo` 서비스 단위 테스트 (저장소는 Mockito로 대체) | 실제 DB를 쓰는 저장소 쿼리 테스트는 없음 |
-| AI 클라이언트 구현체 | 제공자 미정, 인터페이스와 기본 빈만 있음 | `LlmClient`, `SttClient`, `TtsClient` 호출은 항상 `C502`. 제공자가 정해지면 구현체를 추가한다 |
+| AI 실행 환경 | LLM과 STT는 선택적 로컬 구현, TTS는 기본 빈만 있음 | 모델과 faster-whisper를 별도 준비해야 하며 실제 모델 실행은 미검증. TTS는 여전히 C502. 배포 서버에서 노트북의 localhost에 접근할 수 없음 |
 | 시연 계정 | 가입 API로는 ADMIN을 만들 수 없음 | 시연 전에 DB에서 시연 계정의 `role`을 `ADMIN`으로 직접 바꾼다. 시연이 끝나면 prod `DEMO_ENABLED=false` |
-| 브라우저 녹음 길이 | webm과 사파리 조각 mp4는 서버가 길이를 읽지 못함 | 5MB 이하로만 확인한다. 60초 제한은 프론트 녹음 제한에 기대며, STT 제공자가 정해지면 STT 결과 길이로 다시 확인할 수 있다 |
+| 음성 메모 API | 작업 조회는 구현, 실제 텃밭 조회 어댑터가 없음 | 농장과 텃밭 도메인 연결 및 MariaDB 잠금 검사가 필요. STT 실패 시 파일 보존과 재시도 구현, DB 실패 시 파일 보상 삭제는 남아 있음 |
+| 브라우저 녹음 길이 | 공통 업로드 모듈은 webm과 조각 mp4 길이를 읽지 못함 | 로컬 STT를 활성화하면 작업 서버에서 디코딩된 전체 길이를 60초 이하로 다시 검사한다. 실제 브라우저 파일 시험은 남아 있음 |
 | 텃밭 조회 구현체 | `HarvestGardenReader`의 구현체가 없음 (텃밭, 농장, 관리사, 성장 시뮬레이션 도메인 미구현) | `/gardens/{gardenId}/harvest`, `visit-slots`, `outings`, `POST /visits`가 항상 `C404`다. 텃밭 도메인에서 구현체를 등록해야 동작한다. 시연용 방문 시드도 그때 넣는다 |
 | 방문 슬롯 정원의 동시성 | 정원은 조회 후 저장으로 확인 | 같은 슬롯에 동시에 예약이 들어오면 정원을 1건 넘길 수 있다. 같은 텃밭의 같은 날 중복은 유니크 제약으로 막힌다 |
 | 관리사별 방문 가능 시간 | 데이터가 없어 주말 고정 시간(10, 11, 14, 15시)을 쓴다 | 관리사가 시간을 고르게 하려면 프로필에 가능 시간을 추가하고 `VisitSlotPolicy`를 고친다 |

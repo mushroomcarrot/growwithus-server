@@ -80,6 +80,7 @@ public class SecurityConfiguration {
                         ).permitAll()
                         // 로컬 저장소에 올린 파일 (file.storage=local)
                         .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/images/caretaker-default.svg").permitAll()
                         // 내부 배치: 헤더 검증은 InternalServiceKeyFilter가 한다
                         .requestMatchers("/internal/**").hasRole("SYSTEM")
                         // 시연: ADMIN 토큰 + X-Demo-Mode 헤더 (헤더 검증은 DemoModeFilter)

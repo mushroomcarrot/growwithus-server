@@ -29,6 +29,28 @@ public class LocalFileStorage implements FileStorage {
     }
 
     @Override
+    public byte[] readAudio(String storedUrl) {
+        String prefix = baseUrl + URL_PATH + "/voice-memos/";
+        if (storedUrl == null || !storedUrl.startsWith(prefix)) throw new FileUploadFailedException();
+        String filename = storedUrl.substring(prefix.length());
+        if (!filename.matches("[0-9a-fA-F-]{36}\\.(webm|m4a|mp4|wav)")) throw new FileUploadFailedException();
+        try {
+            Path actualRoot = root.toRealPath();
+            Path target = root.resolve("voice-memos").resolve(filename).toRealPath();
+            if (!target.startsWith(actualRoot) || Files.size(target) > FileUploadService.MAX_AUDIO_SIZE) {
+                throw new FileUploadFailedException();
+            }
+            try (InputStream input = Files.newInputStream(target)) {
+                byte[] bytes = input.readNBytes((int) FileUploadService.MAX_AUDIO_SIZE + 1);
+                if (bytes.length > FileUploadService.MAX_AUDIO_SIZE) throw new FileUploadFailedException();
+                return bytes;
+            }
+        } catch (IOException ex) {
+            throw new FileUploadFailedException();
+        }
+    }
+
+    @Override
     public String store(String directory, String filename, InputStream content, long size, String contentType) {
         Path target = root.resolve(directory).resolve(filename).normalize();
         if (!target.startsWith(root)) {

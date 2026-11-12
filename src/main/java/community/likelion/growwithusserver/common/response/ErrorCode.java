@@ -18,6 +18,7 @@ public enum ErrorCode {
     USER_DATA_NOT_FOUND("C4041", "사용자를 찾을 수 없습니다.", 404),
     DATA_NOT_FOUND("C404", "정보를 불러올 수 없습니다.", 404),
     USERNAME_DUPLICATION("C4092", "이미 사용 중인 아이디입니다.", 409),
+    PROFILE_ALREADY_EXISTS("C4094", "이미 프로필이 등록되어 있어요.", 409),
     ALREADY_PROCESSED("C4095", "이미 처리된 요청입니다.", 409),
     VISIT_SLOT_FULL("C4096", "예약이 마감된 시간입니다.", 409),
     UNKNOWN_ERROR("C500", "오류가 발생하였습니다.", 500),
