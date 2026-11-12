@@ -76,6 +76,37 @@
       "depends_on": {"db": {"condition": "service_healthy"}, "redis": {"condition": "service_healthy"}, "stt": {"condition": "service_healthy"}, "ollama-init": {"condition": "service_completed_successfully"}},
       "mem_limit": "1g",
       "restart": "unless-stopped"
+    },
+    "ai-evaluation": {
+      "profiles": [
+        "evaluation"
+      ],
+      "build": {
+        "context": ".",
+        "target": "build"
+      },
+      "network_mode": "service:ollama",
+      "environment": {
+        "AI_LOCAL_BASE_URL": "http://127.0.0.1:11434",
+        "AI_LOCAL_MODEL": "qwen2.5:3b"
+      },
+      "command": [
+        "./gradlew",
+        "--no-daemon",
+        "evaluateLocalAi"
+      ],
+      "volumes": [
+        "./build/reports:/source/build/reports"
+      ],
+      "depends_on": {
+        "ollama": {
+          "condition": "service_healthy"
+        },
+        "ollama-init": {
+          "condition": "service_completed_successfully"
+        }
+      },
+      "restart": "no"
     }
   },
   "volumes": {"demo-db": {}, "demo-redis": {}, "demo-ollama": {}, "demo-whisper": {}, "demo-uploads": {}}

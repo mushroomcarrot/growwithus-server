@@ -45,3 +45,13 @@ dependencies {
 tasks.named('test') {
     useJUnitPlatform()
 }
+
+// 사용자가 명시적으로 실행할 때만 로컬 모델을 호출한다. 일반 test와 build에는 포함하지 않는다.
+tasks.register('evaluateLocalAi', JavaExec) {
+    group = 'verification'
+    description = '로컬 LLM의 한국어 이상 징후 추출과 지연 측정'
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'community.likelion.growwithusserver.ai.evaluation.LocalAiEvaluation'
+    args layout.buildDirectory.file('reports/local-ai-evaluation.json').get().asFile.absolutePath
+}

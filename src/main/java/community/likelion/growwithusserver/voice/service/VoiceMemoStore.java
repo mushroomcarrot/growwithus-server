@@ -21,6 +21,8 @@ import java.time.LocalDateTime;
 public class VoiceMemoStore {
     private final VoiceMemoRepository repository;
     private final VoiceTaskAccess taskAccess;
+    @org.springframework.beans.factory.annotation.Value("${external.http.read-timeout:30s}")
+    private java.time.Duration readTimeout = java.time.Duration.ofSeconds(30);
 
     public record Attempt(Long memoId, Long taskId, String token, String audioUrl, String transcript) {}
 
@@ -131,8 +133,11 @@ public class VoiceMemoStore {
     }
 
     private boolean processingActive(VoiceMemo memo) {
+        // STT 다음 LLM까지 기다리므로 한 번의 HTTP 제한 시간만으로 처리를 만료시키지 않는다.
+        var window = readTimeout.multipliedBy(2).plusSeconds(30);
+        if (window.compareTo(java.time.Duration.ofMinutes(2)) < 0) window = java.time.Duration.ofMinutes(2);
         return memo.getProcessingStatus() == VoiceProcessingStatus.PROCESSING && memo.getProcessingStartedAt() != null
-                && memo.getProcessingStartedAt().isAfter(LocalDateTime.now().minusMinutes(2));
+                && memo.getProcessingStartedAt().isAfter(LocalDateTime.now().minus(window));
     }
 
     public record ConfirmedMemo(String voiceMemoId, String transcript, String summary, java.util.List<String> issues) {}

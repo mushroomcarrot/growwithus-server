@@ -7,6 +7,17 @@ import java.time.LocalDateTime;
 import static org.junit.jupiter.api.Assertions.*;
 
 class VoiceMemoRecoveryTest {
+    @Test void slowLocalInferenceRemainsActiveAcrossBothModelTimeouts() {
+        var f = new VoiceMemoSelfTest.Fixture();
+        org.springframework.test.util.ReflectionTestUtils.setField(f.store, "readTimeout", java.time.Duration.ofSeconds(90));
+        f.store.createPending("caretaker", 1L, "http://localhost/uploads/voice-memos/test.webm");
+        f.rows.get(1L).setProcessingStartedAt(LocalDateTime.now().minusMinutes(3));
+        assertFalse(f.service.latest("caretaker", "tsk_1").getData().isRetryable());
+        assertCode("C4095", () -> f.service.retry("caretaker", "vm_1"));
+        f.rows.get(1L).setProcessingStartedAt(LocalDateTime.now().minusMinutes(4));
+        assertTrue(f.service.latest("caretaker", "tsk_1").getData().isRetryable());
+    }
+
     @Test void recoversMemoIdAfterClientMissesUploadResponseWithoutCallingModel() {
         var f = new VoiceMemoSelfTest.Fixture();
         var pending = f.store.createPending("caretaker", 1L, "http://localhost/uploads/voice-memos/test.webm");

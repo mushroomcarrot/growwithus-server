@@ -2,7 +2,7 @@
 
 > 코드의 현재 상태를 그대로 기록한 문서다. 기능을 추가하거나 바꾸면 이 문서도 함께 갱신한다 ([development-guide.md](development-guide.md#문서-갱신-규칙)).
 >
-> 마지막 갱신: 2026-11-13, 로컬 모델 Compose와 시연 계정, 녹음 콘솔, 돌봄과 성장의 가족 일기 연결 추가. 실제 모델과 DB 부팅, 팀 농장 조회 연결, 배포 검증은 남아 있음
+> 마지막 갱신: 2026-11-13, 로컬 AI 품질 평가, 시연 토큰 갱신과 읽어주기, 느린 모델의 재시도 유효 시간 보정 추가. 실제 모델과 DB 부팅, 팀 도메인 통합은 남아 있음
 
 ## 한눈에 보기
 
@@ -676,4 +676,14 @@ docker run -d -p 6379:6379 redis:7
 7. `scripts/start-local-demo.ps1`은 무작위 설정을 한 번만 만들고 기존 설정과 볼륨을 유지한다. `scripts/smoke_local_demo.py`는 실행된 서버를 검사한다. 기본 검사는 음성과 완료를 not_tested로 표시하며, 실제 음성을 지정했을 때만 해당 흐름을 검사한다.
 8. `/local-demo`와 스크립트만 로그인 없이 볼 수 있다. 실제 API와 `/local-demo/status`는 토큰이 필요하다. 전용 HTML과 JS는 static 폴더 밖에 있어 프로필을 끄면 제공되지 않는다. 이 콘솔은 기능 검사 화면이며 팀 프론트를 대체하지 않는다.
 9. STT 모델의 필수 파일은 model.bin, config.json, tokenizer.json이다. 공식 base 모델에 없는 preprocessor_config.json은 선택 파일로 처리한다. 추론 시 자동 다운로드와 유료 API 전환은 없다. Qwen2.5 3B는 텍스트 전용이므로 기본 구성의 사진 검증은 null이다. TTS 공급자는 여전히 준비되지 않았다.
-10. Java 핵심 JUnit 60개, STT Python 21개, 시연 도구 Python 7개를 통과했다. 실제 Docker, 전체 Gradle 빌드, DB 쿼리와 잠금, 브라우저 녹음, 모델 추론은 작성 환경에서 검증하지 못했다. 상세 실행 절차는 [local-demo.md](local-demo.md)를 따른다.
+10. Java 핵심 JUnit 65개, STT Python 21개, 시연 도구 Python 7개를 통과했다. 실제 Docker, 전체 Gradle 빌드, DB 쿼리와 잠금, 브라우저 녹음, 모델 추론은 작성 환경에서 검증하지 못했다. 상세 실행 절차는 [local-demo.md](local-demo.md)를 따른다.
+
+## 모델 평가와 시연 화면 보완
+
+1. evaluateLocalAi는 명시적으로 실행하는 JavaExec 작업이다. testClasses의 합성 원문 12개로 운영과 같은 VoiceMemoAnalysisService를 호출한다. 기본 test와 build에서는 모델을 호출하지 않는다. 모델과 주소는 기존 AI_LOCAL_MODEL, AI_LOCAL_BASE_URL을 사용하며 loopback과 cloud 이름 거부 정책도 같다.
+2. 평가기는 태그의 micro precision, recall, F1, 정확한 집합 일치, 대체 경로 수, p50과 p95 지연을 보고한다. 대체 결과는 모델 성공으로 세지 않는다. 결과가 하나라도 불일치하면 보고서를 저장하고 종료 코드 1을 반환한다. STT와 의미적 요약 품질은 평가하지 않으며 실제 점수는 아직 없다.
+3. Compose의 ai-evaluation은 evaluation 프로필을 선택해야 실행된다. 모델 서버와 네트워크 공간을 공유하고 호스트에는 별도 포트를 열지 않는다. 결과만 build/reports에 기록하며 사용자 DB와 음성 파일을 수정하지 않는다.
+4. 시연 콘솔은 계정별 토큰을 메모리에서 관리한다. 401이면 계정별 갱신 요청을 공유하고 원래 요청을 한 번만 다시 보낸다. 403과 네트워크 오류는 자동 재전송하지 않는다. 새 음성을 선택한 상태에서 이전 메모로 완료하지 못하게 검사한다.
+5. 원문에서 추출된 이상 징후를 한글 문구로 표시하며 수정 확정 시 오래된 태그를 지운다. 읽어주기는 브라우저 speechSynthesis이고 서버 TTS와 별개다. 마이크 권한 대기 중 작업이 바뀌면 받은 스트림을 종료한다. 기본 자동 녹음은 59초로 인코딩 여유를 둔다.
+6. 음성 처리 유효 시간은 HTTP 읽기 제한의 2배 + 30초이고 최소 2분이다. 기본 30초 설정은 2분, local-demo의 90초 설정은 3분 30초다. STT 다음 LLM을 기다리는 정상 요청을 먼저 만료시키지 않도록 한다. 재시도와 늦은 결과의 토큰 검사는 유지한다.
+7. 핵심 JUnit 65개, Python 28개, Node 시연 로직 8개가 통과했다. Node는 DOM과 fetch 대역 검사이며 실제 마이크와 브라우저 화면 검사와 다르다. 운영 DB, 모델, 전체 Gradle 빌드는 미검증이다. 팀 전달 기준과 남은 항목은 [ai-handoff.md](ai-handoff.md)를 따른다.
