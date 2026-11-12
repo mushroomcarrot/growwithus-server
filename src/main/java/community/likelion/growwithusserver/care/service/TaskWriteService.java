@@ -24,6 +24,7 @@ public class TaskWriteService {
     private final VoiceMemoStore voice;
     private final TaskVisibility visibility;
     private final ApplicationEventPublisher events;
+    private final community.likelion.growwithusserver.growth.service.GrowthStatusService growth;
 
     @Transactional
     public TaskDtos.Photo savePhoto(String username, Long taskId, String url, VisionClient.Check check) {
@@ -62,9 +63,10 @@ public class TaskWriteService {
         events.publishEvent(new CareCompleted(garden.ownerUsername(), summary, IdPrefix.CARE_LOG.format(log.getId())));
         long remaining = visibility.select(username, tasks.findAllByCaretakerUsernameAndDateOrderByIdAsc(username, task.getDate()), task.getDate())
                 .tasks().stream().filter(t -> t.getStatus() == TaskStatus.TODO).count();
+        var expectedStage = growth.expectedCheck(garden);
         return TaskDtos.Completed.builder().taskId(IdPrefix.TASK.format(taskId)).status(TaskStatus.DONE)
                 .careLogId(IdPrefix.CARE_LOG.format(log.getId())).remainingTasks(remaining)
-                .stageCheck(TaskDtos.StageCheck.builder().required(garden.expectedStageToCheck() != null)
+                .stageCheck(TaskDtos.StageCheck.builder().required(expectedStage != null).expectedStage(expectedStage)
                         .gardenId(IdPrefix.GARDEN.format(garden.gardenId())).build()).build();
     }
 }

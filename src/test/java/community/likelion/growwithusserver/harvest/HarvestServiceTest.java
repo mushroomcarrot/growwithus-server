@@ -34,7 +34,11 @@ class HarvestServiceTest {
 
     @BeforeEach
     void setUp() {
-        harvestService = new HarvestService(new HarvestGardenService(harvestGardenReader), outingRepository);
+        var growth = new community.likelion.growwithusserver.growth.service.GrowthStatusService(
+                community.likelion.growwithusserver.support.FakeRepository.of(
+                        community.likelion.growwithusserver.growth.data.repository.GrowthStateRepository.class,
+                        (method, args) -> Optional.empty()));
+        harvestService = new HarvestService(new HarvestGardenService(harvestGardenReader), outingRepository, growth);
         garden = HarvestGarden.builder()
                 .gardenId(3L)
                 .ownerUsername("minji")

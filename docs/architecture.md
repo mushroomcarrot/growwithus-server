@@ -2,7 +2,7 @@
 
 > 코드의 현재 상태를 그대로 기록한 문서다. 기능을 추가하거나 바꾸면 이 문서도 함께 갱신한다 ([development-guide.md](development-guide.md#문서-갱신-규칙)).
 >
-> 마지막 갱신: 2026-11-12, 관리사 프로필, 작업 생성과 완료, 음성 재시도, 성장 상태와 단계 보정 추가. 실제 농장과 텃밭 조회 연결, DB 및 배포 검증은 남아 있음
+> 마지막 갱신: 2026-11-12, 관리사 작업과 음성 재시도, 성장 보정 및 수확 예측일 연결. 실제 농장과 텃밭 조회 연결, DB 및 배포 검증은 남아 있음
 
 ## 한눈에 보기
 
@@ -135,8 +135,8 @@ community.likelion.growwithusserver/
 
 1. `care`는 `Task`, `TaskDay`, `TaskPhoto`, `CareLog`를 저장한다. 오늘 할 일 조회 시 미생성 작업을 만들며 담당자 전체의 하루 작업 시간을 120분으로 제한한다. 생성 저장 시 `TaskDay`와 텃밭 행을 잠그고 현재 날씨와 단계로 재검증한다. 작업 완료, 돌봄 기록과 알림은 한 트랜잭션이다.
 2. `caretaker`는 프로필과 월별 요약, TTS 캐시를 제공한다. 기본 SVG를 사용하며 AI 아바타 생성은 후순위다. 내 정보의 관리사 요약에는 누적 돌봄 횟수를 포함한다.
-3. `growth`는 `GrowthState`와 `GrowthEvent`를 저장한다. 관찰 보정과 완료된 날짜의 기온을 기준으로 재계산하고 단계 상승 알림을 보낸다. 물 주기 등의 단계 검증은 저장된 성장 상태를 우선한다.
-4. `CareGardenReader`와 `CaretakerFarmReader`는 실제 팀 도메인 어댑터가 필요하다. 기본 구현은 빈 결과다. 실제 자료 없이 농장이나 작물 기준값을 생성하지 않는다. 일기와 기존 수확 모듈의 연결도 남아 있다.
+3. `growth`는 `GrowthState`와 `GrowthEvent`를 저장한다. 관찰 보정과 완료된 날짜의 기온을 기준으로 재계산하고 단계 상승 알림을 보낸다. 물 주기 등의 단계 검증은 저장된 성장 상태를 우선한다. `GrowthStatusService`는 확인한 단계에서 같은 확인 요청을 반복하지 않으며 다음 주요 단계에서 다시 요청한다. NO_CHANGE는 보정하지 않아 요청이 유지된다.
+4. `CareGardenReader`와 `CaretakerFarmReader`는 실제 팀 도메인 어댑터가 필요하다. 기본 구현은 빈 결과다. 실제 자료 없이 농장이나 작물 기준값을 생성하지 않는다. 일기 연결은 남아 있다. 기존 수확 API는 소유권 확인 후 저장된 성장 예측일을 우선 사용한다. 성장 예측일이 null이면 기존 날짜로 대신하지 않으며 수확 가능 여부는 실제 텃밭 데이터에서 가져온다.
 5. 수동 스키마는 `src/main/resources/db/manual/voice_memo.sql`, `care_growth.sql`이다. prod 배포 전 적용 및 검증이 필요하다. 전체 연결 상태와 제한은 [ai-integration.md](ai-integration.md)를 기준으로 확인한다.
 
 `VoiceMemo` 엔티티는 `voice_memo` 테이블에 작업 PK, 관리사 로그인 아이디, 음성 URL, 원문, 요약, 이상 징후 코드, 대체 처리 여부, 상태, 생성 및 확정 시각을 저장한다. prod DB 준비용 수동 SQL은 `src/main/resources/db/manual/voice_memo.sql`이며 아직 DB에 적용하지 않았다. 작업과 사용자 FK 및 파일 보상 삭제는 남아 있다.

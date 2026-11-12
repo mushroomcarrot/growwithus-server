@@ -9,6 +9,14 @@ import community.likelion.growwithusserver.care.garden.CareGardenReader;
 import community.likelion.growwithusserver.care.service.*;
 import community.likelion.growwithusserver.support.FakeRepository;
 import community.likelion.growwithusserver.voice.data.exception.VoiceMemoException;
+import community.likelion.growwithusserver.growth.service.GrowthStatusService;
+import community.likelion.growwithusserver.growth.data.repository.GrowthStateRepository;
+import community.likelion.growwithusserver.voice.data.entity.VoiceMemo;
+import community.likelion.growwithusserver.voice.data.repository.VoiceMemoRepository;
+import community.likelion.growwithusserver.voice.service.VoiceTaskAccess;
+import community.likelion.growwithusserver.voice.service.VoiceMemoStore;
+import community.likelion.growwithusserver.ai.logic.VoiceAnalysis;
+import community.likelion.growwithusserver.care.data.dto.TaskDtos;
 import org.junit.jupiter.api.Test;
 import java.time.*;
 import java.util.*;
@@ -89,12 +97,68 @@ class CareServiceTest {
             var log = (CareLog) args[0]; log.setId(1L); records.add(log); return log;
         });
         var photos = FakeRepository.of(TaskPhotoRepository.class, (method, args) -> Optional.empty());
-        var service = new TaskWriteService(access, tasks, photos, logs, null, new TaskVisibility(gardens, contexts), events::add);
+        var growth = new GrowthStatusService(FakeRepository.of(
+                GrowthStateRepository.class, (method, args) -> Optional.empty()));
+        var service = new TaskWriteService(access, tasks, photos, logs, null, new TaskVisibility(gardens, contexts), events::add, growth);
         var result = service.complete("care", 1L, null);
         assertEquals(TaskStatus.DONE, result.getStatus());
         assertEquals(0, result.getRemainingTasks()); assertEquals(1, records.size()); assertEquals(1, events.size());
         assertEquals("owner", ((CareCompleted) events.getFirst()).ownerUsername());
         assertThrows(VoiceMemoException.class, () -> service.complete("care", 1L, null));
         assertEquals(1, records.size()); assertEquals(1, events.size());
+    }
+
+    @Test void confirmedVoiceAndPhotoReachCareLogThroughRealTaskReader() {
+        addGarden(1); store().save("care", LocalDate.now(), List.of(prepared(1)));
+        var row = new java.util.concurrent.atomic.AtomicReference<VoiceMemo>();
+        var memoRepo = FakeRepository.of(VoiceMemoRepository.class, (method, args) -> switch (method) {
+            case "save" -> {
+                var memo = (VoiceMemo) args[0];
+                memo.setId(1L); row.set(memo); yield memo;
+            }
+            case "findById", "findForUpdate" -> Optional.ofNullable(row.get());
+            case "findAccessById" -> Optional.of(new VoiceMemoRepository.Access() {
+                public Long getTaskId() { return row.get().getTaskId(); }
+                public String getCaretakerUsername() { return row.get().getCaretakerUsername(); }
+            });
+            default -> throw new AssertionError(method);
+        });
+        var voice = new VoiceMemoStore(memoRepo,
+                new VoiceTaskAccess(new TaskVoiceReader(tasks, gardens)));
+        var attempt = voice.createPending("care", 1L, "https://example.test/uploads/voice-memos/test.webm");
+        voice.finish("care", attempt, new VoiceAnalysis.Result(
+                "I watered and saw leaf spots.", "Watered today. We will watch the leaves.",
+                List.of(VoiceAnalysis.Issue.LEAF_SPOT), false));
+        voice.confirm("care", 1L, null);
+        var photo = TaskPhoto.builder().id(1L).taskId(1L).caretakerUsername("care").url("https://example.test/photo.png").build();
+        var photos = FakeRepository.of(TaskPhotoRepository.class, (method, args) -> Optional.of(photo));
+        var records = new ArrayList<CareLog>(); var events = new ArrayList<Object>();
+        var logs = FakeRepository.of(CareLogRepository.class, (method, args) -> {
+            var log = (CareLog) args[0]; log.setId(1L); records.add(log); return log;
+        });
+        var growth = new GrowthStatusService(FakeRepository.of(
+                GrowthStateRepository.class, (method, args) -> Optional.empty()));
+        var service = new TaskWriteService(access, tasks, photos, logs, voice, new TaskVisibility(gardens, contexts), events::add, growth);
+        var request = new TaskDtos.CompleteRequest("pht_1", "vm_1");
+        service.complete("care", 1L, request);
+        assertEquals(1, records.size());
+        var log = records.getFirst();
+        assertEquals(row.get().getTranscript(), log.getTranscript()); assertEquals(row.get().getSummary(), log.getSummary());
+        assertEquals(1L, log.getVoiceMemoId()); assertEquals(photo.getUrl(), log.getPhotoUrl());
+        assertEquals("owner", log.getOwnerUsername()); assertEquals(1, events.size());
+        assertThrows(VoiceMemoException.class, () -> service.complete("care", 1L, request));
+        assertEquals(1, records.size());
+    }
+
+    @Test void rejectsPhotoFromOtherTaskBeforeWritingCareLog() {
+        addGarden(1); store().save("care", LocalDate.now(), List.of(prepared(1)));
+        var photo = TaskPhoto.builder().id(2L).taskId(999L).caretakerUsername("care").build();
+        var photos = FakeRepository.of(TaskPhotoRepository.class, (method, args) -> Optional.of(photo));
+        var logs = FakeRepository.of(CareLogRepository.class, (method, args) -> { throw new AssertionError("must not save"); });
+        var service = new TaskWriteService(access, tasks, photos, logs, null, new TaskVisibility(gardens, contexts),
+                event -> fail("must not notify"), null);
+        assertThrows(VoiceMemoException.class, () -> service.complete("care", 1L,
+                new TaskDtos.CompleteRequest("pht_2", null)));
+        assertEquals(TaskStatus.TODO, stored.getFirst().getStatus());
     }
 }
