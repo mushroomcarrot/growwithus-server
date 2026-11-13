@@ -1,5 +1,7 @@
 # 현재 구조
 
+배포 우선순위와 실제 도메인 연결 조건은 ai-release.md에 정리했다. .env.prod.example은 기존 서버에서 Spring과 같은 네트워크 공간의 AI 작업자를 사용하는 설정 초안이다. 외부 제공자 API 키만으로 연결되는 구현은 없으며 서버 배치와 실제 텃밭 연결을 확정해야 배포할 수 있다. 운영용 Compose나 실제 서버 반영은 아직 수행하지 않았다.
+
 RUN-AI-EVALUATION.cmd는 evaluation 프로필의 일회성 컨테이너에서 기존 evaluateLocalAi Gradle 태스크를 실행한다. Java 실제 HTTP 클라이언트와 정리 서비스를 사용하며 DB 작업은 하지 않는다. 합성 입력별 원본 모델 응답을 local-ai-evaluation.json의 modelReplies에 함께 기록한다. 원본 응답이 없는 경우는 통신 단계 실패와 구분해 살펴본다. 일반 빌드나 테스트에서 이 모델 평가는 자동 실행하지 않는다.
 
 CHECK-LOCAL-LLM.cmd는 기존 진단 스크립트의 CheckLlm 모드로 Ollama 통신과 응답을 확인한다. 실제 Java 정리 프롬프트를 읽고 공개 합성 문장만 전송한다. 내부 AI 포트를 외부에 공개하지 않고 STT 컨테이너의 공유 네트워크를 이용한다. 진단 결과는 로컬 보고서에 기록하고 DB나 작업은 변경하지 않는다.

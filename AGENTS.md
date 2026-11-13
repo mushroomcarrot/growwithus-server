@@ -19,6 +19,7 @@
 11. [docs/local-demo.md](docs/local-demo.md): Docker 기반 로컬 모델, 시연 계정, 녹음과 가족 일기 확인 절차
 12. [docs/ai-handoff.md](docs/ai-handoff.md): 이슈별 구현 범위, 프론트 계약, 팀 도메인 접점과 최종 검사 순서
 13. [docs/ai-presentation.md](docs/ai-presentation.md): AI 설명 초안, 실제 시연 순서와 예상 질문 답변
+14. [docs/ai-release.md](docs/ai-release.md): 배포 우선순위, 실제 도메인 연결, 운영 환경변수와 프론트 연동 기준
 
 ## 문서 갱신 (필수)
 
