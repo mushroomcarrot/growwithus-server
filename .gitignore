@@ -39,6 +39,7 @@ out/
 ### Env ###
 .env
 .env.local-demo
+.env.cloud-ai
 
 ### Uploads ###
 /uploads/

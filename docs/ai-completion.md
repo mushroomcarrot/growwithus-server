@@ -79,3 +79,8 @@ Spring 설정은 AI_LOCAL_TTS_ENABLED=true와 AI_LOCAL_TTS_BASE_URL=http://127.0
 scripts/prepare-ai-fixtures.py는 공개 합성 음성을 FFmpeg로 WAV, WEBM, MP4, M4A로 준비하고 출처와 체크섬이 확인된 토마토 사진을 검사 폴더에 저장한다. Gradle verifyLocalAi는 같은 애플리케이션 클라이언트와 분석 서비스로 실제 인식, 요약, 성장 설명, 음성 생성과 사진 판정을 검사한다. 모든 항목이 통과해야 성공으로 종료하며 실패나 판정 불가를 성공으로 기록하지 않는다.
 
 사람의 녹음 정확도와 TTS 청취 여부는 자동 검사로 대신하지 않는다. 로컬 페이지에서 직접 녹음한 결과를 확인하고 build/reports/tts-review.mp3를 들어야 한다. 운영 서버와 프론트 전체 흐름은 배포 후 다시 확인한다. 합성 자료 검사 통과를 실제 사용자 음성 품질 보장으로 설명하지 않는다.
+
+
+## 2 CPU, 2 GB 서버 AI
+
+`AI_GEMINI_ENABLED=true`이면 STT, LLM과 사진 판정을 Gemini API로 처리한다. 프론트 API와 실패 복구 흐름은 유지한다. TTS는 앱 이미지의 eSpeak NG와 FFmpeg로 처리하며 Ollama, Whisper와 별도 TTS 작업자를 실행하지 않는다. Cloud Billing을 연결하지 않은 무료 프로젝트의 서버용 키를 사용하며 유료 모델로 자동 전환하지 않는다. 설정, 한도와 데이터 처리는 [cloud-ai.md](cloud-ai.md)를 참고한다. 모의 테스트로 실제 인식 품질이나 운영 부하 검증을 대신하지 않는다.
