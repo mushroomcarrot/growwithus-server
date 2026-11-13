@@ -1,3 +1,4 @@
+param([switch]$Rebuild)
 $ErrorActionPreference = 'Stop'
 $projectDir = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 Set-Location -LiteralPath $projectDir
@@ -10,6 +11,25 @@ else {
     }
 }
 if (-not (Test-Path -LiteralPath $dockerPath)) { throw 'Docker CLI was not found.' }
+
+if ($Rebuild) {
+    Write-Host 'Rebuilding only STT with compatible audio libraries. Models and database records are preserved.'
+    & $dockerPath compose --env-file .env.local-demo -f compose.local-demo.json build stt
+    if ($LASTEXITCODE -ne 0) { throw 'STT build failed. The existing service was not replaced.' }
+    & $dockerPath compose --env-file .env.local-demo -f compose.local-demo.json up -d --no-deps stt
+    if ($LASTEXITCODE -ne 0) { throw 'STT restart failed. Keep this window open.' }
+    $ready = $false
+    for ($attempt = 0; $attempt -lt 60; $attempt++) {
+        $container = & $dockerPath compose --env-file .env.local-demo -f compose.local-demo.json ps -q stt
+        if ($LASTEXITCODE -ne 0 -or -not $container) { throw 'STT container was not found.' }
+        $health = & $dockerPath inspect --format '{{.State.Health.Status}}' $container
+        if ($LASTEXITCODE -ne 0) { throw 'STT health status could not be read.' }
+        if ($health -eq 'healthy') { $ready = $true; break }
+        if ($health -eq 'unhealthy') { throw 'STT did not become healthy. Existing records were preserved.' }
+        Start-Sleep -Seconds 2
+    }
+    if (-not $ready) { throw 'STT startup timed out. Existing records were preserved.' }
+}
 
 # Only the public synthetic fixture is used. No settings, tokens or user recordings are printed.
 $fixture = Join-Path $projectDir 'src\test\resources\ai-evaluation\synthetic-korean.wav'

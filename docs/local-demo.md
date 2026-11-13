@@ -2,6 +2,10 @@
 
 ## 합성 음성으로 STT 확인
 
+`TypeError: open() got an unexpected keyword argument 'metadata_errors'`가 나오면 `FIX-LOCAL-STT.cmd`를 실행한다. STT 이미지의 faster-whisper 1.2.1과 PyAV 18 조합을 설치하고, 빌드 중 WAV 해독을 실제 검사한 뒤 STT 컨테이너만 교체한다. DB, 모델, 업로드 파일은 삭제하지 않는다. 컨테이너 상태 확인 후 합성 음성 진단까지 자동 실행하며 결과 파일 경로는 아래와 같다. 실패한 빌드나 진단을 성공으로 표시하지 않는다.
+
+원인은 [faster-whisper 공식 이슈 #1589](https://github.com/SYSTRAN/faster-whisper/issues/1589)에 보고된 PyAV 19의 인자 삭제다. 라이브러리 내부 코드를 임의 수정하지 않고 requirements.txt에서 호환 범위를 제한한다.
+
 `src/test/resources/ai-evaluation/synthetic-korean.wav`는 Windows 내장 음성으로 생성한 약 5.3초의 한국어 파일이다. 정답 문장과 생성 정보도 같은 폴더에 있다. 사람의 음성 인식 성능 자료로 사용하지 않는다.
 
 실행 중인 로컬 시연 서버의 STT가 실패하면 일반 Windows 환경에서 `CHECK-LOCAL-STT.cmd`를 실행한다. 실행 중인 STT 컨테이너에서 같은 파일로 모델을 직접 검사하고 `build/reports/local-stt-diagnostic.json`을 기록한다. 설정 파일 내용, 비밀번호, 사용자 녹음은 출력하지 않는다. 기존 작업과 녹음은 변경하지 않는다.
