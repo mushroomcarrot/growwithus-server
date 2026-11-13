@@ -9,6 +9,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class LocalDemoSetupTest(unittest.TestCase):
+    def test_evaluation_reports_follow_the_docker_build_working_directory(self):
+        dockerfile = (ROOT / 'Dockerfile').read_text(encoding='utf-8')
+        workdir = next(line.split()[1] for line in dockerfile.splitlines() if line.startswith('WORKDIR '))
+        config = json.loads((ROOT / 'compose.local-demo.json').read_text(encoding='utf-8'))
+        self.assertIn('./build/reports:' + workdir + '/build/reports', config['services']['ai-evaluation']['volumes'])
     def test_deployment_workers_have_no_demo_database_and_bind_only_loopback(self):
         config = json.loads((ROOT / "compose.ai-workers.json").read_text(encoding="utf-8"))
         services = config["services"]
