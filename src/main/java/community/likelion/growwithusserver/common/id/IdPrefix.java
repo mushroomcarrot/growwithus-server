@@ -10,6 +10,7 @@ public enum IdPrefix {
     USER("usr"),
     GARDEN("gdn"),
     FARM("farm"),
+    CROP("crop"),
     CARETAKER("crt"),
     TASK("tsk"),
     CARE_LOG("cl"),
