@@ -38,6 +38,7 @@ class GeminiClientTest {
     }
     @Test void transcribesNormalizedAudioAndRejectsBlankTranscript() {
         server.expect(anything()).andExpect(content().string(org.hamcrest.Matchers.containsString("audio/wav")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("텃밭")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("AQID")))
                 .andRespond(withSuccess(response("{\"transcript\":\"물을 줬어요\"}", "STOP"), MediaType.APPLICATION_JSON));
         assertEquals("물을 줬어요", client().transcribe(new byte[]{4}, "memo.webm")); server.verify();

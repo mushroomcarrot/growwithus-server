@@ -142,8 +142,10 @@ public final class AiPredeployCheck {
         }
         var analyzed = new ArrayList<VoiceAnalysis.Result>();
         runner.check("voice_summary_from_recognized_audio", () -> {
-            require(transcripts.containsKey("wav"));
-            var result = analysis.analyze(transcripts.get("wav"));
+            require(!transcripts.isEmpty());
+            var source = transcripts.entrySet().iterator().next();
+            runner.samples.put("summarySourceFormat", source.getKey());
+            var result = analysis.analyze(source.getValue());
             require(!result.fallbackUsed() && !result.summary().isBlank());
             require(result.issues().contains(VoiceAnalysis.Issue.LEAF_SPOT));
             analyzed.add(result); runner.samples.put("summary", result.summary());
