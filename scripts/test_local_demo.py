@@ -2,13 +2,40 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import Mock
-from smoke_local_demo import Client, NoRedirect, local_url, run, settings
+from unittest.mock import Mock, patch
+from smoke_local_demo import Client, NoRedirect, checked_run, local_url, run, settings
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 class LocalDemoSetupTest(unittest.TestCase):
+    def test_smoke_report_records_real_result_without_call_credentials(self):
+        directory = ROOT / "build" / "setup-tests"
+        directory.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=directory) as temp:
+            report = Path(temp) / "report.json"
+            result = {"voice": "not_tested", "completion": "not_tested"}
+            with patch("smoke_local_demo.run", return_value=result):
+                self.assertEqual(checked_run(Mock(), "private-password", report), result)
+            saved = json.loads(report.read_text(encoding="utf-8"))
+            self.assertEqual(saved["status"], "passed")
+            self.assertEqual(saved["checks"], result)
+            self.assertNotIn("private-password", report.read_text())
+            self.assertEqual(list(Path(temp).glob("*.tmp")), [])
+
+    def test_failed_check_replaces_previous_success_without_exception_details(self):
+        directory = ROOT / "build" / "setup-tests"
+        directory.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=directory) as temp:
+            report = Path(temp) / "report.json"
+            report.write_text('{"status":"passed"}')
+            with patch("smoke_local_demo.run", side_effect=RuntimeError("private-voice-text")):
+                with self.assertRaises(RuntimeError): checked_run(Mock(), "private-password", report)
+            saved = json.loads(report.read_text())
+            self.assertEqual(saved["status"], "failed")
+            self.assertEqual(saved["errorType"], "RuntimeError")
+            self.assertNotIn("private-voice-text", report.read_text())
+
     def test_loopback_url_boundary(self):
         self.assertEqual(local_url("http://localhost:8080/"), "http://localhost:8080")
         self.assertEqual(local_url("http://[::1]:8080"), "http://[::1]:8080")

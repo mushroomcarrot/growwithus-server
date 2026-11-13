@@ -8,6 +8,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
+from datetime import datetime, timezone
+import tempfile
 
 
 def local_url(value):
@@ -129,6 +131,28 @@ def run(client, password, audio_path=None, complete=False):
     return report
 
 
+def checked_run(client, password, report_path, audio_path=None, complete=False):
+    def save(status, **fields):
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        report = {"status": status, "checkedAt": datetime.now(timezone.utc).isoformat(), **fields}
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=report_path.parent, suffix=".tmp", delete=False) as output:
+            temporary = Path(output.name)
+            json.dump(report, output, ensure_ascii=False, indent=2)
+        try:
+            temporary.replace(report_path)
+        finally:
+            temporary.unlink(missing_ok=True)
+    save("running")
+    try:
+        result = run(client, password, audio_path, complete)
+    except Exception as error:
+        # 비밀번호, 토큰, 발언이나 예외 원문을 보고서에 남기지 않는다.
+        save("failed", errorType=type(error).__name__)
+        raise
+    save("passed", checks=result)
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--base", default="http://localhost:8080")
@@ -136,7 +160,8 @@ def main():
     parser.add_argument("--audio", type=Path)
     parser.add_argument("--complete", action="store_true")
     args = parser.parse_args()
-    result = run(Client(args.base), settings(args.settings)["LOCAL_DEMO_PASSWORD"], args.audio, args.complete)
+    report_path = Path(__file__).resolve().parents[1] / "build" / "reports" / "local-demo-smoke.json"
+    result = checked_run(Client(args.base), settings(args.settings)["LOCAL_DEMO_PASSWORD"], report_path, args.audio, args.complete)
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 

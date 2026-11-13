@@ -73,7 +73,7 @@ docker compose --env-file .env.local-demo -f compose.local-demo.json stop
 
 1. `local-demo` 프로필에서만 가상 농장 조회와 전용 계정 시드가 활성화된다. 실제 사용자, 작업, 메모, 사진, 성장, 일기는 MariaDB에 저장한다. 비밀번호가 기존 시드 계정과 다르면 기존 계정을 변경하지 않고 시작을 중단한다. 기본 프로필에서는 실제 팀 텃밭 조회 구현체가 여전히 필요하다.
 2. 가족 일기는 새 돌봄 완료와 성장 상승을 원래 트랜잭션 안에서 저장한다. 기존 돌봄 기록의 일괄 이관, REST_DAY, 하트 보내기, XP 보상, 주인 홈 API는 이번 연결 범위에 포함되지 않는다. 운영 스키마에는 `db/manual/diary.sql`을 검토해 반영해야 한다.
-3. 작성 환경에서는 Docker가 없어 Compose 부팅, Java 21 전체 빌드, 실제 MariaDB 쿼리와 잠금, 모델 다운로드와 추론, 브라우저 녹음은 아직 실행하지 못했다. Java 핵심 JUnit 77개, Python 30개, Node 화면 로직 10개는 통과했지만 전체 연동 성공을 의미하지 않는다. Java 검사는 캐시 의존성과 JDK 25의 release 21로 수행했다. Node 검사는 DOM과 네트워크 대역을 사용하며 실제 브라우저 검사는 아니다.
+3. 작성 환경에서는 Docker가 없어 Compose 부팅, Java 21 전체 빌드, 실제 MariaDB 쿼리와 잠금, 모델 다운로드와 추론, 브라우저 녹음은 아직 실행하지 못했다. Java 핵심 JUnit 77개, Python 32개, Node 화면 로직 10개는 통과했지만 전체 연동 성공을 의미하지 않는다. Java 검사는 캐시 의존성과 JDK 25의 release 21로 수행했다. Node 검사는 DOM과 네트워크 대역을 사용하며 실제 브라우저 검사는 아니다.
 4. 시연 영상과 배포 링크 제출 준비는 실제 실행 검사를 마친 뒤 진행한다. 운영 서버, HTTPS 주소, 최신 팀 코드 통합은 별도 확인이 필요하다. 공개 인터넷에서 이 로컬 시연 프로필을 운영하지 않는다.
 
 
@@ -110,3 +110,6 @@ Git Bash에서는 저장소 루트에서 다음처럼 시작 스크립트를 실
 ```bash
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/start-local-demo.ps1
 ```
+
+
+검사 실행 결과는 build/reports/local-demo-smoke.json에서도 확인할 수 있다. status와 checkedAt을 함께 확인한다. passed여도 기본 실행의 voice와 completion은 not_tested이므로 음성과 완료가 검증됐다는 뜻은 아니다. 실행 중단으로 running이 남거나 failed이면 실제 서버를 다시 점검해야 한다. 이 파일은 실행 시에만 만들며 비밀번호, 토큰과 발언을 저장하지 않는다.
