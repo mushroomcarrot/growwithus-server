@@ -27,6 +27,11 @@ public class CaretakerService {
     @Value("${care.allowance-per-task:0}") private long allowancePerTask;
     @Value("${file.base-url}") private String fileBaseUrl;
 
+    // 아바타를 만들기 전이나 만들지 못했을 때 쓰는 기본 아바타
+    public static String defaultAvatarUrl(String fileBaseUrl) {
+        return fileBaseUrl.replaceAll("/$", "") + "/images/caretaker-default.svg";
+    }
+
     @Transactional
     public GlobalResponse<CaretakerDtos.Profile> register(String username, CaretakerDtos.Register request) {
         if (request == null || request.getName() == null || request.getName().isBlank() || request.getName().length() > 20) {
@@ -40,7 +45,7 @@ public class CaretakerService {
         var farm = farms.findFarm(farmId).orElseThrow(() -> new VoiceMemoException(ErrorCode.DATA_NOT_FOUND));
         if (!farmId.equals(farm.farmId())) throw new VoiceMemoException(ErrorCode.INVALID_PARAMETER);
         var profile = profiles.save(CaretakerProfile.builder().userId(user.getId()).username(username)
-                .name(request.getName().strip()).farmId(farmId).avatarUrl(fileBaseUrl.replaceAll("/$", "") + "/images/caretaker-default.svg")
+                .name(request.getName().strip()).farmId(farmId).avatarUrl(defaultAvatarUrl(fileBaseUrl))
                 .portraitConsent(false).createdAt(LocalDateTime.now()).build());
         user.setProfileRegistered(true);
         return GlobalResponse.ok(CaretakerDtos.Profile.builder().caretakerId(IdPrefix.CARETAKER.format(profile.getId()))

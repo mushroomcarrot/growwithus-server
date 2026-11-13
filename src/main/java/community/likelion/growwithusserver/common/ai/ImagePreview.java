@@ -3,9 +3,10 @@ package community.likelion.growwithusserver.common.ai;
 import java.util.Locale;
 import java.util.Set;
 
-final class ImagePreview {
+/** 사진을 가로 세로 최대 768픽셀의 JPEG로 줄인다. 읽을 수 없는 사진은 null이다. */
+public final class ImagePreview {
     private ImagePreview() {}
-    static byte[] jpeg(byte[] image) throws java.io.IOException {
+    public static byte[] jpeg(byte[] image) throws java.io.IOException {
         try (var input = javax.imageio.ImageIO.createImageInputStream(new java.io.ByteArrayInputStream(image))) {
             var readers = javax.imageio.ImageIO.getImageReaders(input);
             if (!readers.hasNext()) return null;

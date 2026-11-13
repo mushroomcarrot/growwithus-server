@@ -17,6 +17,13 @@ public final class CaretakerDtos {
         private NextStep nextStep;
     }
     @Data @Builder @NoArgsConstructor @AllArgsConstructor
+    public static class Avatar {
+        private String avatarJobId;
+        private community.likelion.growwithusserver.caretaker.data.enums.AvatarStatus status;
+        // PENDING이면 null, DONE이면 만든 그림, FAILED면 지금 쓰는 아바타 (처음이면 기본 아바타)
+        private String avatarUrl;
+    }
+    @Data @Builder @NoArgsConstructor @AllArgsConstructor
     public static class Summary {
         private String month;
         private long completedTasks;

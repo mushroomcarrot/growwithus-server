@@ -32,20 +32,29 @@ public class FileUploadService {
     private final FileStorage fileStorage;
 
     public String uploadImage(MultipartFile file, String directory) {
+        byte[] bytes = readImage(file);
+        String extension = extensionOf(file);
+        return store(directory, extension, bytes, extension.equals("png") ? "image/png" : "image/jpeg");
+    }
+
+    // 사진을 저장하지 않고 검증만 한 뒤 내용을 돌려준다 (jpg, png 10MB 이하). 원본을 남기지 않는 기능이 쓴다.
+    public byte[] readImage(MultipartFile file) {
         byte[] bytes = readBytes(file, MAX_IMAGE_SIZE);
         String extension = extensionOf(file);
-
-        String contentType;
-        if ((extension.equals("jpg") || extension.equals("jpeg")) && isJpeg(bytes)) {
-            contentType = "image/jpeg";
-        } else if (extension.equals("png") && isPng(bytes)) {
-            contentType = "image/png";
-        } else {
-            log.warn("[uploadImage] 지원하지 않는 사진 형식: {}", extension);
+        boolean jpeg = (extension.equals("jpg") || extension.equals("jpeg")) && isJpeg(bytes);
+        if (!jpeg && !(extension.equals("png") && isPng(bytes))) {
+            log.warn("[readImage] 지원하지 않는 사진 형식: {}", extension);
             throw new FileNotSupportedException();
         }
+        return bytes;
+    }
 
-        return store(directory, extension, bytes, contentType);
+    // 서버가 만든 PNG를 저장한다 (예: AI 아바타). 업로드 파일과 같은 저장소를 쓴다.
+    public String storeGeneratedPng(byte[] png, String directory) {
+        if (png == null || png.length == 0 || png.length > MAX_IMAGE_SIZE || !isPng(png)) {
+            throw new FileUploadFailedException();
+        }
+        return store(directory, "png", png, "image/png");
     }
 
     public String uploadAudio(MultipartFile file, String directory) {

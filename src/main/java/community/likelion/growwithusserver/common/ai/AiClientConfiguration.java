@@ -22,6 +22,14 @@ public class AiClientConfiguration {
                 ? new OllamaVisionClient(externalRestClient, properties, mapper) : (image, task) -> java.util.Optional.empty();
     }
 
+    // 이미지 생성 제공자가 없으면 아바타를 만들지 않는다. 호출한 쪽이 기본 아바타로 대체한다.
+    @Bean
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "ai.gemini.enabled", havingValue = "false", matchIfMissing = true)
+    @ConditionalOnMissingBean(AvatarImageClient.class)
+    public AvatarImageClient unconfiguredAvatarImageClient() {
+        return photo -> java.util.Optional.empty();
+    }
+
     @Bean
     @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "ai.gemini.enabled", havingValue = "false", matchIfMissing = true)
     @ConditionalOnMissingBean(LlmClient.class)
