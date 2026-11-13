@@ -1,0 +1,128 @@
+name: Deploy
+
+on:
+  push:
+    branches: [ main ]
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.image.outputs.name }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: image
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.image.outputs.name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: docker-compose.yml,deploy/nginx
+          target: growwithus-server
+          overwrite: true
+
+      - uses: appleboy/ssh-action@v1
+        env:
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEW_IMAGE: ${{ needs.build-and-push.outputs.image }}
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: GHCR_USER,GHCR_TOKEN,NEW_IMAGE
+          command_timeout: 10m
+          script: |
+            set -eu
+            cd ~/growwithus-server
+
+            cleanup() {
+              sudo docker logout ghcr.io > /dev/null 2>&1 || true
+            }
+            trap cleanup EXIT
+
+            echo "$GHCR_TOKEN" | sudo docker login ghcr.io -u "$GHCR_USER" --password-stdin
+
+            echo "Pulling $NEW_IMAGE"
+            sudo docker pull "$NEW_IMAGE"
+
+            PREV_IMAGE=$(grep '^APP_IMAGE=' .env | cut -d= -f2- || true)
+            echo "Previous image: ${PREV_IMAGE:-none}"
+
+            echo "Starting mariadb and redis"
+            sudo docker compose up -d --wait mariadb redis
+
+            cp -p .env .env.bak
+            sed -i "s|^APP_IMAGE=.*|APP_IMAGE=$NEW_IMAGE|" .env
+            grep -q "^APP_IMAGE=$NEW_IMAGE$" .env || echo "APP_IMAGE=$NEW_IMAGE" >> .env
+
+            STATUS="compose up failed"
+            if sudo docker compose up -d --no-deps app; then
+              STATUS=starting
+              for i in $(seq 1 48); do
+                STATUS=$(sudo docker inspect -f '{{.State.Health.Status}}' growwithus-server-app 2>/dev/null || echo missing)
+                RUNNING_IMAGE=$(sudo docker inspect -f '{{.Config.Image}}' growwithus-server-app 2>/dev/null || echo missing)
+                echo "Health check $i/48: $STATUS ($RUNNING_IMAGE)"
+                if [ "$STATUS" = "healthy" ] && [ "$RUNNING_IMAGE" = "$NEW_IMAGE" ]; then
+                  rm -f .env.bak
+                  sudo docker compose up -d nginx certbot || true
+                  sh deploy/nginx/init-letsencrypt.sh || echo "Let's Encrypt setup failed, check that DNS for grow-api.yuns.kr points to this server"
+                  sudo docker exec growwithus-server-nginx nginx -s reload || true
+                  sudo docker image prune -af > /dev/null || true
+                  echo "Deployment succeeded: $NEW_IMAGE"
+                  exit 0
+                fi
+                if [ "$STATUS" = "unhealthy" ]; then
+                  break
+                fi
+                sleep 5
+              done
+            fi
+
+            echo "Deployment failed ($STATUS), recent app logs:"
+            sudo docker logs --tail 100 growwithus-server-app || true
+
+            echo "Rolling back to ${PREV_IMAGE:-previous image}"
+            mv .env.bak .env
+            sudo docker compose up -d --no-deps app
+            exit 1

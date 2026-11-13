@@ -28,7 +28,7 @@ Spring의 두 주소는 http://127.0.0.1:11434와 http://127.0.0.1:8765다. 현�
 
 Ollama는 OLLAMA_NO_CLOUD=1과 qwen2.5:3b를 사용한다. STT는 다국어 base 모델을 명시적으로 준비한 뒤 오프라인으로 실행한다. local-ai/Dockerfile과 requirements.txt의 faster-whisper 1.2.1, PyAV 18 계열 호환 수정도 배포 이미지에 함께 반영한다.
 
-운영용 Compose는 아직 확정하지 않았다. compose.local-demo.json은 가상 계정과 농장, local 프로필을 포함하므로 운영 배포 설정으로 그대로 사용하지 않는다.
+운영용 docker-compose.yml(app, mariadb, redis, nginx, certbot)을 추가했다. app은 bridge 네트워크의 별도 컨테이너라 loopback AI 작업자에 닿지 않으므로 이 구성에서는 AI를 끈다. AI를 켜려면 같은 네트워크 공간 구성을 따로 정해야 한다. compose.local-demo.json은 가상 계정과 농장, local 프로필을 포함하므로 운영 배포 설정으로 그대로 사용하지 않는다.
 
 ## 실제 도메인 연결 지점
 
@@ -44,11 +44,11 @@ Ollama는 OLLAMA_NO_CLOUD=1과 qwen2.5:3b를 사용한다. STT는 다국어 base
 
 ## 환경변수와 DB 반영
 
-[.env.prod.example](../.env.prod.example)은 동일 네트워크 공간의 AI 작업자를 사용하는 설정 초안이다. 실제 값을 프로세스 환경변수로 주입하거나 현재 앱이 읽는 .env로 제공한다. .env.prod라는 이름만 만들면 자동으로 읽지 않는다. 채운 파일은 커밋하지 않는다.
+[.env.prod.example](../.env.prod.example)은 docker-compose.yml 배포용 서버 .env 초안이다. 서버의 ~/growwithus-server/.env로 복사해 채우면 compose가 app 컨테이너에 넣는다. .env.prod라는 이름만 만들면 자동으로 읽지 않는다. 채운 파일은 커밋하지 않는다.
 
 프로필은 prod를 사용한다. JWT와 내부 서비스 키를 실제 별도 값으로 채우고 CORS_ALLOWED_ORIGINS에는 실제 프론트 HTTPS Origin을 넣는다. FILE_BASE_URL은 실제 백엔드 HTTPS 주소이며 FILE_UPLOAD_DIR은 지속되는 업로드 볼륨과 연결한다. API 경로는 현재 접두어가 없으며 /api/v1을 임의 추가하지 않는다.
 
-prod의 ddl-auto는 validate다. src/main/resources 아래 voice_memo.sql, care_growth.sql, diary.sql, visit_booking_day.sql과 기존 DB를 대조해 누락 열과 인덱스를 반영한다. 운영 테이블을 삭제하거나 시연 DB로 교체하지 않는다. scheduler를 켜기 전에 실제 텃밭과 기상 수집을 연결한다.
+prod의 ddl-auto는 JPA_DDL_AUTO이며 기본값은 validate다. 새 DB에 처음 배포할 때만 update로 테이블을 만들고 되돌린다. 기존 DB라면 src/main/resources 아래 voice_memo.sql, care_growth.sql, diary.sql, visit_booking_day.sql과 기존 DB를 대조해 누락 열과 인덱스를 반영한다. 운영 테이블을 삭제하거나 시연 DB로 교체하지 않는다. scheduler를 켜기 전에 실제 텃밭과 기상 수집을 연결한다.
 
 ## 프론트 전달 계약
 

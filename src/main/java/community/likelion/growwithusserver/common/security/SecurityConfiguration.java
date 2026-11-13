@@ -78,6 +78,8 @@ public class SecurityConfiguration {
                                 "/swagger-resources/**",
                                 "/webjars/**"
                         ).permitAll()
+                        // 배포 헬스체크 (docker-compose.yml, deploy.yml)
+                        .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
                         // 로컬 저장소에 올린 파일 (file.storage=local)
                         .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/images/caretaker-default.svg").permitAll()
