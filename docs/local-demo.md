@@ -1,5 +1,7 @@
 # 로컬 AI 기능 시연
 
+RUN-AI-EVALUATION.cmd를 실행하면 Java 실제 분석 서비스를 통해 합성 한국어 문장 12개를 로컬 모델로 평가한다. 모델 응답 수신, JSON과 근거 검증, 이상 징후 결과를 함께 검사한다. 보고서는 build/reports/local-ai-evaluation.json이며 modelReplies에는 합성 문장에 대한 원본 모델 응답이 들어간다. DB 기록이나 사용자 녹음은 변경하지 않는다. 빌드 실패 시 새 평가 보고서가 만들어지지 않을 수 있으므로 measuredAt도 확인한다. 모든 사례가 통과하지 않으면 명령은 실패 상태로 끝나며 실제 결과를 확인해 원인을 구분한다.
+
 ## 합성 음성으로 STT 확인
 
 STT는 통과하지만 메모가 LLM_FAILED라면 CHECK-LOCAL-LLM.cmd로 앱과 같은 프롬프트의 모델 원본 응답을 검사한다. build/reports/local-llm-diagnostic.json에 공개 합성 문장에 대한 모델 응답 또는 통신 오류를 저장한다. 사용자 녹음과 비밀번호는 사용하지 않으며 기존 작업도 변경하지 않는다. 모델 응답을 받았다는 사실만으로 앱의 JSON, 근거, 정리문 길이 검증까지 통과한 것은 아니다.

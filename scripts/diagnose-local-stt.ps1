@@ -1,4 +1,4 @@
-param([switch]$Rebuild, [switch]$CheckLlm)
+param([switch]$Rebuild, [switch]$CheckLlm, [switch]$Evaluate)
 $ErrorActionPreference = 'Stop'
 $projectDir = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 Set-Location -LiteralPath $projectDir
@@ -11,6 +11,19 @@ else {
     }
 }
 if (-not (Test-Path -LiteralPath $dockerPath)) { throw 'Docker CLI was not found.' }
+
+if ($Evaluate) {
+    Write-Host 'Running the real Java analysis service against 12 public synthetic examples. Existing records are preserved.'
+    & $dockerPath compose --env-file .env.local-demo -f compose.local-demo.json --profile evaluation run --rm --build --no-deps ai-evaluation
+    $evaluationExit = $LASTEXITCODE
+    Write-Host 'Report: build/reports/local-ai-evaluation.json'
+    if ($evaluationExit -ne 0) {
+        Write-Host 'The evaluation did not pass every case, or the command failed. Inspect the report and build output.'
+        exit $evaluationExit
+    }
+    Write-Host 'All evaluation cases passed. This does not measure human speech recognition accuracy.'
+    return
+}
 
 if ($CheckLlm) {
     # Match the application prompt, using only the public fixture reference text.

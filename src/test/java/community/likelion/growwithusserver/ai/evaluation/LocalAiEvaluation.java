@@ -61,9 +61,15 @@ public final class LocalAiEvaluation {
         var mapper = JsonMapper.builder().build();
         var http = new RestClientConfiguration().externalRestClient(Duration.ofSeconds(3), Duration.ofSeconds(90));
         var client = new OllamaLlmClient(http, properties);
-        var service = new VoiceMemoAnalysisService((audio, name) -> { throw new IllegalStateException("텍스트 평가에서 STT를 호출하지 않아요."); }, client, mapper);
         var outcomes = new ArrayList<Outcome>();
+        var modelReplies = new LinkedHashMap<String, String>();
         for (var example : examples()) {
+            LlmClient traced = (system, input) -> {
+                String reply = client.complete(system, input);
+                modelReplies.put(example.id(), reply);
+                return reply;
+            };
+            var service = new VoiceMemoAnalysisService((audio, name) -> { throw new IllegalStateException("텍스트 평가에서 STT를 호출하지 않아요."); }, traced, mapper);
             long started = System.nanoTime();
             var result = service.analyze(example.transcript());
             outcomes.add(new Outcome(example.id(), example.expectedIssues(), result.issues(), result.fallbackUsed(),
@@ -72,7 +78,7 @@ public final class LocalAiEvaluation {
         var metrics = score(outcomes);
         var report = Map.of("measuredAt", OffsetDateTime.now().toString(), "model", properties.getModel(),
                 "dataset", "synthetic-korean-observations-v1", "sttMeasured", false,
-                "metrics", metrics, "outcomes", outcomes);
+                "metrics", metrics, "outcomes", outcomes, "modelReplies", modelReplies);
         Path output = Path.of(args[0]).toAbsolutePath();
         Files.createDirectories(output.getParent());
         Files.writeString(output, mapper.writerWithDefaultPrettyPrinter().writeValueAsString(report));

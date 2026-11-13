@@ -1,5 +1,7 @@
 # 현재 구조
 
+RUN-AI-EVALUATION.cmd는 evaluation 프로필의 일회성 컨테이너에서 기존 evaluateLocalAi Gradle 태스크를 실행한다. Java 실제 HTTP 클라이언트와 정리 서비스를 사용하며 DB 작업은 하지 않는다. 합성 입력별 원본 모델 응답을 local-ai-evaluation.json의 modelReplies에 함께 기록한다. 원본 응답이 없는 경우는 통신 단계 실패와 구분해 살펴본다. 일반 빌드나 테스트에서 이 모델 평가는 자동 실행하지 않는다.
+
 CHECK-LOCAL-LLM.cmd는 기존 진단 스크립트의 CheckLlm 모드로 Ollama 통신과 응답을 확인한다. 실제 Java 정리 프롬프트를 읽고 공개 합성 문장만 전송한다. 내부 AI 포트를 외부에 공개하지 않고 STT 컨테이너의 공유 네트워크를 이용한다. 진단 결과는 로컬 보고서에 기록하고 DB나 작업은 변경하지 않는다.
 
 STT 이미지는 faster-whisper 1.2.1과 PyAV 18 계열을 사용한다. PyAV 19에서 삭제된 metadata_errors 인자로 음성 해독이 실패하는 조합을 제외한다. 이미지 빌드 때 check_audio_decoder.py가 모델 다운로드 없이 생성한 PCM WAV를 실제 faster-whisper 해독기로 읽고 샘플 수를 확인한다. 실패하면 이미지 빌드도 중단한다. FIX-LOCAL-STT.cmd는 STT만 재빌드하고 교체한 뒤 상태와 한국어 합성 음성을 검사한다. 모델 볼륨과 DB는 보존하며 나머지 서비스는 재시작하지 않는다.
