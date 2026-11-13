@@ -22,6 +22,8 @@ class DemoServiceTest {
     private final Map<String, String> redis = new HashMap<>();
     private DemoWeatherStore demoWeatherStore;
     private DemoService demoService;
+    private final community.likelion.growwithusserver.demo.service.DemoGardenService demoGardens =
+            org.mockito.Mockito.mock(community.likelion.growwithusserver.demo.service.DemoGardenService.class);
 
     // Redis 대신 메모리에 담는 가짜 구현
     private static class FakeRedisService extends RedisService {
@@ -55,8 +57,10 @@ class DemoServiceTest {
 
     @BeforeEach
     void setUp() {
+        org.mockito.Mockito.when(demoGardens.refreshTasks()).thenReturn(
+                new community.likelion.growwithusserver.demo.service.DemoGardenService.Refreshed("비 안내", 1));
         demoWeatherStore = new DemoWeatherStore(new FakeRedisService(redis), true);
-        demoService = new DemoService(demoWeatherStore);
+        demoService = new DemoService(demoWeatherStore, demoGardens);
     }
 
     @Test
@@ -64,6 +68,8 @@ class DemoServiceTest {
         DemoWeatherResponseDto response = demoService.changeWeather(new DemoWeatherRequestDto(WeatherCondition.RAIN)).getData();
 
         assertThat(response.getCondition()).isEqualTo(WeatherCondition.RAIN);
+        assertThat(response.getWeatherNotice()).isEqualTo("비 안내");
+        assertThat(response.getRegeneratedTasks()).isEqualTo(1);
         assertThat(response.getAnimation()).isEqualTo("rain_umbrella");
         assertThat(demoWeatherStore.get().orElseThrow().getCondition()).isEqualTo(WeatherCondition.RAIN);
         assertThat(demoService.getState().getData().getWeather()).isEqualTo(WeatherCondition.RAIN);
@@ -74,6 +80,7 @@ class DemoServiceTest {
         assertThatThrownBy(() -> demoService.changeWeather(new DemoWeatherRequestDto(WeatherCondition.COLD)))
                 .isInstanceOf(DemoWeatherNotAllowedException.class);
         assertThat(redis).isEmpty();
+        org.mockito.Mockito.verifyNoInteractions(demoGardens);
     }
 
     @Test

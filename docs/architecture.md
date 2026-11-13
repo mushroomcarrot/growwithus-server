@@ -1,3 +1,12 @@
+<!-- 마지막 갱신: 2026-11-13, 시연 상태와 작업 도메인 연결 -->
+## 시연 도메인 후속 연결 (#16)
+
+1. DemoGardenService는 minji의 텃밭 중 시연 농장과 B-14가 일치하는 경우만 처리한다. 다른 농장의 텃밭은 변경하지 않는다.
+2. GET /demo/state는 실제 단계, 단계 순서(예: 3/4), 현재 날씨에서 미완료 작업이 보이는 시연 텃밭 수를 반환한다. 조회 시 작업을 생성하지 않는다.
+3. PUT /demo/weather와 POST /demo/reset은 TaskGenerationService.generateInitial과 TaskVisibility를 재사용한다. LLM 없이 부족한 작업을 보완하고 현재 날씨 안내를 반환한다. 완료 기록, 사진과 음성 참조는 삭제하지 않는다.
+4. regeneratedTasks는 새 작업이 추가된 텃밭 수다. 기존 작업이 이미 충분하면 0이다. 비가 오면 기존 물주기는 가려지고 필요한 관찰 작업이 보완된다.
+5. fastForwardDays와 빨리 감기 API, 꽃 단계 재설정, 전체 시드 재적재 및 방문 시드는 아직 미구현이다. reset은 맑음과 작업 보완까지 수행한다. 실제 시연 텃밭이 한 곳이면 todayTaskGardens는 최대 1이며 명세 예시의 3을 만들지 않는다.
+
 # 현재 구조
 
 ## PR #32 이후 마무리 구현
