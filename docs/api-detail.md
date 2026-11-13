@@ -848,7 +848,7 @@ STT로 받아 적고 LLM이 가족용 문장으로 정리한다. `issues`는 다
 { "weather": "SUNNY", "stage": "FLOWER", "stageProgress": "3/4", "fastForwardDays": 18, "todayTaskGardens": 3 }
 ```
 
-현재 구현: `weather`만 채워진다 (날씨를 바꾼 적이 없으면 `null`). 나머지 넷은 텃밭, 성장 시뮬레이션, 작업 도메인이 붙기 전까지 `null`이다.
+현재 구현: weather와 시연 텃밭의 stage, stageProgress(단계 순서), todayTaskGardens를 반환한다. fastForwardDays는 미구현으로 null이다. 시연 텃밭이 없으면 텃밭 상태는 null이다.
 
 ### 9.2 날씨 바꾸기
 
@@ -864,7 +864,7 @@ STT로 받아 적고 LLM이 가족용 문장으로 정리한다. `issues`는 다
 
 `condition`: `SUNNY`, `RAIN`, `HOT` (그 외는 `C002`). 작업을 즉시 다시 만든다.
 
-현재 구현: 날씨 덮어쓰기와 `animation`까지 동작한다. 작업 생성이 붙기 전까지 `weatherNotice`는 `null`, `regeneratedTasks`는 0이다.
+현재 구현: 시연 농장 B-14의 minji 텃밭에 기존 작업 생성과 날씨 검증을 연결한다. 완료 기록과 첨부는 보존한다. weatherNotice는 현재 작업 안내, regeneratedTasks는 작업이 새로 추가된 텃밭 수다. 이미 충분한 작업이 있으면 0이다.
 
 ### 9.3 시간 빨리 감기
 
@@ -890,7 +890,7 @@ STT로 받아 적고 LLM이 가족용 문장으로 정리한다. `issues`는 다
 { "weather": "SUNNY", "stage": "FLOWER", "todayTaskGardens": 3 }
 ```
 
-현재 구현: 날씨만 `SUNNY`로 되돌린다. 응답은 9.1과 같은 형태이고 `weather` 외에는 `null`이다.
+현재 구현: 날씨를 SUNNY로 되돌리고 시연 텃밭 작업을 보완한다. 응답은 9.1과 같다. 단계와 완료 기록을 초기화하거나 시드를 재적재하지 않는다.
 
 ## 10. 에러 코드
 
