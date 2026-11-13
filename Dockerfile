@@ -1,14 +1,18 @@
 FROM eclipse-temurin:21-jdk AS build
-WORKDIR /source
-COPY gradlew gradlew.bat settings.gradle build.gradle ./
+WORKDIR /app
+COPY gradlew settings.gradle build.gradle ./
 COPY gradle ./gradle
+RUN sed -i 's/\r$//' gradlew && chmod +x ./gradlew && ./gradlew dependencies --no-daemon > /dev/null
 COPY src ./src
-RUN sed -i 's/\r$//' gradlew && chmod +x gradlew && ./gradlew --no-daemon bootJar
+RUN ./gradlew bootJar --no-daemon
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app
-RUN mkdir /app/uploads && chown 10001:10001 /app/uploads
-COPY --from=build /source/build/libs/*-SNAPSHOT.jar /app/app.jar
-USER 10001:10001
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd -u 1001 appuser \
+    && mkdir /app/uploads && chown appuser /app/uploads
+COPY --from=build /app/build/libs/*.jar app.jar
+USER appuser
 EXPOSE 8080
-ENTRYPOINT ["java", "-Duser.timezone=Asia/Seoul", "-jar", "/app/app.jar"]
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=70", "-Duser.timezone=Asia/Seoul", "-jar", "app.jar"]

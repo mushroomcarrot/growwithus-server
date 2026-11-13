@@ -1,6 +1,17 @@
 # 현재 구조
 
-마지막 갱신: 2026-11-13, 시연 단계 선택, 새싹 관찰, 홈과 수확 안내 및 관리사 요약 응답 확장 (#36).
+마지막 갱신: 2026-11-13, Docker 배포 세트와 GitHub Actions 빌드 체크 및 배포 추가.
+
+## 배포 (Docker, GitHub Actions)
+
+1. `Dockerfile`: 멀티 스테이지 빌드. 실행 이미지는 비루트 사용자(appuser), 헬스체크용 curl, `/app/uploads` 폴더, `-Duser.timezone=Asia/Seoul`을 쓴다.
+2. `docker-compose.yml`: app, mariadb(11.4), redis(7.4), nginx, certbot. app은 mariadb와 redis가 healthy가 된 뒤 뜨고, 업로드 파일은 uploads 볼륨(`/app/uploads`)에 남는다. 8080은 외부에 열지 않고 nginx가 `grow-api.yuns.kr`의 443을 app:8080으로 넘긴다.
+3. `.github/workflows/ci.yml`: develop push와 develop, main으로 향하는 PR에서 `./gradlew bootJar testClasses`와 Docker 이미지 빌드(push 없음)를 확인한다. DB가 필요한 테스트는 돌리지 않는다.
+4. `.github/workflows/deploy.yml`: main push에서 GHCR에 `<sha>` 태그 이미지를 올리고, SSH로 서버 `~/growwithus-server`에 compose 파일과 `deploy/nginx`를 복사한 뒤 app을 교체한다. `/actuator/health`가 healthy가 아니면 로그 100줄을 출력하고 직전 이미지로 되돌린다. 성공하면 `deploy/nginx/init-letsencrypt.sh`가 인증서가 없을 때만 Let's Encrypt 인증서를 발급한다.
+5. 헬스체크: `spring-boot-starter-actuator`를 추가했고 `management.endpoints.web.exposure.include=health`, `show-details=never`로 health만 공개한다. `SecurityConfiguration`에서 GET `/actuator/health`를 공개한다.
+6. 서버 `.env`는 `.env.prod.example`을 복사해 채운다. 새 DB에 처음 배포할 때만 `JPA_DDL_AUTO=update`로 테이블을 만들고 이후 `validate`로 되돌린다.
+7. 로컬 AI 클라이언트는 loopback 주소만 허용하므로 compose의 app 컨테이너는 호스트의 `compose.ai-workers.json` 작업자에 닿지 않는다. 이 구성에서는 `AI_LOCAL_ENABLED`, `AI_LOCAL_STT_ENABLED`를 false로 둔다.
+8. GitHub Secrets: `SERVER_HOST`, `SERVER_USER`, `SSH_PRIVATE_KEY`. 서버 사용자는 비밀번호 없이 `sudo docker`를 쓸 수 있어야 한다. 실제 서버 배포는 아직 실행하지 않았다.
 
 ## 화면 연동 응답 확장 (#36)
 
@@ -268,7 +279,7 @@ community.likelion.growwithusserver/
 | 순서 | 경로 | 권한 |
 | --- | --- | --- |
 | 1 | `/swagger-ui/**`, `/v3/api-docs/**`, `/swagger-resources/**`, `/webjars/**` | 공개 |
-| 2 | GET `/uploads/**` | 공개 (로컬 저장소 파일) |
+| 2 | GET `/actuator/health`, GET `/uploads/**` | 공개 (배포 헬스체크, 로컬 저장소 파일) |
 | 3 | `/internal/**` | SYSTEM (`X-Service-Key` 헤더) |
 | 4 | `/demo/**` | ADMIN 토큰 + `X-Demo-Mode: true` 헤더 |
 | 5 | POST `/auth/signup`, `/auth/login`, `/auth/refresh`, GET `/auth/username-check` | 공개 |
@@ -660,8 +671,9 @@ ADMIN은 RoleHierarchy로 USER, OWNER, CARETAKER 권한을 갖는다. SYSTEM은 
 | --- | --- |
 | `application.yml` | 공통: `.env` import(`optional:file:.env[.properties]`), 활성 프로필(`SPRING_PROFILES_ACTIVE`, 기본 `local`), JPA open-in-view off, multipart 상한, Jackson 시간대, JWT 만료 시간, 파일 저장소 종류, 외부 호출 타임아웃, 스케줄러, 기상청 연결과 수집 격자, AI 설정, Swagger 경로 |
 | `application-local.yml` | 모든 값에 개발용 기본값, `ddl-auto: update`, SQL 로그 on |
-| `application-prod.yml` | 기본값 없음 (누락 시 부팅 실패), `ddl-auto: validate`, SQL 로그 off |
+| `application-prod.yml` | 기본값 없음 (누락 시 부팅 실패), `ddl-auto`는 `JPA_DDL_AUTO` (기본 `validate`), SQL 로그 off |
 | `.env.example` | 환경변수 목록과 로컬 기본값. `.env`로 복사해서 쓰고, `.env`는 `.gitignore`에 포함 |
+| `.env.prod.example` | 배포 서버 `~/growwithus-server/.env`용 초안. compose의 mariadb, redis 주소와 `APP_IMAGE`, `DB_ROOT_PASSWORD`, `JPA_DDL_AUTO` 포함 |
 | `application.properties` | `spring.application.name`만 있음. `application.yml`과 중복, 삭제해도 무방 |
 
 ### 환경변수
@@ -671,6 +683,8 @@ ADMIN은 RoleHierarchy로 USER, OWNER, CARETAKER 권한을 갖는다. SYSTEM은 
 | 변수 | local 기본값 | 설명 |
 | --- | --- | --- |
 | `SPRING_PROFILES_ACTIVE` | `local` | `local` / `prod` |
+| `JPA_DDL_AUTO` | (prod 전용, 기본 `validate`) | 새 DB 첫 배포에서만 `update` |
+| `APP_IMAGE`, `DB_ROOT_PASSWORD`, `TZ` | (compose 전용) | 배포 이미지(deploy.yml이 갱신), MariaDB root 비밀번호, 컨테이너 시간대 |
 | `DB_HOST`, `DB_PORT`, `DB_NAME` | `localhost`, `3306`, `growwithus-server` | MariaDB |
 | `DB_USERNAME`, `DB_PASSWORD` | `root`, `root` | |
 | `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` | `localhost`, `6379`, (없음) | |
@@ -1048,7 +1062,7 @@ community.likelion.growwithusserver/
 | 순서 | 경로 | 권한 |
 | --- | --- | --- |
 | 1 | `/swagger-ui/**`, `/v3/api-docs/**`, `/swagger-resources/**`, `/webjars/**` | 공개 |
-| 2 | GET `/uploads/**` | 공개 (로컬 저장소 파일) |
+| 2 | GET `/actuator/health`, GET `/uploads/**` | 공개 (배포 헬스체크, 로컬 저장소 파일) |
 | 3 | `/internal/**` | SYSTEM (`X-Service-Key` 헤더) |
 | 4 | `/demo/**` | ADMIN 토큰 + `X-Demo-Mode: true` 헤더 |
 | 5 | POST `/auth/signup`, `/auth/login`, `/auth/refresh`, GET `/auth/username-check` | 공개 |
@@ -1590,8 +1604,9 @@ XP, 스트릭, 보상처럼 값을 읽고 고치는 API는 텃밭 행을 잠그�
 | --- | --- |
 | `application.yml` | 공통: `.env` import(`optional:file:.env[.properties]`), 활성 프로필(`SPRING_PROFILES_ACTIVE`, 기본 `local`), 트랜잭션 격리 수준(READ COMMITTED), JPA open-in-view off, multipart 상한, Jackson 시간대, JWT 만료 시간, 파일 저장소 종류, 외부 호출 타임아웃, 스케줄러, 기상청 연결과 수집 격자, AI 설정, Swagger 경로 |
 | `application-local.yml` | 모든 값에 개발용 기본값, `ddl-auto: update`, SQL 로그 on |
-| `application-prod.yml` | 기본값 없음 (누락 시 부팅 실패), `ddl-auto: validate`, SQL 로그 off |
+| `application-prod.yml` | 기본값 없음 (누락 시 부팅 실패), `ddl-auto`는 `JPA_DDL_AUTO` (기본 `validate`), SQL 로그 off |
 | `.env.example` | 환경변수 목록과 로컬 기본값. `.env`로 복사해서 쓰고, `.env`는 `.gitignore`에 포함 |
+| `.env.prod.example` | 배포 서버 `~/growwithus-server/.env`용 초안. compose의 mariadb, redis 주소와 `APP_IMAGE`, `DB_ROOT_PASSWORD`, `JPA_DDL_AUTO` 포함 |
 | `application.properties` | `spring.application.name`만 있음. `application.yml`과 중복, 삭제해도 무방 |
 
 ### 환경변수
@@ -1601,6 +1616,8 @@ XP, 스트릭, 보상처럼 값을 읽고 고치는 API는 텃밭 행을 잠그�
 | 변수 | local 기본값 | 설명 |
 | --- | --- | --- |
 | `SPRING_PROFILES_ACTIVE` | `local` | `local` / `prod` |
+| `JPA_DDL_AUTO` | (prod 전용, 기본 `validate`) | 새 DB 첫 배포에서만 `update` |
+| `APP_IMAGE`, `DB_ROOT_PASSWORD`, `TZ` | (compose 전용) | 배포 이미지(deploy.yml이 갱신), MariaDB root 비밀번호, 컨테이너 시간대 |
 | `DB_HOST`, `DB_PORT`, `DB_NAME` | `localhost`, `3306`, `growwithus-server` | MariaDB |
 | `DB_USERNAME`, `DB_PASSWORD` | `root`, `root` | |
 | `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` | `localhost`, `6379`, (없음) | |

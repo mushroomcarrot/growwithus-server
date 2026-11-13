@@ -1,0 +1,88 @@
+services:
+  app:
+    image: ${APP_IMAGE}
+    container_name: growwithus-server-app
+    env_file: .env
+    mem_limit: 850m
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  mariadb:
+    image: mariadb:11.4
+    container_name: growwithus-server-db
+    mem_limit: 400m
+    command: ["--innodb-buffer-pool-size=128M"]
+    ports:
+      - "127.0.0.1:3306:3306"
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD is required}
+      MARIADB_DATABASE: ${DB_NAME:?DB_NAME is required}
+      MARIADB_USER: ${DB_USERNAME:?DB_USERNAME is required}
+      MARIADB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      TZ: ${TZ:-Asia/Seoul}
+    volumes:
+      - db-data:/var/lib/mysql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: growwithus-server-redis
+    mem_limit: 128m
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    command: ["sh", "-c", "exec redis-server --appendonly yes --maxmemory 96mb --requirepass \"$$REDIS_PASSWORD\""]
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$$REDIS_PASSWORD\" redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: growwithus-server-nginx
+    depends_on: [app]
+    command: ["/bin/sh", "-c", "while :; do sleep 6h; nginx -s reload; done & exec nginx -g 'daemon off;'"]
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx/active:/etc/nginx/conf.d:ro
+      - certbot-www:/var/www/certbot:ro
+      - certbot-conf:/etc/letsencrypt:ro
+    restart: unless-stopped
+
+  certbot:
+    image: certbot/certbot
+    container_name: growwithus-server-certbot
+    volumes:
+      - certbot-www:/var/www/certbot
+      - certbot-conf:/etc/letsencrypt
+    entrypoint: ["/bin/sh", "-c", "while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h; done"]
+    restart: unless-stopped
+
+volumes:
+  uploads:
+  db-data:
+  redis-data:
+  certbot-www:
+  certbot-conf:
