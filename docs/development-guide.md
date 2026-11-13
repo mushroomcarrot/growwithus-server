@@ -169,6 +169,16 @@ public GlobalResponse<WeatherSyncResponseDto> sync(@RequestBody(required = false
 - `/internal/**`와 `/demo/**`의 헤더 검증과 권한은 필터와 `SecurityConfiguration`에 이미 있다. 컨트롤러에서 헤더를 다시 확인하지 않는다
 - 스케줄러 메서드는 예외가 밖으로 나가면 로그만 남고 끝난다. 실패를 알아야 하면 서비스에서 로그를 남긴다
 
+## 값을 읽고 고치는 작업 (잠금)
+
+XP, 스트릭, 보상처럼 지금 값을 읽어 판단하고 고치는 작업은 동시에 들어온 요청이 같은 값을 보고 두 번 처리하지 않게 행을 잠근다.
+
+1. 텃밭의 값을 고치는 서비스 메서드는 `GardenService.getOwnedGardenForUpdate(username, gardenId)`나 `findMyGardenForUpdate(username)`로 텃밭을 잠그고, 그 뒤에 상태(이미 응원했는지, 보상을 받았는지)를 읽는다. 잠그기 전에 읽은 값으로 판단하지 않는다.
+2. XP는 `XpService.grant`, 배지는 `BadgeService.grant`, 작물 단계는 `EvolutionEventService.advanceStage`, 퀘스트 진행도는 `QuestService.record`로만 바꾼다. 모두 호출한 쪽의 트랜잭션에 참여한다.
+3. 잠그는 쿼리(`@Lock(PESSIMISTIC_WRITE)`)에는 다른 테이블 조인이나 서브쿼리를 넣지 않는다. PK를 먼저 읽고 PK로 잠근다. 조인하면 그 테이블의 행까지 잠겨 교착이 생기고, 서브쿼리를 넣으면 MariaDB가 "Record has changed since last read"로 실패한다.
+4. 격리 수준은 READ COMMITTED다 (`application.yml`). 이유는 [architecture.md](architecture.md#동시-요청과-잠금)를 본다.
+5. 여러 요청이 동시에 처음 만들 수 있는 행(그 주의 리그, 퀘스트)은 유니크 제약을 두고 `REQUIRES_NEW` 트랜잭션에서 만든다 (`LeagueCreator`, `WeeklyQuestCreator`).
+
 ## 예외
 
 1. `ErrorCode`에 `이름("코드", "한국어 메시지", HTTP상태)` 추가
