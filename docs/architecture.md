@@ -2,7 +2,7 @@
 
 > 코드의 현재 상태를 그대로 기록한 문서다. 기능을 추가하거나 바꾸면 이 문서도 함께 갱신한다 ([development-guide.md](development-guide.md#문서-갱신-규칙)).
 >
-> 마지막 갱신: 2026-11-13, 음성 초안 롤백 시 파일 정리, 깨진 음성 예외 분리, AI 발표와 시연 준비 자료 추가. 실제 모델과 DB 부팅, 전체 빌드 검증은 남아 있음
+> 마지막 갱신: 2026-11-13, 원격 작업 브랜치 업로드 확인, Windows 사용자 실행용 설치와 시연 시작 도구 추가. 실제 모델과 DB 부팅, 전체 빌드는 미검증
 
 ## 한눈에 보기
 
@@ -708,3 +708,11 @@ MariaDB 잠금 참고: https://mariadb.com/docs/server/reference/sql-statements/
 4. Python STT 작업 서버는 PyAV InvalidDataError를 잘못된 음성으로 구분해 HTTP 400을 반환한다. Java는 INVALID_AUDIO로 저장하며 같은 깨진 파일의 재시도를 권하지 않는다. 일반 모델 내부 오류는 503을 유지한다. 실제 코덱 시험은 아직 하지 않았다.
 5. 핵심 JUnit 77개, STT Python 23개, 도구 Python 7개, Node 화면 로직 10개가 통과했다. Spring 트랜잭션 완료 콜백과 로컬 파일 삭제는 실제 라이브러리 및 임시 파일로 검사했으며 DB 커밋 자체는 대역이다. 모델, HTTP 인증과 MariaDB의 전체 통합 검사는 남아 있다.
 6. AI 역할 설명, 2분 시연 준비와 예상 질문 답변은 [ai-presentation.md](ai-presentation.md)에 정리했다. 자체 학습, 모델 성능, 사진 판별, 서버 TTS의 미구현 범위를 구분하며 실제 측정 전 점수나 응답 시간을 주장하지 않는다.
+
+## 사용자 PC의 실행 준비 도구
+
+1. 사용자 fetch와 push 뒤 origin/feat/seungyoon-ai가 f16edaf와 일치하는 것을 확인했다. origin/develop은 기준 커밋 0f025dc와 같고 main과 develop에는 병합하지 않았다. 이후 설치 도구 변경은 별도 커밋이다.
+2. RUN-LOCAL-DEMO.cmd는 setup-local-demo.ps1을 실행한다. 지정한 저장소의 깨끗한 feat/seungyoon-ai일 때만 명시적 브랜치 push를 시도하고 설치와 로컬 실행을 이어간다. 새 체크아웃, 병합, 강제 push나 볼륨 삭제를 수행하지 않는다.
+3. 설치는 공식 Docker 다운로드와 Authenticode의 유효한 Docker 서명을 확인한 뒤 per-user 모드로 수행한다. 기존 Docker가 있으면 설치하지 않는다. PATH 변경은 현재 프로세스에만 적용하며 시스템 재시작은 요청하지 않는다. WSL이나 운영체제 승인 단계는 사용자가 완료해야 한다.
+4. CheckOnly는 다운로드, 설치, Git 쓰기와 서비스 실행을 하지 않는다. PowerShell의 구문과 가짜 서명, 브랜치, 원격, dirty 상태, 업로드 실패, 엔진 준비 상태를 검사했다. 실제 설치는 이 작성 환경에서 실행하지 않았다. WSL 상태 조회도 E_ACCESSDENIED로 차단되어 있다.
+5. 세부 절차는 local-demo.md를 따른다. 설치 도구 준비가 실제 모델, DB, 전체 빌드와 시연의 성공을 의미하지 않는다. 코드 검사 결과 77개와 Python 30개, Node 10개는 이전과 같다.

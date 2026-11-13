@@ -4,6 +4,22 @@
 
 ## 준비와 실행
 
+Windows에서 설치 준비까지 한 번에 진행하려면 저장소 루트의 `RUN-LOCAL-DEMO.cmd`를 더블클릭한다. 사용자 PC에서 실행하는 설치 도구이며 작성 환경에서는 실제 설치를 실행하지 않았다.
+
+1. 깨끗한 feat/seungyoon-ai 체크아웃과 지정한 origin일 때만 그 브랜치를 업로드한다. 다른 브랜치, 다른 원격, 커밋하지 않은 변경이 있으면 업로드를 건너뛰고 로컬 준비를 계속한다. checkout, merge, rebase와 강제 push는 하지 않는다.
+2. Docker가 없으면 공식 Docker URL에서 설치 파일을 받고 유효한 Docker 전자 서명을 확인한 뒤 사용자별 모드로 설치한다. 설치 과정에서 Docker 이용 약관을 수락하는 --accept-license 옵션을 사용한다. 이미 Docker CLI가 있으면 설치를 건너뛴다.
+3. Docker를 시작하고 준비되면 기존 시작 스크립트로 모델, DB, 서버를 띄운다. Python이 있으면 음성과 완료를 소진하지 않는 기본 smoke 검사를 수행하고 시연 화면을 연다.
+4. WSL 활성화, Windows 승인이나 재부팅이 요구되면 사용자가 직접 처리해야 한다. 이 도구는 Windows를 자동 재시작하지 않고 기존 볼륨과 설정을 삭제하지 않는다. 완료 후 같은 파일을 다시 실행한다.
+5. 서명 검사, 브랜치 제한, 설치 없는 확인 모드는 검사했지만 실제 다운로드, 설치와 서버 부팅은 아직 검증하지 않았다.
+
+설치와 업로드 없이 상태만 확인하려면 다음 명령을 사용한다.
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/setup-local-demo.ps1 -CheckOnly
+```
+
+직접 설치하거나 기존 Docker를 사용하는 경우는 아래 절차를 따른다.
+
 1. [Docker Desktop Windows 설치 안내](https://docs.docker.com/desktop/setup/install/windows-install/)에 따라 설치하고 Linux 컨테이너 엔진을 시작한다. WSL 설정이나 재부팅이 필요하면 먼저 끝낸다. 시스템 여유 메모리와 디스크가 필요하며 CPU 추론 속도는 PC마다 다르다.
 2. 저장소 루트의 PowerShell에서 실행한다. Java와 Python을 호스트에 별도로 설치하지 않아도 컨테이너 내부에서 실행한다.
 
