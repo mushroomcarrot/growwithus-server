@@ -106,7 +106,7 @@ public class VisitService {
                 .visitDate(slot.date())
                 .startTime(slot.startTime())
                 .endTime(slot.endTime())
-                .headcount(visitRequestDto.getHeadcount() == null ? 1 : visitRequestDto.getHeadcount())
+                .headcount(visitRequestDto.getHeadcount() == null ? Math.max(1, garden.getFamilySize()) : visitRequestDto.getHeadcount())
                 .memo(visitRequestDto.getMemo())
                 .status(VisitStatus.RESERVED)
                 .reservedKey(Visit.reservedKeyOf(garden.getGardenId(), slot.date()))

@@ -45,6 +45,14 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class OwnerProfileServiceTest {
+    @Test void storesFamilySizeAndReturnsItAfterRegistration() {
+        when(plotRepository.findPlotForUpdate(1L,"B-14")).thenReturn(Optional.of(plot));
+        var input=request(District.SUJI); input.setFamilySize(4);
+        assertThat(ownerProfileService.register("minji",input).getData().getFamilySize()).isEqualTo(4);
+        ArgumentCaptor<OwnerProfile> captured=ArgumentCaptor.forClass(OwnerProfile.class);
+        verify(ownerProfileRepository).saveAndFlush(captured.capture());
+        assertThat(captured.getValue().getFamilySize()).isEqualTo(4);
+    }
 
     @Mock
     private UserService userService;

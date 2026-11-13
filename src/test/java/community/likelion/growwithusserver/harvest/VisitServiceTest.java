@@ -52,6 +52,13 @@ import static org.mockito.Mockito.doThrow;
 
 @ExtendWith(MockitoExtension.class)
 class VisitServiceTest {
+    @Test void omittedHeadcountUsesTheOwnersFamilySize() {
+        garden.setFamilySize(4);
+        visitService.reserve("minji",request(null,null));
+        ArgumentCaptor<Visit> captured=ArgumentCaptor.forClass(Visit.class);
+        verify(visitRepository).saveAndFlush(captured.capture());
+        assertThat(captured.getValue().getHeadcount()).isEqualTo(4);
+    }
     private static final Long GARDEN_ID = 3L;
     private static final Long FARM_ID = 1L;
 

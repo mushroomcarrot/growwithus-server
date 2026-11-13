@@ -73,6 +73,7 @@ public class OwnerProfileService {
             ownerProfileRepository.saveAndFlush(OwnerProfile.builder()
                     .user(user)
                     .nickname(ownerProfileRequestDto.getNickname().strip())
+                    .familySize(ownerProfileRequestDto.getFamilySize() == null ? 1 : ownerProfileRequestDto.getFamilySize())
                     .district(ownerProfileRequestDto.getDistrict())
                     .createdAt(now)
                     .updatedAt(now)
@@ -96,6 +97,7 @@ public class OwnerProfileService {
         log.info("[register] 주인 프로필 등록 및 텃밭 시작: {} ({})", username, garden.getId());
 
         return GlobalResponse.ok(OwnerProfileCreateResponseDto.builder()
+                .familySize(ownerProfileRequestDto.getFamilySize() == null ? 1 : ownerProfileRequestDto.getFamilySize())
                 .gardenId(IdPrefix.GARDEN.format(garden.getId()))
                 .characterName(garden.getCharacterName())
                 .stage(garden.getStage())
@@ -119,9 +121,11 @@ public class OwnerProfileService {
             profile.setDistrict(ownerProfileUpdateRequestDto.getDistrict());
         }
         profile.setUpdatedAt(LocalDateTime.now());
+        if (ownerProfileUpdateRequestDto.getFamilySize() != null) profile.setFamilySize(ownerProfileUpdateRequestDto.getFamilySize());
 
         return GlobalResponse.ok(OwnerProfileResponseDto.builder()
                 .nickname(profile.getNickname())
+                .familySize(profile.getFamilySize())
                 .district(profile.getDistrict())
                 .gardenId(gardenRepository.findByOwnerUsername(username)
                         .map(garden -> IdPrefix.GARDEN.format(garden.getId()))

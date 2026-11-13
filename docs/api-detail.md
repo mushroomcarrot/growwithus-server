@@ -1,5 +1,7 @@
 # 대신텃밭 API 상세 명세서
 
+후속 API 추가와 기존 필드 확장: [ai-completion.md](ai-completion.md)에 작물 지침 조회와 교체, 출처를 포함한 일별 기온 입력, familySize와 sentHearts, 예약 기본 인원을 정의했다. 내부 API는 X-Service-Key를 요구한다. 기존 요청에서 가족 수와 예약 인원을 생략하는 동작도 유지한다.
+
 > 엔드포인트별 요청, 응답, 에러를 정리한 문서다. 전체 목록과 공통 규칙, 핵심 로직은 [api-spec.md](api-spec.md)를 본다.
 >
 > 필드는 Notion "API 명세서 (초안)"과 [api-spec.md](api-spec.md)를 기준으로 작성한 초안이다. 구현하면서 바뀌면 이 문서를 같이 고친다.

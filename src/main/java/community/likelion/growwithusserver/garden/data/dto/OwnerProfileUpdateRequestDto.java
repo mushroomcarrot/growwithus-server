@@ -18,6 +18,9 @@ public class OwnerProfileUpdateRequestDto {
     @Pattern(regexp = ".*\\S.*")
     private String nickname;
 
+    @jakarta.validation.constraints.Min(1) @jakarta.validation.constraints.Max(20)
+    private Integer familySize;
+
     // SUJI, GIHEUNG만 허용
     private District district;
 }

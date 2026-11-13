@@ -129,6 +129,8 @@ public class WeatherService {
      */
     @Transactional
     public Optional<DailyWeather> aggregateDaily(int nx, int ny, LocalDate date) {
+        Optional<DailyWeather> existing = dailyWeatherRepository.findByNxAndNyAndDate(nx, ny, date);
+        if (existing.filter(DailyWeather::isObserved).isPresent()) return existing;
         DoubleSummaryStatistics statistics = weatherForecastRepository
                 .findAllByNxAndNyAndForecastAtBetweenOrderByForecastAtAsc(nx, ny, date.atStartOfDay(), date.atTime(LocalTime.MAX)).stream()
                 .map(WeatherForecast::getTemperature)
@@ -139,7 +141,7 @@ public class WeatherService {
             return Optional.empty();
         }
 
-        DailyWeather dailyWeather = dailyWeatherRepository.findByNxAndNyAndDate(nx, ny, date)
+        DailyWeather dailyWeather = existing
                 .orElseGet(() -> DailyWeather.builder().nx(nx).ny(ny).date(date).build());
         dailyWeather.setAvgTemp(Math.round(statistics.getAverage() * 10) / 10.0);
         dailyWeather.setMaxTemp(statistics.getMax());

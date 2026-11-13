@@ -41,6 +41,10 @@ public class OwnerProfile {
     @Column(nullable = false, length = 20)
     private String nickname;
 
+    @Builder.Default
+    @Column(nullable = false, columnDefinition = "integer default 1")
+    private int familySize = 1;
+
     // 사는 구. SUJI, GIHEUNG만 받는다
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)

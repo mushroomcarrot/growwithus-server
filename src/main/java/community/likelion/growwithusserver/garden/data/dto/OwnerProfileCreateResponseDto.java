@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class OwnerProfileCreateResponseDto {
+    private int familySize;
     private String gardenId;
     private String characterName;
     private GrowthStage stage;

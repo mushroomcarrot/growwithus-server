@@ -15,6 +15,7 @@ import java.util.Optional;
 public class GardenOwnerSummaryReader implements OwnerSummaryReader {
     private final OwnerProfileRepository ownerProfileRepository;
     private final GardenRepository gardenRepository;
+    private final community.likelion.growwithusserver.garden.data.repository.CareLogHeartRepository hearts;
 
     @Override
     @Transactional(readOnly = true)
@@ -23,6 +24,7 @@ public class GardenOwnerSummaryReader implements OwnerSummaryReader {
                 .map(profile -> new Summary(
                         profile.getNickname(),
                         profile.getDistrict().name(),
-                        gardenRepository.findByOwnerUsername(username).map(garden -> garden.getId()).orElse(null)));
+                        gardenRepository.findByOwnerUsername(username).map(garden -> garden.getId()).orElse(null),
+                        profile.getFamilySize(), hearts.countByUserUsername(username)));
     }
 }

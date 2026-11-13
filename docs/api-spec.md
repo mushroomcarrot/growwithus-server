@@ -1,5 +1,7 @@
 # 대신텃밭 API 명세 요약
 
+후속 추가: 주인 프로필의 familySize(선택, 1~20, 등록 생략 시 1), /users/me의 owner.familySize와 owner.sentHearts, 예약 인원 생략 시 가족 수 기본값을 지원한다. 내부 키 전용 GET/PUT /internal/crops/{cropId}/task-guidance와 POST /internal/weather/daily를 추가했다. 상세 필드와 운영 조건은 [ai-completion.md](ai-completion.md)를 따른다.
+
 > 원본: Notion "API 명세서 (초안)" 데이터베이스 (API 54개). 쓰지 않는 푸시 토큰 등록을 제외하고 음성 재시도와 복구 조회 API를 추가했다. 작업 브랜치의 구현 범위와 추가 상태 필드는 [ai-integration.md](ai-integration.md), [voice-api.md](voice-api.md)를 함께 확인한다.
 >
 > 엔드포인트별 요청, 응답 필드는 [api-detail.md](api-detail.md)를 본다.

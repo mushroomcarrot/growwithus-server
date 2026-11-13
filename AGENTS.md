@@ -20,6 +20,7 @@
 12. [docs/ai-handoff.md](docs/ai-handoff.md): 이슈별 구현 범위, 프론트 계약, 팀 도메인 접점과 최종 검사 순서
 13. [docs/ai-presentation.md](docs/ai-presentation.md): AI 설명 초안, 실제 시연 순서와 예상 질문 답변
 14. [docs/ai-release.md](docs/ai-release.md): 배포 우선순위, 실제 도메인 연결, 운영 환경변수와 프론트 연동 기준
+15. [docs/ai-completion.md](docs/ai-completion.md): 후속 작업 지침, 과거 기온 입력, 가족 수와 첫 작업, Linux AI 작업자 배포
 
 ## 문서 갱신 (필수)
 
