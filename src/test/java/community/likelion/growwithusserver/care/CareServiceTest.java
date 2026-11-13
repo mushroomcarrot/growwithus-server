@@ -23,6 +23,30 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class CareServiceTest {
+    @Test void photoUploadSurvivesUnavailableVisionAndThrownModelErrors() throws Exception {
+        addGarden(1); store().save("care", LocalDate.now(), List.of(prepared(1)));
+        var saved = new ArrayList<TaskPhoto>();
+        var photos = FakeRepository.of(TaskPhotoRepository.class, (method, args) -> {
+            var photo = (TaskPhoto) args[0]; photo.setId((long) saved.size() + 1); saved.add(photo); return photo;
+        });
+        var writes = new TaskWriteService(access, tasks, photos, null, null, null, event -> {}, null);
+        var uploads = new community.likelion.growwithusserver.common.file.FileUploadService(
+                (directory, filename, input, size, type) -> "http://localhost/uploads/" + filename);
+        var bytes = new java.io.ByteArrayOutputStream();
+        javax.imageio.ImageIO.write(new java.awt.image.BufferedImage(8, 8, java.awt.image.BufferedImage.TYPE_INT_RGB), "png", bytes);
+        for (boolean throwing : List.of(false, true)) {
+            community.likelion.growwithusserver.common.ai.VisionClient unavailable = (image, task) -> {
+                if (throwing) throw new community.likelion.growwithusserver.common.ai.AiClientException();
+                return Optional.empty();
+            };
+            var service = new TaskPhotoService(access, uploads, unavailable, writes);
+            var result = service.upload("care", "tsk_1", new org.springframework.mock.web.MockMultipartFile(
+                    "photo", "public.png", "image/png", bytes.toByteArray())).getData();
+            assertNotNull(result.getPhotoUrl()); assertNull(result.getAiCheck());
+            assertNull(saved.getLast().getAiMatched()); assertNotNull(saved.getLast().getUrl());
+        }
+        assertEquals(2, saved.size());
+    }
     private final List<Task> stored = new ArrayList<>();
     private final Map<Long, CareGardenReader.Garden> assigned = new LinkedHashMap<>();
     private boolean rain;

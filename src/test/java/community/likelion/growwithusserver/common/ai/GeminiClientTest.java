@@ -80,4 +80,23 @@ class GeminiClientTest {
         assertThrows(IllegalArgumentException.class, () -> new GeminiClient(http.build(), props, mapper, b -> b));
         assertFalse(props.toString().contains("fake"));
     }
+    @Test void quotaFailurePreservesTranscriptForManualRetry() {
+        server.expect(anything()).andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS));
+        var analysis = new community.likelion.growwithusserver.ai.service.VoiceMemoAnalysisService(
+                (bytes, name) -> "오늘 물을 줬어요. 잎에 점이 보여요.", client(), mapper);
+        var result = analysis.transcribeAndAnalyze(new byte[]{1}, "memo.wav");
+        assertTrue(result.fallbackUsed());
+        assertEquals("오늘 물을 줬어요. 잎에 점이 보여요.", result.transcript());
+        assertEquals(result.transcript(), result.summary()); assertTrue(result.issues().isEmpty());
+        server.verify();
+    }
+    @Test void networkTimeoutReturnsFailureWithoutAutomaticRetry() {
+        server.expect(anything()).andRespond(withException(new java.net.SocketTimeoutException("test timeout")));
+        assertThrows(AiClientException.class, () -> client().complete("system", "input")); server.verify();
+    }
+    @Test void unavailableVisionDoesNotBecomeAnUnmatchedFinding() throws Exception {
+        var bytes = new ByteArrayOutputStream(); ImageIO.write(new BufferedImage(8, 8, BufferedImage.TYPE_INT_RGB), "png", bytes);
+        server.expect(anything()).andRespond(withStatus(HttpStatus.SERVICE_UNAVAILABLE));
+        assertTrue(client().check(bytes.toByteArray(), "잎 확인").isEmpty()); server.verify();
+    }
 }

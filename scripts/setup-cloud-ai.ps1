@@ -9,8 +9,12 @@ $secure = Read-Host 'Gemini API key' -AsSecureString
 $pointer = [IntPtr]::Zero
 try {
     $pointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
-    $apiKey = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($pointer)
-    if ([string]::IsNullOrWhiteSpace($apiKey) -or $apiKey -notmatch '^[A-Za-z0-9_-]{20,200}$') { throw 'Invalid key format.' }
+    $apiKey = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($pointer).Trim()
+    # Accept opaque authorization keys as well as legacy keys. Google validates the credential.
+    # Exclude whitespace, control characters and dotenv interpolation characters before saving.
+    if ([string]::IsNullOrWhiteSpace($apiKey) -or $apiKey -notmatch '^[A-Za-z0-9._~+/:=-]{20,4096}$') {
+        throw 'Copy only the API key value using the copy button in AI Studio, without quotes or a label. The key was not sent or saved.'
+    }
     $body = @{contents=@(@{role='user'; parts=@(@{text='Return JSON with ok set to true.'})}); generationConfig=@{responseMimeType='application/json'; maxOutputTokens=1024; temperature=0}} | ConvertTo-Json -Depth 10 -Compress
     try {
         $reply = Invoke-RestMethod -Method Post -Uri "https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent" -Headers @{'x-goog-api-key'=$apiKey} -ContentType 'application/json' -Body $body -TimeoutSec 60

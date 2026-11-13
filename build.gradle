@@ -81,3 +81,14 @@ tasks.register('verifyLocalAi', JavaExec) {
     args layout.buildDirectory.dir('reports/ai-fixtures').get().asFile.absolutePath,
             layout.buildDirectory.file('reports/ai-predeploy.json').get().asFile.absolutePath
 }
+
+// 명시적으로 실행할 때만 공개 시연 데이터로 외부 API를 호출한다.
+tasks.register('verifyCloudAi', JavaExec) {
+    group = 'verification'
+    description = '공개 합성 음성 및 사진으로 실제 Gemini와 음성 합성 검사'
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'community.likelion.growwithusserver.ai.evaluation.AiPredeployCheck'
+    args layout.buildDirectory.dir('reports/ai-fixtures').get().asFile.absolutePath,
+            layout.buildDirectory.file('reports/cloud-ai-predeploy.json').get().asFile.absolutePath, '--cloud'
+}
