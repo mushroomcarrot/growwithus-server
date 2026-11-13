@@ -13,6 +13,7 @@ import java.util.*;
 public class GardenCareReader implements CareGardenReader {
     private final GardenRepository gardens;
     private final OwnerProfileRepository owners;
+    private final community.likelion.growwithusserver.care.guidance.CropGuidanceService guidance;
 
     public List<CareGardenReader.Garden> findAssigned(String username) {
         if (username == null) return List.of();
@@ -33,7 +34,7 @@ public class GardenCareReader implements CareGardenReader {
         return new CareGardenReader.Garden(garden.getId(),
                 garden.getCaretaker() == null ? null : garden.getCaretaker().getUsername(), garden.getOwner().getUsername(),
                 garden.getPlot().getPlotCode(), crop.getName(), nickname, farm.getNx(), farm.getNy(),
-                Stage.valueOf(garden.getStage().name()), null, List.of(), garden.getStartedOn(), crop.getBaseTemp(),
+                Stage.valueOf(garden.getStage().name()), null, guidance.read(crop.getId(), crop.getName()), garden.getStartedOn(), crop.getBaseTemp(),
                 Map.of(Stage.SEED, 0d, Stage.SPROUT, crop.getSproutGdd(), Stage.FLOWER, crop.getFlowerGdd(), Stage.FRUIT, crop.getFruitGdd()));
     }
 }

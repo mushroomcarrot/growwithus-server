@@ -21,6 +21,17 @@ public class TaskGenerationService {
     private final TaskPlanningService planner;
     private final TaskGenerationStore store;
 
+    public TaskGenerationStore.Generated generateInitial(Long gardenId) {
+        var garden = gardens.findGarden(gardenId).orElse(null);
+        if (garden == null || garden.caretakerUsername() == null || garden.caretakerUsername().isBlank()) {
+            return new TaskGenerationStore.Generated(0, 0);
+        }
+        var candidates = garden.guidance().stream().map(TaskRules.Guidance::type).toList();
+        // The normal store rechecks ownership, weather and the daily budget, without an LLM request.
+        return store.save(garden.caretakerUsername(), LocalDate.now(),
+                List.of(new TaskGenerationStore.Prepared(gardenId, candidates, true)));
+    }
+
     public TaskGenerationStore.Generated generate(String username, LocalDate date) {
         return generate(username, date, java.util.Set.of());
     }

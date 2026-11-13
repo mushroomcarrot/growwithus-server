@@ -15,6 +15,11 @@ public class GrowthStatusService {
     private final GrowthStateRepository states;
     public record Forecast(LocalDate expectedHarvestDate) {}
 
+    public boolean harvestable(Long gardenId, boolean domainAllowsHarvest) {
+        if (!domainAllowsHarvest) return false;
+        return states.findById(gardenId).map(s -> s.getCalibrationStage() == Stage.FRUIT).orElse(true);
+    }
+
     public Optional<Forecast> forecast(Long gardenId) {
         return states.findById(gardenId).map(s -> new Forecast(s.getExpectedHarvestDate()));
     }

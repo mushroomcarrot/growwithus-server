@@ -16,6 +16,14 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class GrowthStatusTest {
+    @Test void predictedFruitDoesNotBecomeHarvestPermissionWithoutCaretakerConfirmation() {
+        assertTrue(growth.harvestable(1L,true));
+        state=GrowthState.builder().stage(Stage.FRUIT).build();
+        assertFalse(growth.harvestable(1L,true));
+        state.setCalibrationStage(Stage.FRUIT);
+        assertTrue(growth.harvestable(1L,true));
+        assertFalse(growth.harvestable(1L,false));
+    }
     private GrowthState state;
     private int reads;
     private final GrowthStatusService growth = new GrowthStatusService(FakeRepository.of(GrowthStateRepository.class, (method, args) -> {

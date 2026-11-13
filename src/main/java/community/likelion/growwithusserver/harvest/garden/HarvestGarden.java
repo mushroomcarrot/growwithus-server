@@ -18,6 +18,7 @@ public class HarvestGarden {
     private String ownerUsername;
     // 주인 닉네임 (예: 민지네). 관리사 알림 문구에 쓴다
     private String ownerNickname;
+    @Builder.Default private int familySize = 1;
     // 작물 캐릭터 이름 (예: 토순이)
     private String characterName;
     private Long farmId;

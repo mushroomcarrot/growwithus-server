@@ -32,7 +32,9 @@ class AiDomainIntegrationTest {
         when(owners.findByUserId(10L)).thenReturn(Optional.empty());
         when(gardens.findByIdForUpdate(7L)).thenReturn(Optional.of(garden));
         when(gardens.findAllByCaretakerUsername("caretaker")).thenReturn(List.of(garden));
-        var reader = new GardenCareReader(gardens, owners);
+        var guidance = mock(community.likelion.growwithusserver.care.guidance.CropGuidanceService.class);
+        when(guidance.read(any(), eq("crop"))).thenReturn(List.of());
+        var reader = new GardenCareReader(gardens, owners, guidance);
         var mapped = reader.findGardenForUpdate(7L).orElseThrow();
         assertEquals("owner", mapped.ownerUsername());
         assertEquals("caretaker", mapped.caretakerUsername());

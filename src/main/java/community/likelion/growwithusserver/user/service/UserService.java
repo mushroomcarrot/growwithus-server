@@ -74,7 +74,7 @@ public class UserService {
         UserMeResponseDto.OwnerSummary owner = null;
         if (user.getRole() == UserRole.OWNER || user.getRole() == UserRole.ADMIN) {
             owner = ownerProfiles.findByUsername(username).map(p -> UserMeResponseDto.OwnerSummary.builder()
-                    .nickname(p.nickname()).district(p.district())
+                    .nickname(p.nickname()).district(p.district()).familySize(p.familySize()).sentHearts(p.sentHearts())
                     .gardenId(community.likelion.growwithusserver.common.id.IdPrefix.GARDEN.format(p.gardenId())).build()).orElse(null);
         }
         UserMeResponseDto.CaretakerSummary caretaker = null;
