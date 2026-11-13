@@ -18,6 +18,6 @@ public class TaskVoiceReader implements VoiceTaskReader {
         return (lock ? tasks.findForUpdate(id) : tasks.findById(id)).flatMap(task ->
                 (lock ? gardens.findGardenForUpdate(task.getGardenId()) : gardens.findGarden(task.getGardenId()))
                 .filter(g -> task.getGardenId().equals(g.gardenId()) && task.getCaretakerUsername().equals(g.caretakerUsername()))
-                .map(g -> new VoiceTask(task.getId(), g.caretakerUsername(), task.getStatus() != TaskStatus.TODO)));
+                .map(g -> new VoiceTask(task.getId(), g.caretakerUsername(), task.getArchiveNumber() != 0 || task.getStatus() != TaskStatus.TODO)));
     }
 }

@@ -65,6 +65,7 @@ class EvolutionEventServiceTest {
         evolutionEventService = new EvolutionEventService(evolutionEventRepository, new GardenService(gardenRepository),
                 new XpService(xpHistoryRepository), badgeService, notificationService, questService);
         garden = GardenFixtures.garden();
+        lenient().when(evolutionEventRepository.findGardenIdById(7L)).thenReturn(Optional.of(3L));
 
         lenient().when(gardenRepository.findByIdForUpdate(3L)).thenReturn(Optional.of(garden));
         lenient().when(gardenRepository.findDetail(3L)).thenReturn(Optional.of(garden));
@@ -135,6 +136,10 @@ class EvolutionEventServiceTest {
         assertThat(response.getBadge().getName()).isEqualTo("첫 열매");
         assertThat(event.isAcked()).isTrue();
         assertThat(event.getAckedAt()).isNotNull();
+        var order = org.mockito.Mockito.inOrder(gardenRepository, evolutionEventRepository);
+        order.verify(evolutionEventRepository).findGardenIdById(7L);
+        order.verify(gardenRepository).findByIdForUpdate(3L);
+        order.verify(evolutionEventRepository).findByIdForUpdate(7L);
     }
 
     @Test
@@ -152,10 +157,10 @@ class EvolutionEventServiceTest {
 
     @Test
     void 남의_이벤트와_없는_이벤트는_확인할_수_없다() {
-        when(evolutionEventRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(fruitEvent()));
+        lenient().when(evolutionEventRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(fruitEvent()));
         assertThatThrownBy(() -> evolutionEventService.ack("other", "evt_7")).isInstanceOf(GardenAccessDeniedException.class);
 
-        when(evolutionEventRepository.findByIdForUpdate(9L)).thenReturn(Optional.empty());
+        when(evolutionEventRepository.findGardenIdById(9L)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> evolutionEventService.ack("minji", "evt_9")).isInstanceOf(EvolutionEventNotFoundException.class);
     }
 }

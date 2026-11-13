@@ -848,7 +848,7 @@ STT로 받아 적고 LLM이 가족용 문장으로 정리한다. `issues`는 다
 { "weather": "SUNNY", "stage": "FLOWER", "stageProgress": "3/4", "fastForwardDays": 18, "todayTaskGardens": 3 }
 ```
 
-현재 구현: weather와 시연 텃밭의 stage, stageProgress(단계 순서), todayTaskGardens를 반환한다. fastForwardDays는 미구현으로 null이다. 시연 텃밭이 없으면 텃밭 상태는 null이다.
+현재 구현: weather와 시연 텃밭의 stage, stageProgress(단계 순서), todayTaskGardens를 반환한다. fastForwardDays는 저장된 누적 가상 일수다. 시연 텃밭이 없으면 텃밭 상태는 null이다.
 
 ### 9.2 날씨 바꾸기
 
@@ -864,7 +864,7 @@ STT로 받아 적고 LLM이 가족용 문장으로 정리한다. `issues`는 다
 
 `condition`: `SUNNY`, `RAIN`, `HOT` (그 외는 `C002`). 작업을 즉시 다시 만든다.
 
-현재 구현: 시연 농장 B-14의 minji 텃밭에 기존 작업 생성과 날씨 검증을 연결한다. 완료 기록과 첨부는 보존한다. weatherNotice는 현재 작업 안내, regeneratedTasks는 작업이 새로 추가된 텃밭 수다. 이미 충분한 작업이 있으면 0이다.
+현재 구현: 시연 농장의 minji/B-14, demo_owner_b13/B-13, demo_owner_b15/B-15에 기존 작업 생성과 날씨 검증을 연결한다. 완료 기록과 첨부는 보존한다. weatherNotice는 현재 작업 안내, regeneratedTasks는 작업이 새로 추가된 텃밭 수다. 이미 충분한 작업이 있으면 0이다.
 
 ### 9.3 시간 빨리 감기
 
@@ -878,7 +878,7 @@ STT로 받아 적고 LLM이 가족용 문장으로 정리한다. `issues`는 다
 { "stage": "FRUIT", "eventId": "evt_fruit_b14", "expectedHarvestDate": "2026-11-28" }
 ```
 
-현재 구현: 없다 (성장 시뮬레이션과 진화 이벤트가 먼저 필요하다).
+현재 구현: days는 1~365의 정수, 누적 최대 3650일이다. 시연 B-14만 합성 기온으로 계산하며 FLOWER에서 18일이면 FRUIT로 진행한다. eventId는 해당 단계의 미확인 진화 이벤트이고 없으면 null이다. expectedHarvestDate는 현재 날짜에 남은 시연 일수를 더한 날짜다. 실제 관측값과 수확 확인을 대신하지 않는다. 신규 시작은 FLOWER만 허용하고 다른 단계는 먼저 reset한다.
 
 ### 9.4 초기화
 
@@ -890,7 +890,7 @@ STT로 받아 적고 LLM이 가족용 문장으로 정리한다. `issues`는 다
 { "weather": "SUNNY", "stage": "FLOWER", "todayTaskGardens": 3 }
 ```
 
-현재 구현: 날씨를 SUNNY로 되돌리고 시연 텃밭 작업을 보완한다. 응답은 9.1과 같다. 단계와 완료 기록을 초기화하거나 시드를 재적재하지 않는다.
+현재 구현: 주 시연 텃밭을 FLOWER와 가상 일수 0으로 되돌리고 날씨를 SUNNY로 바꾼다. 세 시연 텃밭의 오늘 작업은 보관한 뒤 새로 생성하며 이전 작업 ID로 완료하면 C4095다. 완료 기록, 사진과 음성 참조, 이미 지급한 보상은 유지한다. 세 시연 칸이 준비되어 있으면 todayTaskGardens는 3이다.
 
 ## 10. 에러 코드
 

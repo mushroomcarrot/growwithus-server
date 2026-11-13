@@ -8,6 +8,8 @@ import java.time.*;
 
 @Data @Builder @NoArgsConstructor @AllArgsConstructor @Entity @Table(name = "garden_growth_state")
 public class GrowthState {
+    // 시연 전용 누적 일수. 실제 텃밭은 null이다.
+    @Column(name = "demo_days") private Integer demoDays;
     @Id @Column(name = "garden_id") private Long gardenId;
     @Enumerated(EnumType.STRING) @JdbcTypeCode(SqlTypes.VARCHAR) @Column(nullable = false, length = 16) private Stage stage;
     @Column(name = "accumulated_gdd", nullable = false) private double accumulatedGdd;

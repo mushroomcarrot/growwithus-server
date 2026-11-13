@@ -262,3 +262,11 @@ log.error("[logout] 유효하지 않은 Access Token으로 로그아웃 시도")
 - jjwt는 0.12.x API다: `Jwts.builder().subject()`, `.signWith(key, Jwts.SIG.HS256)`, `Jwts.parser().verifyWith(key).build().parseSignedClaims()`. 구버전 `setSubject`/`parseClaimsJws`는 컴파일되지 않는다
 - Spring Boot 4의 Jackson은 `tools.jackson.databind.ObjectMapper`다 (`com.fasterxml` 아님)
 - prod는 `ddl-auto: validate`라 새 엔티티나 컬럼을 추가하면 prod DB 스키마도 직접 맞춰야 한다
+
+
+## 시연 초기화와 검사
+
+1. ./gradlew unitTest는 DB 없는 전체 단위 검사다. test에는 AiDomainContextTest, AiCompletionPersistenceTest와 기본 애플리케이션 컨텍스트 검사가 포함되어 DB가 필요하다.
+2. 성장 단계 상승은 기존 advanceStage만 사용한다. 시연 초기화에서의 하향은 대상 계정, 농장과 칸을 검증하는 resetDemoStage만 사용한다.
+3. 시연 초기화는 작업 회차를 보관하며 기존 사진, 음성 및 돌봄 기록을 삭제하지 않는다. 작업 조회를 추가할 때 현재 회차와 전체 이력 중 무엇이 필요한지 구분한다.
+4. care_task의 기존 유니크 키 변경은 ddl-auto=update에 기대지 않고 db/manual/demo_simulation.sql을 적용한다.

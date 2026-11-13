@@ -20,7 +20,7 @@ public class TaskVisibility {
         for (Long gardenId : tasks.stream().map(Task::getGardenId).distinct().toList()) {
             var found = gardens.findGarden(gardenId);
             if (found.isEmpty() || !username.equals(found.get().caretakerUsername())) continue;
-            var assigned = tasks.stream().filter(t -> t.getGardenId().equals(gardenId) && username.equals(t.getCaretakerUsername())).toList();
+            var assigned = tasks.stream().filter(t -> t.getArchiveNumber() == 0 && t.getGardenId().equals(gardenId) && username.equals(t.getCaretakerUsername())).toList();
             var checked = new TaskRules().validate(contexts.create(found.get(), date), assigned.stream()
                     .filter(t -> t.getStatus() == TaskStatus.TODO).map(Task::getType).toList(), 120);
             var allowed = checked.tasks().stream().map(t -> t.type()).toList();
