@@ -18,6 +18,7 @@ public final class AiPredeployCheck {
     private final Map<String, Object> results = new LinkedHashMap<>();
     private boolean cloud;
     private boolean stopExternalCalls;
+    private long lastExternalCall;
     private final Map<String, Object> samples = new LinkedHashMap<>();
 
     private void check(String name, Check check) {
@@ -27,10 +28,19 @@ public final class AiPredeployCheck {
         }
         long start = System.nanoTime();
         try {
+            boolean external = name.startsWith("stt_") || name.startsWith("vision_")
+                    || name.equals("voice_summary_from_recognized_audio") || name.equals("voice_explicit_leaf_spot")
+                    || name.equals("growth_explanation");
+            if (cloud && external) {
+                long wait = 15000 - (System.currentTimeMillis() - lastExternalCall);
+                if (wait > 0) Thread.sleep(wait);
+                lastExternalCall = System.currentTimeMillis();
+            }
             check.run();
             results.put(name, Map.of("status", "passed", "milliseconds", (System.nanoTime() - start) / 1000000));
             System.out.println("PASS " + name);
         } catch (Exception ex) {
+            if (ex instanceof InterruptedException) { Thread.currentThread().interrupt(); stopExternalCalls = true; }
             if (cloud && ex instanceof AiClientException) stopExternalCalls = true;
             results.put(name, Map.of("status", "failed", "errorType", ex.getClass().getSimpleName()));
             System.out.println("FAIL " + name + ": " + ex.getClass().getSimpleName());
@@ -150,6 +160,7 @@ public final class AiPredeployCheck {
         report.put("status", passed ? "passed" : "failed"); report.put("checkedAt", OffsetDateTime.now().toString());
         report.put("model", properties.getModel()); report.put("visionModel", properties.getVisionModel());
         report.put("provider", runner.cloud ? "gemini" : "local");
+        report.put("minimumCloudCallGapSeconds", runner.cloud ? 15 : 0);
         report.put("voiceStorageCheck", "in_memory_test_double_not_database");
         report.put("publicSyntheticSamples", runner.samples);
         report.put("humanVoiceValidated", false); report.put("ttsListeningValidated", false);
