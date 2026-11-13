@@ -111,6 +111,7 @@ class GrowthServiceTest {
             state = GrowthState.builder().gardenId(1L).stage(start).demoStartStage(start).demoDays(0).build();
             var detail = service().get("owner", 1L);
             assertEquals(start, detail.getStage());
+            assertTrue(detail.isSimulated());
             assertEquals(start, service().get("owner", 1L).getStage());
             assertNull(state.getCalibrationStage());
             assertEquals(start == Stage.FRUIT ? null : Stage.values()[start.ordinal() + 1], detail.getNextStage());

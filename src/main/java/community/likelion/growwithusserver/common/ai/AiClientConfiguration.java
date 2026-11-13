@@ -10,7 +10,7 @@ import org.springframework.context.annotation.Configuration;
 // 호출하면 항상 AiClientException을 던지므로, 규칙 기반 대체 로직을 먼저 개발하고 시험할 수 있다.
 @Slf4j
 @Configuration
-@EnableConfigurationProperties({AiProperties.class, LocalLlmProperties.class, LocalSttProperties.class})
+@EnableConfigurationProperties({AiProperties.class, LocalLlmProperties.class, LocalSttProperties.class, LocalTtsProperties.class})
 public class AiClientConfiguration {
 
     @Bean
@@ -49,7 +49,9 @@ public class AiClientConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(TtsClient.class)
-    public TtsClient unconfiguredTtsClient() {
+    public TtsClient unconfiguredTtsClient(org.springframework.web.client.RestClient externalRestClient,
+                                         LocalTtsProperties properties) {
+        if (properties.isEnabled()) return new LocalTtsClient(externalRestClient, properties);
         return text -> {
             log.warn("[synthesize] TTS 구현체가 등록되지 않아 호출 실패 처리");
             throw new AiClientException();

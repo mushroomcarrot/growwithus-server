@@ -56,3 +56,19 @@ Spring도 같은 호스트 프로세스이거나 같은 host 네트워크 공간
 운영의 ddl-auto는 validate다. 기존 변경 외에 db/manual/ai_completion.sql의 새 지침 테이블과 daily_weather, owner_profile 열을 반영해야 한다. 기존 자료를 삭제하지 않는다.
 
 추가 검사는 지침 교체와 빈 배열 보존, 비 예보 물주기 제외, 기온 입력 검증과 관측 보호, 실제 MariaDB upsert, 가족 수 저장과 예약 기본값, 초기 작업의 모델 호출 방지다. DB 통합 검사에서 사용하는 합성 자료는 테스트 트랜잭션으로 롤백한다. 새 코드에 대한 전체 Docker 검사 결과는 기존 PR #32의 234개 통과 기록과 별도로 확인한다.
+# 2026-11-13 15시 이후 AI 보완
+
+성장 배치의 공식 경로는 /internal/ai/growth-simulation이며 /internal/ai/simulate-growth도 유지한다. 성장 설명은 성장 조회 계산과 DB 잠금 종료 후 LLM으로 생성하고 모델 실패 시 기존 계산 설명을 유지한다. 합성 시연 날씨에는 실제 분석처럼 보이는 모델 설명을 붙이지 않는다.
+
+POST /tts에 실제 로컬 음성 생성 구현체를 연결했다. 기존 입력 검증과 속도별 캐시는 유지한다. eSpeak NG 한국어 음성을 FFmpeg로 audio/mpeg로 변환한다. 자연스러운 신경망 음성을 보장하지 않으며 실제 어르신 사용 환경에서 청취가 필요하다. 기본 운영 설정은 비활성이고 활성화 전 아래 작업자를 시작해야 한다. 운영 Spring과 작업자가 같은 네트워크 공간이어야 한다.
+
+```bash
+docker compose -f compose.ai-workers.json up -d --build tts
+curl http://127.0.0.1:8766/health
+```
+
+Spring 설정은 AI_LOCAL_TTS_ENABLED=true와 AI_LOCAL_TTS_BASE_URL=http://127.0.0.1:8766이다. 작업자는 300자 이하, 속도 0.5부터 1.5, 요청 크기 8192바이트 제한과 동시 합성 1개 제한을 둔다. 실패 응답은 캐시하지 않는다. Python 단위 검사는 외부 바이너리가 없으면 실제 합성 검사 1개를 건너뛰지만 Docker 빌드에서는 바이너리를 설치하고 실제 한국어 MP3 생성과 디코딩까지 검사한다.
+
+사진 비전은 기존 OllamaVisionClient를 유지하고 입력과 생성 토큰을 제한했다. 설치된 이미지 지원 모델을 AI_LOCAL_VISION_MODEL에 지정해야 한다. 예시 모델은 qwen2.5vl:3b이며 서버에서 직접 내려받아야 한다. 모델 파일 크기가 실행 메모리 요구량과 같지는 않다. 미설정이나 오류는 aiCheck=null이며 성공으로 꾸미지 않는다. 실제 이미지 정확도와 운영 서버 실행은 아직 확인이 필요하다.
+
+아바타는 이번 보완 범위에서 제외했다. 운영 DB, HTTPS, CORS와 실제 배포 검증을 완료했다는 의미는 아니다. 최신 develop 통합과 전체 Java 21 검사는 현재 작업 커밋 기준으로 별도 확인한다.

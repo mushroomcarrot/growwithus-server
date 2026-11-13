@@ -12,10 +12,12 @@ class LocalDemoSetupTest(unittest.TestCase):
     def test_deployment_workers_have_no_demo_database_and_bind_only_loopback(self):
         config = json.loads((ROOT / "compose.ai-workers.json").read_text(encoding="utf-8"))
         services = config["services"]
-        self.assertEqual(set(services), {"ollama", "ollama-init", "whisper-init", "stt"})
+        self.assertEqual(set(services), {"ollama", "ollama-init", "whisper-init", "stt", "tts"})
         self.assertFalse(any(service.get("ports") for service in services.values()))
         self.assertEqual(services["ollama"]["network_mode"], "host")
         self.assertEqual(services["stt"]["network_mode"], "host")
+        self.assertEqual(services["tts"]["network_mode"], "host")
+        self.assertEqual(services["tts"]["command"], ["python", "tts_server.py"])
         self.assertEqual(services["ollama"]["environment"]["OLLAMA_HOST"], "127.0.0.1:11434")
         self.assertEqual(services["ollama"]["environment"]["OLLAMA_NO_CLOUD"], "1")
         self.assertEqual(services["stt"]["environment"]["HF_HUB_OFFLINE"], "1")

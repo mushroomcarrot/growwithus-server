@@ -65,6 +65,9 @@ weather:
 
 # LLM, STT, TTS. 제공자와 구현체가 정해질 때까지는 비워 두어도 부팅된다
 ai:
+  local-tts:
+    enabled: ${AI_LOCAL_TTS_ENABLED:false}
+    base-url: ${AI_LOCAL_TTS_BASE_URL:http://127.0.0.1:8766}
   local-stt:
     enabled: ${AI_LOCAL_STT_ENABLED:false}
     base-url: ${AI_LOCAL_STT_BASE_URL:http://127.0.0.1:8765}

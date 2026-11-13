@@ -66,11 +66,8 @@ public class VoiceMemoAnalysisService {
                 if (!parsed.contains(issue)) parsed.add(issue);
             }
             return new VoiceAnalysis.Result(transcript, summary.asText(), parsed, false);
-        } catch (AiClientException | IllegalArgumentException ex) {
+        } catch (RuntimeException ex) {
             log.warn("[analyze] AI 정리 실패로 음성 원문을 임시 요약으로 사용");
-            return new VoiceAnalysis.Result(transcript, fallback, List.of(), true);
-        } catch (tools.jackson.core.JacksonException ex) {
-            log.warn("[analyze] AI JSON 형식 오류로 음성 원문을 임시 요약으로 사용");
             return new VoiceAnalysis.Result(transcript, fallback, List.of(), true);
         }
     }

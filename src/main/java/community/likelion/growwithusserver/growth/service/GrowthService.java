@@ -107,7 +107,7 @@ public class GrowthService {
                 .progress(state.getProgress()).expectedHarvestDate(harvest)
                 .calibratedAt(DateTimes.toOffset(state.getCalibratedAt()))
                 .explanation("시연용 합성 기온과 가상 일수로 계산했어요. 실제 수확 예측이 아니에요.")
-                .dailyGdd(result.dailyGdd()).build(), eventId);
+                .dailyGdd(result.dailyGdd()).simulated(true).build(), eventId);
     }
 
     private Updated update(CareGardenReader.Garden garden, Stage observed) {

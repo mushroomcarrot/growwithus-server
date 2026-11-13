@@ -55,6 +55,34 @@
       "mem_limit": "2g",
       "restart": "unless-stopped"
     },
+    "tts": {
+      "build": {
+        "context": "./local-ai"
+      },
+      "command": [
+        "python",
+        "tts_server.py"
+      ],
+      "network_mode": "service:ollama",
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8766/health', timeout=3)"
+        ],
+        "interval": "5s",
+        "timeout": "5s",
+        "retries": 20
+      },
+      "mem_limit": "256m",
+      "restart": "unless-stopped",
+      "depends_on": {
+        "ollama": {
+          "condition": "service_healthy"
+        }
+      }
+    },
     "backend": {
       "build": {"context": "."},
       "network_mode": "service:ollama",
@@ -69,11 +97,12 @@
         "CORS_ALLOWED_ORIGINS": "http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173",
         "AI_LOCAL_ENABLED": "true", "AI_LOCAL_MODEL": "qwen2.5:3b", "AI_LOCAL_BASE_URL": "http://127.0.0.1:11434",
         "AI_LOCAL_STT_ENABLED": "true", "AI_LOCAL_STT_BASE_URL": "http://127.0.0.1:8765",
+        "AI_LOCAL_TTS_ENABLED": "true", "AI_LOCAL_TTS_BASE_URL": "http://127.0.0.1:8766",
         "EXTERNAL_HTTP_READ_TIMEOUT": "90s", "FILE_UPLOAD_DIR": "/app/uploads", "FILE_BASE_URL": "http://localhost:8080",
         "SCHEDULER_ENABLED": "false", "DEMO_ENABLED": "true", "CARE_ALLOWANCE_PER_TASK": "0"
       },
       "volumes": ["demo-uploads:/app/uploads"],
-      "depends_on": {"db": {"condition": "service_healthy"}, "redis": {"condition": "service_healthy"}, "stt": {"condition": "service_healthy"}, "ollama-init": {"condition": "service_completed_successfully"}},
+      "depends_on": {"db": {"condition": "service_healthy"}, "redis": {"condition": "service_healthy"}, "stt": {"condition": "service_healthy"}, "tts": {"condition": "service_healthy"}, "ollama-init": {"condition": "service_completed_successfully"}},
       "mem_limit": "1g",
       "restart": "unless-stopped"
     },

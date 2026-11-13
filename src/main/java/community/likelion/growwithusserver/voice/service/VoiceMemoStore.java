@@ -80,7 +80,8 @@ public class VoiceMemoStore {
     public VoiceMemoResponseDto fail(String username, Attempt attempt, ErrorCode error) {
         VoiceMemo memo = currentAttempt(username, attempt);
         memo.setProcessingStatus(error == ErrorCode.FILE_NOT_SUPPORTED
-                ? VoiceProcessingStatus.INVALID_AUDIO : VoiceProcessingStatus.STT_FAILED);
+                ? VoiceProcessingStatus.INVALID_AUDIO : memo.getTranscript() == null
+                    ? VoiceProcessingStatus.STT_FAILED : VoiceProcessingStatus.LLM_FAILED);
         memo.setProcessingError(error.getCode());
         memo.setProcessingToken(null);
         return response(username, memo);

@@ -19,6 +19,7 @@ public final class GrowthDtos {
         private Stage nextStage; private Double nextStageGdd; private double progress;
         private LocalDate expectedHarvestDate; private OffsetDateTime calibratedAt;
         private String explanation; private List<GrowthCalculator.DailyGdd> dailyGdd;
+        @com.fasterxml.jackson.annotation.JsonIgnore private boolean simulated;
     }
     @Data @Builder @NoArgsConstructor @AllArgsConstructor
     public static class Checked { private Stage stage; private boolean calibrated; private OffsetDateTime calibratedAt; private String eventId; }
