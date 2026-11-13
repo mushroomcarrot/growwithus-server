@@ -5,7 +5,6 @@ import community.likelion.growwithusserver.ai.service.VoiceMemoAnalysisService;
 import community.likelion.growwithusserver.common.file.FileUploadService;
 import community.likelion.growwithusserver.common.file.exception.FileUploadFailedException;
 import community.likelion.growwithusserver.common.file.exception.FileNotSupportedException;
-import community.likelion.growwithusserver.common.ai.AiClientException;
 import community.likelion.growwithusserver.common.response.ErrorCode;
 import community.likelion.growwithusserver.common.id.IdPrefix;
 import community.likelion.growwithusserver.common.response.GlobalResponse;
@@ -55,15 +54,17 @@ public class VoiceMemoService {
     }
 
     private GlobalResponse<VoiceMemoResponseDto> process(String username, VoiceMemoStore.Attempt attempt, byte[] audio, String filename) {
+        VoiceAnalysis.Result analysis;
         try {
-            VoiceAnalysis.Result analysis = attempt.transcript() == null
+            analysis = attempt.transcript() == null
                     ? analysisService.transcribeAndAnalyze(audio, filename) : analysisService.analyze(attempt.transcript());
-            return GlobalResponse.ok(store.finish(username, attempt, analysis));
-        } catch (AiClientException ex) {
-            return GlobalResponse.ok(store.fail(username, attempt, ErrorCode.EXTERNAL_API_ERROR));
         } catch (FileNotSupportedException ex) {
             return GlobalResponse.ok(store.fail(username, attempt, ErrorCode.FILE_NOT_SUPPORTED));
+        } catch (RuntimeException ex) {
+            return GlobalResponse.ok(store.fail(username, attempt, ErrorCode.EXTERNAL_API_ERROR));
         }
+        // DB 저장 오류를 모델 실패로 오인하거나 완료된 처리를 되돌리지 않는다.
+        return GlobalResponse.ok(store.finish(username, attempt, analysis));
     }
 
     public GlobalResponse<VoiceMemoConfirmResponseDto> confirm(String username, String publicMemoId,

@@ -98,6 +98,29 @@
       },
       "mem_limit": "2g",
       "restart": "unless-stopped"
+    },
+    "tts": {
+      "build": {
+        "context": "./local-ai"
+      },
+      "command": [
+        "python",
+        "tts_server.py"
+      ],
+      "network_mode": "host",
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8766/health', timeout=3)"
+        ],
+        "interval": "5s",
+        "timeout": "5s",
+        "retries": 20
+      },
+      "mem_limit": "256m",
+      "restart": "unless-stopped"
     }
   },
   "volumes": {
