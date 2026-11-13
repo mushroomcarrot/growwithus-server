@@ -7,7 +7,7 @@ import java.time.*;
 import java.util.List;
 public final class GrowthDtos {
     private GrowthDtos() {}
-    public enum Observed { FLOWER, FRUIT, NO_CHANGE }
+    public enum Observed { SPROUT, FLOWER, FRUIT, NO_CHANGE }
     @Data @NoArgsConstructor @AllArgsConstructor
     public static class CheckRequest {
         @NotNull private Observed observed;

@@ -75,4 +75,42 @@ class DemoSimulationServiceTest {
         verify(evolution).resetDemoStage(1L);
         verify(growth).refreshSystem(1L);
     }
+
+    @Test void 시연_단계_하향은_전용_초기화로_처리한다() {
+        garden(FarmSeeder.DEMO_FARM_EXTERNAL_ID);
+        var state = GrowthState.builder().gardenId(1L).stage(Stage.FLOWER).demoDays(12)
+                .calibrationStage(Stage.FRUIT).build();
+        when(states.findById(1L)).thenReturn(Optional.of(state));
+        when(growth.refreshSystem(1L)).thenReturn(GrowthDtos.Detail.builder().stage(Stage.SEED).build());
+        assertThat(service.setStage(GrowthStage.SEED).getEventId()).isNull();
+        assertThat(state.getDemoDays()).isZero();
+        assertThat(state.getDemoStartStage()).isEqualTo(Stage.SEED);
+        assertThat(state.getCalibrationStage()).isNull();
+        verify(evolution).resetDemoStage(1L, GrowthStage.SEED);
+        verify(evolution, never()).advanceStage(any(), any());
+    }
+
+    @Test void 시연_단계_상승은_공통_이벤트를_반환한다() {
+        garden(FarmSeeder.DEMO_FARM_EXTERNAL_ID);
+        when(evolution.advanceStage(1L, GrowthStage.FRUIT)).thenReturn(Optional.of(
+                community.likelion.growwithusserver.evolution.data.entity.EvolutionEvent.builder().id(8L).build()));
+        when(growth.refreshSystem(1L)).thenReturn(GrowthDtos.Detail.builder().stage(Stage.FRUIT).build());
+        assertThat(service.setStage(GrowthStage.FRUIT).getEventId()).isEqualTo("evt_8");
+        verify(evolution, never()).resetDemoStage(any(), any());
+    }
+
+    @Test void 같은_단계_선택은_이벤트를_추가하지_않는다() {
+        garden(FarmSeeder.DEMO_FARM_EXTERNAL_ID);
+        when(growth.refreshSystem(1L)).thenReturn(GrowthDtos.Detail.builder().stage(Stage.FLOWER).build());
+        assertThat(service.setStage(GrowthStage.FLOWER).getEventId()).isNull();
+        verifyNoInteractions(evolution, events);
+    }
+
+    @Test void 단계_선택도_일반_농장과_빈_입력을_거부한다() {
+        assertThatThrownBy(() -> service.setStage(null)).isInstanceOf(VoiceMemoException.class);
+        garden("real");
+        assertThatThrownBy(() -> service.setStage(GrowthStage.SEED)).isInstanceOf(VoiceMemoException.class);
+        verifyNoInteractions(states, growth, evolution);
+    }
+
 }

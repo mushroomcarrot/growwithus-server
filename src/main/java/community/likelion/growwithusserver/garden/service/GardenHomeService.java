@@ -38,6 +38,7 @@ public class GardenHomeService {
     // 이 일수만큼 이어서 응원하면 배지를 준다
     public static final int STREAK_BADGE_DAYS = 7;
 
+    private final community.likelion.growwithusserver.garden.data.repository.OwnerProfileRepository ownerProfiles;
     private final GardenService gardenService;
     private final XpService xpService;
     private final WeatherService weatherService;
@@ -60,6 +61,11 @@ public class GardenHomeService {
 
         return GlobalResponse.ok(GardenHomeResponseDto.builder()
                 .gardenId(IdPrefix.GARDEN.format(garden.getId()))
+                .farmName(farm.getName())
+                .plotCode(garden.getPlot().getPlotCode())
+                .nickname(ownerProfiles.findByUserId(garden.getOwner().getId())
+                        .map(community.likelion.growwithusserver.garden.data.entity.OwnerProfile::getNickname)
+                        .orElse(garden.getOwner().getName()))
                 .character(GardenHomeResponseDto.CharacterDto.builder()
                         .name(garden.getCharacterName())
                         .stage(garden.getStage())

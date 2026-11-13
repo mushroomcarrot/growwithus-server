@@ -39,6 +39,7 @@ public class GardenHarvestReader implements HarvestGardenReader {
 
         return HarvestGarden.builder()
                 .gardenId(garden.getId())
+                .stage(garden.getStage())
                 .ownerUsername(garden.getOwner().getUsername())
                 .familySize(ownerProfileRepository.findByUserId(garden.getOwner().getId()).map(OwnerProfile::getFamilySize).orElse(1))
                 .ownerNickname(ownerProfileRepository.findByUserId(garden.getOwner().getId())

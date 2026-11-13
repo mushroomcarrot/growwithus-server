@@ -12,6 +12,7 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 public class HarvestResponseDto {
+    private community.likelion.growwithusserver.farm.data.enums.GrowthStage stage;
     // AI 예측 수확일. 아직 계산 전이면 null
     private LocalDate expectedDate;
     // 수확일까지 남은 일수. 수확일이 지났으면 0, 수확일이 없으면 null

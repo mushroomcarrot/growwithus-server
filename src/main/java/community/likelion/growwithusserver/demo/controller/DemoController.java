@@ -29,6 +29,13 @@ public class DemoController {
     private final DemoResetService resetService;
     private final DemoSimulationService simulation;
 
+    @PutMapping("/stage")
+    @Operation(summary = "시연 성장 단계 선택")
+    public GlobalResponse<DemoFastForwardResponseDto> setStage(
+            @Valid @RequestBody community.likelion.growwithusserver.demo.data.dto.DemoStageRequestDto request) {
+        return GlobalResponse.ok(simulation.setStage(request.getStage()));
+    }
+
     @PostMapping("/fast-forward")
     @Operation(summary = "시연 시간 빨리 감기")
     public GlobalResponse<DemoFastForwardResponseDto> fastForward(

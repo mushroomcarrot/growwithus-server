@@ -10,6 +10,8 @@ import java.time.*;
 public class GrowthState {
     // 시연 전용 누적 일수. 실제 텃밭은 null이다.
     @Column(name = "demo_days") private Integer demoDays;
+    @Enumerated(EnumType.STRING) @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Column(name = "demo_start_stage", length = 16) private Stage demoStartStage;
     @Id @Column(name = "garden_id") private Long gardenId;
     @Enumerated(EnumType.STRING) @JdbcTypeCode(SqlTypes.VARCHAR) @Column(nullable = false, length = 16) private Stage stage;
     @Column(name = "accumulated_gdd", nullable = false) private double accumulatedGdd;
