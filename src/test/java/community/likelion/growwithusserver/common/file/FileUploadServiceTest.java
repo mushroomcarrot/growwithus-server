@@ -39,6 +39,17 @@ class FileUploadServiceTest {
         assertThat(fileUploadService.readStoredAudio(url)).isEqualTo(audio);
     }
 
+    @Test void acceptsTheReproducibleSyntheticKoreanSpeechFixture() throws Exception {
+        byte[] bytes;
+        try (var input = getClass().getResourceAsStream("/ai-evaluation/synthetic-korean.wav")) {
+            assertThat(input).isNotNull(); bytes = input.readAllBytes();
+        }
+        var duration = AudioDurationReader.readWav(bytes).orElseThrow();
+        assertThat(duration.getSeconds()).isBetween(1L, 60L);
+        String stored = fileUploadService.uploadAudio(new MockMultipartFile("audio", "synthetic-korean.wav", "audio/wav", bytes), "voice-memos");
+        assertThat(fileUploadService.readStoredAudio(stored)).isEqualTo(bytes);
+    }
+
     @Test void deletesOnlyValidatedStoredAudioAndCanRepeatDeletion() throws Exception {
         var storage = new LocalFileStorage(uploadDir.toString(), "http://localhost:8080/");
         byte[] audio = {0x1a, 0x45, (byte) 0xdf, (byte) 0xa3, 1};

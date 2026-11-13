@@ -1,5 +1,7 @@
 # 현재 구조
 
+로컬 STT 진단에는 `CHECK-LOCAL-STT.cmd`와 `scripts/diagnose-local-stt.ps1`을 사용한다. 기존 STT 컨테이너에서 공개 합성 음성으로 모델을 직접 실행하고 비밀번호나 사용자 녹음 없이 진단 보고서를 기록한다. 일반 Windows 계정의 Docker 접근 권한을 사용하며 작업 기록을 변경하지 않는다. 기본 서버 HTTP 검사와 실제 음성 처리 성공 여부는 별도로 기록한다. 합성 WAV는 `src/test/resources/ai-evaluation/`에 정답 문장과 생성 정보를 함께 보관한다.
+
 > 코드의 현재 상태를 그대로 기록한 문서다. 기능을 추가하거나 바꾸면 이 문서도 함께 갱신한다 ([development-guide.md](development-guide.md#문서-갱신-규칙)).
 >
 > 마지막 갱신: 2026-11-13, 원격 작업 브랜치 업로드 확인, Windows 사용자 실행용 설치와 시연 시작 도구 추가. 실제 모델과 DB 부팅, 전체 빌드는 미검증

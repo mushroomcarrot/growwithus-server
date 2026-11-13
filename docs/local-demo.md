@@ -1,5 +1,19 @@
 # 로컬 AI 기능 시연
 
+## 합성 음성으로 STT 확인
+
+`src/test/resources/ai-evaluation/synthetic-korean.wav`는 Windows 내장 음성으로 생성한 약 5.3초의 한국어 파일이다. 정답 문장과 생성 정보도 같은 폴더에 있다. 사람의 음성 인식 성능 자료로 사용하지 않는다.
+
+실행 중인 로컬 시연 서버의 STT가 실패하면 일반 Windows 환경에서 `CHECK-LOCAL-STT.cmd`를 실행한다. 실행 중인 STT 컨테이너에서 같은 파일로 모델을 직접 검사하고 `build/reports/local-stt-diagnostic.json`을 기록한다. 설정 파일 내용, 비밀번호, 사용자 녹음은 출력하지 않는다. 기존 작업과 녹음은 변경하지 않는다.
+
+모델 직접 검사에 성공한 뒤 아래 명령으로 HTTP 음성 업로드, 확정, 작업 완료와 가족 일기를 검사한다. 실제 시연 작업 하나가 완료되며 인증 사진은 합성 테스트 이미지다.
+
+```powershell
+python scripts/smoke_local_demo.py --audio src/test/resources/ai-evaluation/synthetic-korean.wav --complete
+```
+
+결과는 `build/reports/local-demo-smoke.json`에 기록된다. STT 실패 시 파일을 보존하고 확정이나 작업 완료를 실행하지 않는다.
+
 관리사의 실제 음성 녹음, 로컬 STT와 LLM, 메모 확정, 사진 저장, 작업 완료, 가족 일기를 한 PC에서 확인하는 환경이다. 팀 프론트와 운영 서버 배포를 대신하지 않는다. 유료 API 키를 사용하지 않는다. 모델 학습은 하지 않고 공개된 모델을 로컬에서 추론한다.
 
 ## 준비와 실행
