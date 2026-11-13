@@ -11,9 +11,16 @@
 3. [docs/planning.md](docs/planning.md): 기획안 (문제 정의, 핵심 기능, 활용 데이터, 기술 구성, 시연 시나리오)
 4. [docs/commit-convention.md](docs/commit-convention.md): 커밋 메시지 컨벤션 (태그, 형식, 작성 규칙)
 5. [docs/github-convention.md](docs/github-convention.md): 브랜치 전략, Issue 및 PR 작성 가이드 (템플릿은 `.github/`)
-6. [docs/api-spec.md](docs/api-spec.md): 대신텃밭 API 명세 요약 (공통 규칙, 권한, enum, 화면 코드, API 53개, 핵심 로직, 시연 시나리오)
+6. [docs/api-spec.md](docs/api-spec.md): 대신텃밭 API 명세 요약 (공통 규칙, 권한, enum, 화면 코드, API 목록, 핵심 로직, 시연 시나리오)
 7. [docs/api-detail.md](docs/api-detail.md): API 상세 명세서 (엔드포인트별 요청, 응답 예시, 에러 코드)
 8. [docs/public-data.md](docs/public-data.md): 사용하는 공공데이터와 API 명세 (기상청 단기예보, 모범음식점, 농어촌체험휴양마을, 인증키 규칙, 처인구 격자와 실제 데이터)
+9. [docs/ai-integration.md](docs/ai-integration.md): AI 핵심 로직, 로컬 모델 연결, 남은 도메인 연동과 검증 상태
+10. [docs/voice-api.md](docs/voice-api.md): 음성 초안과 확정 API, 작업 소유권 접점, DB 준비와 검증 상태
+11. [docs/local-demo.md](docs/local-demo.md): Docker 기반 로컬 모델, 시연 계정, 녹음과 가족 일기 확인 절차
+12. [docs/ai-handoff.md](docs/ai-handoff.md): 이슈별 구현 범위, 프론트 계약, 팀 도메인 접점과 최종 검사 순서
+13. [docs/ai-presentation.md](docs/ai-presentation.md): AI 설명 초안, 실제 시연 순서와 예상 질문 답변
+14. [docs/ai-release.md](docs/ai-release.md): 배포 우선순위, 실제 도메인 연결, 운영 환경변수와 프론트 연동 기준
+15. [docs/ai-completion.md](docs/ai-completion.md): 후속 작업 지침, 과거 기온 입력, 가족 수와 첫 작업, Linux AI 작업자 배포
 
 ## 문서 갱신 (필수)
 
@@ -26,7 +33,7 @@
 
 Java 21, Spring Boot 4.1, Gradle, MariaDB, Redis, JWT (jjwt 0.12.x), Swagger
 
-1. `./gradlew compileJava`: 컴파일 확인
+1. `./gradlew compileJava`: 컴파일 확인. DB 없는 전체 단위 검사는 ./gradlew unitTest
 2. `./gradlew build`는 DB 없이 실패한다 (`contextLoads`가 실제 MariaDB 연결 필요). DB 없이 빌드하려면 `./gradlew build -x test`
 3. DB 없이 도는 단위 테스트: `./gradlew test --tests 'community.likelion.growwithusserver.common.*'` (`common` 자리에 `notification`, `harvest`, `weather`, `demo`, `farm`, `garden`, `diary`, `evolution`, `game`도 가능)
 
@@ -49,7 +56,7 @@ Java 21, Spring Boot 4.1, Gradle, MariaDB, Redis, JWT (jjwt 0.12.x), Swagger
 5. API 경로는 `docs/api-spec.md` 그대로 쓴다. `/api/v1` 같은 접두어를 붙이지 않는다
 6. 페이지네이션, 파일 업로드, 외부 ID, 날짜 형식, 외부 API 호출, 배치는 `common`의 공통 모듈을 쓴다. 도메인마다 새로 만들지 않는다
 7. 알림은 `NotificationService.send(...)`로만 보내고, 날씨는 `WeatherService`로만 조회한다
-8. XP는 `XpService.grant(...)`, 배지는 `BadgeService.grant(...)`, 작물 단계 변경은 `EvolutionEventService.advanceStage(...)`로만 한다. XP나 스트릭처럼 값을 읽고 고칠 때는 텃밭을 먼저 잠근다 (`GardenService`의 `ForUpdate` 메서드)
+8. XP는 `XpService.grant(...)`, 배지는 `BadgeService.grant(...)`, 작물 단계 상승은 EvolutionEventService.advanceStage(...)로만 한다. 시연 초기화와 시연 단계 선택 (PUT /demo/stage)의 하향만 대상 검증을 하는 resetDemoStage(...)를 쓴다. XP나 스트릭처럼 값을 읽고 고칠 때는 텃밭을 먼저 잠근다 (`GardenService`의 `ForUpdate` 메서드)
 
 ## Git
 
@@ -69,3 +76,10 @@ Java 21, Spring Boot 4.1, Gradle, MariaDB, Redis, JWT (jjwt 0.12.x), Swagger
 4. 목록은 번호 목록을 우선 사용한다.
 5. 문단은 내용이 바뀌는 지점에서 명확하게 나누고 문단 사이에 빈 줄을 넣는다.
 6. 출력 전에 금지한 기호가 있는지 확인하고, 있으면 고친다. 이 규칙을 지켰다는 설명은 덧붙이지 않는다.
+
+
+## 2 GB 서버 AI
+
+- [docs/cloud-ai.md](docs/cloud-ai.md): Gemini API 연결, 비공개 키 설정과 실제 검증 범위.
+
+- `verifyCloudAi`와 `scripts/verify-cloud-ai.ps1`은 실제 외부 API를 호출하는 명시적 검증이다. 기본 test에 연결하지 않으며 공개 합성 입력만 사용한다. 결과에서 저장소 대역과 운영 DB, 합성 음성과 사람 음성을 구분한다.

@@ -1,5 +1,9 @@
 package community.likelion.growwithusserver.evolution.service;
 
+import community.likelion.growwithusserver.garden.service.GardenDemoSeeder;
+import community.likelion.growwithusserver.farm.service.FarmSeeder;
+import community.likelion.growwithusserver.harvest.data.exception.GardenAccessDeniedException;
+
 import community.likelion.growwithusserver.common.id.IdPrefix;
 import community.likelion.growwithusserver.common.response.GlobalResponse;
 import community.likelion.growwithusserver.evolution.data.dto.EventAckResponseDto;
@@ -77,6 +81,32 @@ public class EvolutionEventService {
         return Optional.of(event);
     }
 
+    // 초기화에서만 단계를 낮춘다. 계정과 시연 농장, 칸을 다시 확인한다.
+    @Transactional
+    public void resetDemoStage(Long gardenId) {
+        Garden garden = gardenService.getGardenForUpdate(gardenId);
+        resetDemoStage(gardenId, garden.getStage());
+        if (garden.getStage().getLevel() < GrowthStage.FLOWER.getLevel()) {
+            advanceStage(gardenId, GrowthStage.FLOWER);
+        } else {
+            resetDemoStage(gardenId, GrowthStage.FLOWER);
+        }
+    }
+
+    @Transactional
+    public void resetDemoStage(Long gardenId, GrowthStage target) {
+        Garden garden = gardenService.getGardenForUpdate(gardenId);
+        if (!GardenDemoSeeder.OWNER_USERNAME.equals(garden.getOwner().getUsername())
+                || !FarmSeeder.DEMO_FARM_EXTERNAL_ID.equals(garden.getPlot().getFarm().getExternalId())
+                || !FarmSeeder.DEMO_PLOT_CODE.equals(garden.getPlot().getPlotCode())) {
+            throw new GardenAccessDeniedException();
+        }
+        if (target == null || target.getLevel() > garden.getStage().getLevel()) {
+            throw new IllegalArgumentException("시연 초기화는 같은 단계 또는 이전 단계만 허용합니다.");
+        }
+        garden.setStage(target);
+    }
+
     @Transactional(readOnly = true)
     public GlobalResponse<List<EvolutionEventResponseDto>> getUnackedEvents(String username, String gardenId) {
         Garden garden = gardenService.getOwnedGarden(username, gardenId);
@@ -86,16 +116,19 @@ public class EvolutionEventService {
                 .toList());
     }
 
-    // 이벤트를 확인하고 보상(XP, 배지)을 준다. 이벤트 행을 잠그므로 동시에 눌러도 보상은 한 번만 나간다
+    // 텃밭을 먼저 잠근 다음 이벤트를 잠가 보상을 한 번만 지급한다.
     @Transactional
     public GlobalResponse<EventAckResponseDto> ack(String username, String eventId) {
-        EvolutionEvent event = evolutionEventRepository.findByIdForUpdate(IdPrefix.EVENT.parse(eventId))
+        Long id = IdPrefix.EVENT.parse(eventId);
+        Long gardenId = evolutionEventRepository.findGardenIdById(id)
+                .orElseThrow(EvolutionEventNotFoundException::new);
+        Garden garden = gardenService.getGardenForUpdate(gardenId);
+        gardenService.requireOwner(username, garden);
+        EvolutionEvent event = evolutionEventRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> {
                     log.error("[ack] 진화 이벤트 조회 실패: {}", eventId);
                     return new EvolutionEventNotFoundException();
                 });
-        Garden garden = gardenService.getGardenForUpdate(event.getGarden().getId());
-        gardenService.requireOwner(username, garden);
         if (event.isAcked()) {
             log.error("[ack] 이미 확인한 진화 이벤트: {}", eventId);
             throw new EvolutionEventAlreadyAckedException();

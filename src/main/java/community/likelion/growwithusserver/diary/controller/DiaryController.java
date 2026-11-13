@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+@org.springframework.context.annotation.Profile("!local-demo")
 @RestController
 @RequiredArgsConstructor
 public class DiaryController {

@@ -51,6 +51,7 @@ demo:
   # 시연 계정(minji, soonja)의 비밀번호. 8자 이상으로 넣으면 부팅할 때 시연 계정과 텃밭을 만든다.
   # 비워 두면 만들지 않는다. demo.enabled는 프로필별 yml에 있다
   seed-password: ${DEMO_SEED_PASSWORD:}
+  seed-visit-enabled: ${DEMO_SEED_VISIT_ENABLED:false}
 
 # 기상청 단기예보 조회서비스 (docs/public-data.md). 인증키를 비워 두어도 부팅되고, 그때는 날씨 수집을 건너뛴다
 weather:
@@ -64,6 +65,23 @@ weather:
 
 # LLM, STT, TTS. 제공자와 구현체가 정해질 때까지는 비워 두어도 부팅된다
 ai:
+  gemini:
+    enabled: ${AI_GEMINI_ENABLED:false}
+    api-key: ${GEMINI_API_KEY:}
+    model: ${GEMINI_MODEL:gemini-3.5-flash-lite}
+    # 관리사 AI 아바타용 이미지 모델. 비워 두면 생성하지 않고 기본 아바타를 쓴다
+    image-model: ${GEMINI_IMAGE_MODEL:}
+  local-tts:
+    enabled: ${AI_LOCAL_TTS_ENABLED:false}
+    base-url: ${AI_LOCAL_TTS_BASE_URL:http://127.0.0.1:8766}
+  local-stt:
+    enabled: ${AI_LOCAL_STT_ENABLED:false}
+    base-url: ${AI_LOCAL_STT_BASE_URL:http://127.0.0.1:8765}
+  local:
+    enabled: ${AI_LOCAL_ENABLED:false}
+    base-url: ${AI_LOCAL_BASE_URL:http://127.0.0.1:11434}
+    model: ${AI_LOCAL_MODEL:}
+    vision-model: ${AI_LOCAL_VISION_MODEL:}
   llm:
     api-key: ${LLM_API_KEY:}
     base-url: ${LLM_BASE_URL:}
@@ -78,6 +96,19 @@ ai:
     model: ${TTS_MODEL:}
     voice: ${TTS_VOICE:}
 
+care:
+  allowance-per-task: ${CARE_ALLOWANCE_PER_TASK:0}
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
+
+# 배포 헬스체크용. health만 공개하고 상세 정보는 내보내지 않는다
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never

@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class OwnerProfileResponseDto {
     private String nickname;
+    private int familySize;
     private District district;
     // 텃밭이 없으면 null
     private String gardenId;

@@ -32,6 +32,18 @@ public class WeatherService {
     private final DailyWeatherRepository dailyWeatherRepository;
     private final DemoWeatherStore demoWeatherStore;
 
+    @Transactional(readOnly = true)
+    public boolean isRainExpected(int nx, int ny, LocalDate date) {
+        var demo = demoWeatherStore.get();
+        if (demo.isPresent()) return demo.get().getCondition() == community.likelion.growwithusserver.weather.data.enums.WeatherCondition.RAIN;
+        var current = getCurrentWeather(nx, ny);
+        if (current.isPresent() && (current.get().getCondition() == community.likelion.growwithusserver.weather.data.enums.WeatherCondition.RAIN
+                || (current.get().getRainProbability() != null && current.get().getRainProbability() >= 60))) return true;
+        return getForecasts(nx, ny, date.atStartOfDay(), date.atTime(LocalTime.MAX)).stream()
+                .anyMatch(f -> (f.getPrecipitationType() != null && f.getPrecipitationType() > 0)
+                        || (f.getRainProbability() != null && f.getRainProbability() >= 60));
+    }
+
     /**
      * 격자의 현재 날씨. 시연 날씨가 설정되어 있으면 그 값이 저장된 날씨보다 우선한다.
      * 수집된 값이 하나도 없으면 비어 있다.
@@ -117,6 +129,8 @@ public class WeatherService {
      */
     @Transactional
     public Optional<DailyWeather> aggregateDaily(int nx, int ny, LocalDate date) {
+        Optional<DailyWeather> existing = dailyWeatherRepository.findByNxAndNyAndDate(nx, ny, date);
+        if (existing.filter(DailyWeather::isObserved).isPresent()) return existing;
         DoubleSummaryStatistics statistics = weatherForecastRepository
                 .findAllByNxAndNyAndForecastAtBetweenOrderByForecastAtAsc(nx, ny, date.atStartOfDay(), date.atTime(LocalTime.MAX)).stream()
                 .map(WeatherForecast::getTemperature)
@@ -127,7 +141,7 @@ public class WeatherService {
             return Optional.empty();
         }
 
-        DailyWeather dailyWeather = dailyWeatherRepository.findByNxAndNyAndDate(nx, ny, date)
+        DailyWeather dailyWeather = existing
                 .orElseGet(() -> DailyWeather.builder().nx(nx).ny(ny).date(date).build());
         dailyWeather.setAvgTemp(Math.round(statistics.getAverage() * 10) / 10.0);
         dailyWeather.setMaxTemp(statistics.getMax());

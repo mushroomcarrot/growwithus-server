@@ -27,6 +27,8 @@ public class UserMeResponseDto {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class OwnerSummary {
+        private int familySize;
+        private long sentHearts;
         private String nickname;
         private String district;
         private String gardenId;
@@ -41,5 +43,6 @@ public class UserMeResponseDto {
         private String name;
         private String farmId;
         private String avatarUrl;
+        private long completedTasks;
     }
 }

@@ -1,5 +1,7 @@
 # 대신텃밭 API 상세 명세서
 
+후속 API 추가와 기존 필드 확장: [ai-completion.md](ai-completion.md)에 작물 지침 조회와 교체, 출처를 포함한 일별 기온 입력, familySize와 sentHearts, 예약 기본 인원을 정의했다. 내부 API는 X-Service-Key를 요구한다. 기존 요청에서 가족 수와 예약 인원을 생략하는 동작도 유지한다.
+
 > 엔드포인트별 요청, 응답, 에러를 정리한 문서다. 전체 목록과 공통 규칙, 핵심 로직은 [api-spec.md](api-spec.md)를 본다.
 >
 > 필드는 Notion "API 명세서 (초안)"과 [api-spec.md](api-spec.md)를 기준으로 작성한 초안이다. 구현하면서 바뀌면 이 문서를 같이 고친다.
@@ -307,7 +309,9 @@ Refresh Token도 새로 발급하고 이전 토큰은 무효가 된다. 에러: 
 { "avatarJobId": "avj_soonja_01", "status": "PENDING" }
 ```
 
-생성은 비동기로 진행한다. 에러: `C4003` 초상권 미동의, `C4001` 파일 형식 또는 크기 초과
+생성은 비동기로 진행한다. 실제 `avatarJobId`는 `avj_3`처럼 숫자가 붙는다. 올린 사진 원본은 서버에 저장하지 않는다.
+
+에러: `C4003` 초상권 미동의 (`portraitConsent`가 없거나 `false`), `C4001` 파일 형식 또는 크기 초과 (사진이 없거나 읽을 수 없는 경우 포함), `C404` 관리사 프로필 없음, `C4095` 이미 진행 중인 요청이 있음
 
 ### 3.8 AI 아바타 결과 조회
 
@@ -317,7 +321,14 @@ Refresh Token도 새로 발급하고 이전 토큰은 무효가 된다. 에러: 
 { "avatarJobId": "avj_soonja_01", "status": "DONE", "avatarUrl": "https://.../crt_soonja.png" }
 ```
 
-`status`: `PENDING`, `DONE`, `FAILED`. 클라이언트는 2초 간격으로 폴링한다. 실패하면 기본 아바타를 쓴다.
+`status`: `PENDING`, `DONE`, `FAILED`. 클라이언트는 2초 간격으로 폴링한다.
+
+1. `avatarUrl`은 `PENDING`이면 `null`, `DONE`이면 만든 그림, `FAILED`면 지금 쓰는 아바타 (처음이면 기본 아바타)다. 화면은 `FAILED`일 때 받은 `avatarUrl`을 그대로 쓰면 된다.
+2. 5분이 지나도 `PENDING`이면 서버가 `FAILED`로 바꾼다. `FAILED` 뒤에는 다시 요청할 수 있다.
+3. 서버에 이미지 모델이 설정되어 있지 않으면 항상 `FAILED`와 기본 아바타가 나온다.
+4. `DONE`이 되면 `/users/me`의 `caretaker.avatarUrl`과 주인 화면의 관리사 아바타도 새 그림으로 바뀐다.
+
+에러: `C404` 관리사 프로필이 없거나 아바타를 요청한 적이 없음
 
 ### 3.9 이번 달 활동 요약
 
@@ -330,12 +341,13 @@ Refresh Token도 새로 발급하고 이전 토큰은 무효가 된다. 에러: 
   "gardenCount": 3,
   "workDays": 9,
   "heartsReceived": 18,
+  "heartsReceivedToday": 3,
   "expectedAllowance": 240000,
   "allowanceNote": "가정치예요. 실제 수당과 다를 수 있어요."
 }
 ```
 
-`month`를 생략하면 이번 달이다.
+`month`를 생략하면 이번 달이다. `heartsReceived`는 조회한 달에 받은 하트 수, `heartsReceivedToday`는 `month`와 관계없이 오늘 받은 하트 수다.
 
 ### 3.10 읽어주기 음성
 
@@ -357,6 +369,9 @@ Refresh Token도 새로 발급하고 이전 토큰은 무효가 된다. 에러: 
 ```json
 {
   "gardenId": "gdn_b14",
+  "farmName": "처인 테마 주말농장",
+  "plotCode": "B-14",
+  "nickname": "민지네",
   "character": {
     "name": "토순이",
     "stage": "FLOWER",
@@ -432,27 +447,49 @@ Refresh Token도 새로 발급하고 이전 토큰은 무효가 된다. 에러: 
 
 `GET /gardens/{gardenId}/diary?filter=ALL&cursor=&limit=20` | 권한 OWNER | 화면 DT_DIARY
 
-`filter`: `ALL`, `PHOTO`, `STAGE`
+`filter`: `ALL`, `PHOTO`, `STAGE`. 본인 소유 텃밭만 조회한다. 최신 저장 순으로 반환하며 `limit`은 1~50이다. `nextCursor`는 `dry_숫자` 형식의 불투명 커서다. 날짜 대신 응답 커서를 그대로 보낸다.
 
 ```json
 {
   "items": [
     {
+      "diaryId": "dry_12",
       "type": "CARE_LOG",
       "date": "2026-11-10",
-      "careLogId": "cl_1110_01",
-      "taskTypes": ["SUPPORT", "PRUNE"],
-      "summary": "지지대를 세우고 곁순을 정리했어요",
+      "careLogId": "cl_8",
+      "eventId": null,
+      "taskTypes": ["CHECK"],
+      "transcript": "잎과 흙을 살펴봤어요. 잎에 작은 점이 보였어요.",
+      "summary": "잎과 흙을 살폈어요. 잎의 작은 점은 다시 확인할게요.",
       "photoUrl": "...",
       "caretakerName": "박순자",
-      "hearted": false
+      "hearted": false,
+      "fromStage": null,
+      "toStage": null,
+      "createdAt": "2026-11-10T10:21:00+09:00"
     },
-    { "type": "STAGE_CHANGE", "date": "2026-11-05", "fromStage": "SPROUT", "toStage": "FLOWER" },
-    { "type": "REST_DAY", "date": "2026-11-04", "message": "오늘은 쉬는 날이었어요" }
+    {
+      "diaryId": "dry_11",
+      "type": "STAGE_CHANGE",
+      "date": "2026-11-05",
+      "careLogId": null,
+      "eventId": "evt_3",
+      "taskTypes": [],
+      "transcript": null,
+      "summary": "작물이 다음 단계로 자랐어요.",
+      "photoUrl": null,
+      "caretakerName": null,
+      "hearted": false,
+      "fromStage": "SPROUT",
+      "toStage": "FLOWER",
+      "createdAt": "2026-11-05T09:00:00+09:00"
+    }
   ],
-  "nextCursor": "2026-11-03"
+  "nextCursor": "dry_11"
 }
 ```
+
+돌봄 완료와 단계 상승 시 원래 저장 트랜잭션 안에서 일기 스냅샷을 추가한다. `transcript`는 확정 메모의 STT 원문이며 없으면 `null`이다. `summary`는 확정 정리문 또는 작업 완료 문구다. `PHOTO`는 사진이 있는 항목, `STAGE`는 성장 항목만 반환한다. `hearted`는 연결된 돌봄 기록의 현재 하트 수를 반영한다. 하트 전송 API, REST_DAY 생성, 과거 기록의 일괄 이관은 아직 구현하지 않았다. 새 테이블 준비는 `db/manual/diary.sql`을 확인한다.
 
 ### 4.6 미확인 진화 이벤트
 
@@ -564,6 +601,7 @@ Refresh Token도 새로 발급하고 이전 토큰은 무효가 된다. 에러: 
 
 ```json
 {
+  "stage": "FLOWER",
   "expectedDate": "2026-11-28",
   "dDay": 18,
   "harvestable": false,
@@ -611,7 +649,7 @@ Refresh Token도 새로 발급하고 이전 토큰은 무효가 된다. 에러: 
 { "visitId": "vst_1128_b14", "date": "2026-11-28", "startTime": "10:00", "status": "RESERVED" }
 ```
 
-관리사에게 알림을 보낸다. 내일 이후의 슬롯만 예약할 수 있다. 에러: `C4096` 이미 찬 시간, `C4095` 그 텃밭에 같은 날 예약 있음, `C002` 없는 슬롯이거나 오늘 또는 지난 날짜
+같은 농장과 날짜의 예약 처리를 잠금으로 직렬화하고 현재 예약을 잠금 조회해 정원을 다시 검사한다. 관리사에게 알림을 보낸다. 내일 이후의 슬롯만 예약할 수 있다. 에러: `C4096` 이미 찬 시간, `C4095` 그 텃밭에 같은 날 예약 있음, `C002` 없는 슬롯이거나 오늘 또는 지난 날짜
 
 ### 5.4 방문 예약 취소
 
@@ -699,7 +737,13 @@ AI 사진 확인이 실패해도 사진은 저장하고 `aiCheck`는 `null`로 �
 
 STT로 받아 적고 LLM이 가족용 문장으로 정리한다. `issues`는 다음 날 작업 생성에 쓰인다.
 
+현재 작업 조회는 구현했으며 실제 텃밭 조회 어댑터 연결이 필요하다. 코드별 한글 문구와 상태 필드는 [voice-api.md](voice-api.md)를 본다. 원문은 요약과 분리해 저장하고, 확정된 메모만 후속 작업에 사용한다. 필수 `audio` 파트 누락은 C002, 담당 작업이 아니면 C403, 완료된 작업이면 C4095다.
+
+초안 응답에는 `processingStatus`, `retryable`, `processingError`가 추가된다. 정상 결과는 READY다. 인식 실패 시 파일을 보관하고 `STT_FAILED`, 원문과 요약 null, `retryable=true`로 반환한다. 정리만 실패하면 `LLM_FAILED`와 임시 요약을 제공한다. 이 경우 HTTP 응답은 성공이므로 화면은 처리 상태도 검사해야 한다. `POST /caretaker/voice-memos/{voiceMemoId}/retry`로 같은 초안을 재시도한다. 형식 및 길이가 잘못된 INVALID_AUDIO는 다시 녹음해야 한다.
+
 ### 6.4 음성 메모 확정
+
+연결 중단으로 업로드 응답을 받지 못했다면 먼저 `GET /caretaker/tasks/{taskId}/voice-memos/latest`를 호출한다. 마지막 저장 메모 하나와 업로드 응답과 같은 처리 상태를 반환한다. 본인 담당 작업만 조회 가능하며 저장된 메모가 없으면 C404다. PROCESSING 상태의 처리 시작 후 유효 시간(기본 2분, 읽기 제한 90초일 때 3분 30초)이 지나면 `retryable=true`로 표시되어 같은 메모 ID로 retry할 수 있다. 조회는 새 파일이나 메모를 만들지 않는다. 복구 순서와 중복 녹음 시 주의점은 [voice-api.md](voice-api.md)를 본다.
 
 `POST /caretaker/voice-memos/{voiceMemoId}/confirm` | 권한 CARETAKER | 화면 DT_CARE_VOICE
 
@@ -710,6 +754,8 @@ STT로 받아 적고 LLM이 가족용 문장으로 정리한다. `issues`는 다
 // 응답
 { "voiceMemoId": "vm_1110_b14", "status": "CONFIRMED" }
 ```
+
+본문을 생략하거나 빈 객체를 보내도 원래 요약으로 확정한다. 같은 확정 요청 재시도는 허용하고, 확정한 메모를 다른 문장으로 다시 바꾸면 C4095다. 초안 요약을 실제 수정하면 원문은 유지하고 이전 자동 추출 코드는 비운다. 상세 구현 및 남은 연결은 [voice-api.md](voice-api.md)를 본다.
 
 ### 6.5 작업 완료
 
@@ -743,7 +789,7 @@ STT로 받아 적고 LLM이 가족용 문장으로 정리한다. `issues`는 다
 { "stage": "FRUIT", "calibrated": true, "calibratedAt": "2026-11-10T10:30:00+09:00", "eventId": "evt_fruit_b14" }
 ```
 
-`observed`: `FLOWER`, `FRUIT`, `NO_CHANGE`. 단계가 오르면 `eventId`가 생기고, 그대로면 `null`이다.
+`observed`: `SPROUT`, `FLOWER`, `FRUIT`, `NO_CHANGE`. 단계가 오르면 `eventId`가 생기고, 그대로면 `null`이다. `SPROUT`은 씨앗 단계에서 새싹이 난 것을 확인했을 때 보낸다.
 
 ## 7. Notification
 
@@ -803,6 +849,28 @@ STT로 받아 적고 LLM이 가족용 문장으로 정리한다. `issues`는 다
 1. `daily-tasks`의 `fallback`은 LLM 실패로 규칙 기반 작업을 쓴 텃밭 수다.
 2. 대상을 비워 두면 전체를 처리한다.
 3. 에러: `C4014` 서비스 키 불일치
+4. 성장 시뮬레이션의 실제 스케줄은 매일 04:00이다. 05:00의 작업 생성이 갱신된 성장 단계를 쓰도록 앞에 둔다. 실제 응답은 `{ "updated": 3, "failed": 0 }`이다.
+
+### 8.1 칸 관리 (운영자용)
+
+공공데이터에는 칸 정보가 없으므로 실제 농장은 운영자가 칸을 넣어야 분양받을 수 있다. 배치가 아니라 수동으로 호출하며 `X-Service-Key` 헤더가 필요하다.
+
+`GET /internal/farms/{farmId}/plots`: 농장의 칸 목록
+
+`PUT /internal/farms/{farmId}/plots/{plotCode}`: 칸 등록 및 수정. 없는 칸은 만들고, 있는 칸은 보낸 값만 고친다.
+
+```json
+// 요청 (둘 다 선택. 칸을 새로 만들 때는 cropId 필수)
+{ "cropId": "crop_1", "caretakerUsername": "soonja" }
+
+// 응답
+{ "farmId": "farm_3", "plotCode": "A-1", "cropId": "crop_1", "cropName": "방울토마토", "caretakerUsername": "soonja", "assigned": false }
+```
+
+1. `plotCode`는 한글, 영문, 숫자로 시작하고 하이픈을 쓸 수 있는 20자 이하다 (예: `B-14`).
+2. `caretakerUsername`은 역할이 `CARETAKER`인 회원의 로그인 아이디다.
+3. 이미 분양된 칸은 작물을 바꿀 수 없다. 담당 관리사는 비어 있을 때만 채울 수 있고, 채우면 그 칸의 텃밭에도 반영된다.
+4. 에러: `C404` 농장 또는 작물 없음, `C4041` 회원 없음, `C002` 칸 번호 오류, 새 칸에 작물 없음, 관리사가 아닌 회원, `C4093` 분양된 칸의 작물 변경 또는 담당 관리사 교체, `C4014` 서비스 키 불일치
 
 ## 9. 시연
 
@@ -816,7 +884,7 @@ STT로 받아 적고 LLM이 가족용 문장으로 정리한다. `issues`는 다
 { "weather": "SUNNY", "stage": "FLOWER", "stageProgress": "3/4", "fastForwardDays": 18, "todayTaskGardens": 3 }
 ```
 
-현재 구현: `weather`만 채워진다 (날씨를 바꾼 적이 없으면 `null`). 나머지 넷은 텃밭, 성장 시뮬레이션, 작업 도메인이 붙기 전까지 `null`이다.
+현재 구현: weather와 시연 텃밭의 stage, stageProgress(단계 순서), todayTaskGardens를 반환한다. fastForwardDays는 저장된 누적 가상 일수다. 시연 텃밭이 없으면 텃밭 상태는 null이다.
 
 ### 9.2 날씨 바꾸기
 
@@ -832,7 +900,7 @@ STT로 받아 적고 LLM이 가족용 문장으로 정리한다. `issues`는 다
 
 `condition`: `SUNNY`, `RAIN`, `HOT` (그 외는 `C002`). 작업을 즉시 다시 만든다.
 
-현재 구현: 날씨 덮어쓰기와 `animation`까지 동작한다. 작업 생성이 붙기 전까지 `weatherNotice`는 `null`, `regeneratedTasks`는 0이다.
+현재 구현: 시연 농장의 minji/B-14, demo_owner_b13/B-13, demo_owner_b15/B-15에 기존 작업 생성과 날씨 검증을 연결한다. 완료 기록과 첨부는 보존한다. weatherNotice는 현재 작업 안내, regeneratedTasks는 작업이 새로 추가된 텃밭 수다. 이미 충분한 작업이 있으면 0이다.
 
 ### 9.3 시간 빨리 감기
 
@@ -846,9 +914,25 @@ STT로 받아 적고 LLM이 가족용 문장으로 정리한다. `issues`는 다
 { "stage": "FRUIT", "eventId": "evt_fruit_b14", "expectedHarvestDate": "2026-11-28" }
 ```
 
-현재 구현: 없다 (성장 시뮬레이션과 진화 이벤트가 먼저 필요하다).
+현재 구현: days는 1~365의 정수, 누적 최대 3650일이다. 시연 B-14만 합성 기온으로 계산하며 시작 단계 (기본 FLOWER, `PUT /demo/stage`로 변경)에서 단계마다 18일이면 다음 단계로 진행한다. eventId는 해당 단계의 미확인 진화 이벤트이고 없으면 null이다. expectedHarvestDate는 현재 날짜에 남은 시연 일수를 더한 날짜다. 실제 관측값과 수확 확인을 대신하지 않는다. 신규 시작은 FLOWER만 허용하고 다른 단계는 먼저 reset한다.
 
-### 9.4 초기화
+### 9.4 성장 단계 선택
+
+`PUT /demo/stage`
+
+```json
+// 요청
+{ "stage": "SPROUT" }
+
+// 응답
+{ "stage": "SPROUT", "eventId": "evt_12", "expectedHarvestDate": "2026-12-19" }
+```
+
+`stage`: `SEED`, `SPROUT`, `FLOWER`, `FRUIT` (없거나 그 외는 `C002`).
+
+현재 구현: 시연 B-14만 변경한다. 현재보다 높은 단계를 고르면 진화 이벤트가 생기고 eventId를 반환한다. 낮은 단계나 같은 단계면 eventId는 null이다. 단계가 바뀌면 이전의 미확인 연출은 닫는다. 선택한 단계를 시작 단계로 저장하고 가상 일수와 관찰 보정을 비우므로 이후 성장 조회와 빨리 감기에서도 유지된다. 단계 사이는 18일이며 expectedHarvestDate는 현재 날짜에 FRUIT까지 남은 일수를 더한 날짜다 (SEED 54일, SPROUT 36일, FLOWER 18일, FRUIT 0일). 이미 지급한 보상과 기록은 유지한다.
+
+### 9.5 초기화
 
 `POST /demo/reset`
 
@@ -858,7 +942,7 @@ STT로 받아 적고 LLM이 가족용 문장으로 정리한다. `issues`는 다
 { "weather": "SUNNY", "stage": "FLOWER", "todayTaskGardens": 3 }
 ```
 
-현재 구현: 날씨만 `SUNNY`로 되돌린다. 응답은 9.1과 같은 형태이고 `weather` 외에는 `null`이다.
+현재 구현: 주 시연 텃밭을 FLOWER와 가상 일수 0으로 되돌리고 날씨를 SUNNY로 바꾼다. 세 시연 텃밭의 오늘 작업은 보관한 뒤 새로 생성하며 이전 작업 ID로 완료하면 C4095다. 완료 기록, 사진과 음성 참조, 이미 지급한 보상은 유지한다. 세 시연 칸이 준비되어 있으면 todayTaskGardens는 3이다.
 
 ## 10. 에러 코드
 

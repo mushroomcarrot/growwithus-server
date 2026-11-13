@@ -40,6 +40,13 @@ public class DailyWeather {
     @Column(nullable = false)
     private double minTemp;
 
+    @Builder.Default
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean observed = false;
+
+    @Column(length = 512)
+    private String sourceUrl;
+
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 }

@@ -6,6 +6,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -30,23 +32,62 @@ public class FileUploadService {
     private final FileStorage fileStorage;
 
     public String uploadImage(MultipartFile file, String directory) {
+        byte[] bytes = readImage(file);
+        String extension = extensionOf(file);
+        return store(directory, extension, bytes, extension.equals("png") ? "image/png" : "image/jpeg");
+    }
+
+    // 사진을 저장하지 않고 검증만 한 뒤 내용을 돌려준다 (jpg, png 10MB 이하). 원본을 남기지 않는 기능이 쓴다.
+    public byte[] readImage(MultipartFile file) {
         byte[] bytes = readBytes(file, MAX_IMAGE_SIZE);
         String extension = extensionOf(file);
-
-        String contentType;
-        if ((extension.equals("jpg") || extension.equals("jpeg")) && isJpeg(bytes)) {
-            contentType = "image/jpeg";
-        } else if (extension.equals("png") && isPng(bytes)) {
-            contentType = "image/png";
-        } else {
-            log.warn("[uploadImage] 지원하지 않는 사진 형식: {}", extension);
+        boolean jpeg = (extension.equals("jpg") || extension.equals("jpeg")) && isJpeg(bytes);
+        if (!jpeg && !(extension.equals("png") && isPng(bytes))) {
+            log.warn("[readImage] 지원하지 않는 사진 형식: {}", extension);
             throw new FileNotSupportedException();
         }
+        return bytes;
+    }
 
-        return store(directory, extension, bytes, contentType);
+    // 서버가 만든 PNG를 저장한다 (예: AI 아바타). 업로드 파일과 같은 저장소를 쓴다.
+    public String storeGeneratedPng(byte[] png, String directory) {
+        if (png == null || png.length == 0 || png.length > MAX_IMAGE_SIZE || !isPng(png)) {
+            throw new FileUploadFailedException();
+        }
+        return store(directory, "png", png, "image/png");
     }
 
     public String uploadAudio(MultipartFile file, String directory) {
+        AudioData audio = inspectAudio(file);
+        return store(directory, audio.extension(), audio.bytes(), audio.contentType());
+    }
+
+    // 파일 형식 검증을 저장과 분리해 먼저 수행할 수 있다.
+    public void validateAudio(MultipartFile file) {
+        inspectAudio(file);
+    }
+
+    public byte[] readStoredAudio(String storedUrl) {
+        return fileStorage.readAudio(storedUrl);
+    }
+
+    /** 새 음성의 초안 트랜잭션이 확실히 롤백된 경우에만 업로드 파일을 정리한다. */
+    public void deleteAudioOnRollback(String storedUrl) {
+        if (!TransactionSynchronizationManager.isActualTransactionActive()
+                || !TransactionSynchronizationManager.isSynchronizationActive()) return;
+        TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronization() {
+                    @Override public void afterCompletion(int status) {
+                        if (status != STATUS_ROLLED_BACK) return;
+                        try { fileStorage.deleteAudio(storedUrl); }
+                        catch (RuntimeException ex) { log.warn("[deleteAudioOnRollback] 롤백된 음성 파일 정리 실패"); }
+                    }
+                });
+    }
+
+    private record AudioData(byte[] bytes, String extension, String contentType) {}
+
+    private AudioData inspectAudio(MultipartFile file) {
         byte[] bytes = readBytes(file, MAX_AUDIO_SIZE);
         String extension = extensionOf(file);
 
@@ -75,7 +116,7 @@ public class FileUploadService {
             throw new FileNotSupportedException();
         }
 
-        return store(directory, extension, bytes, contentType);
+        return new AudioData(bytes, extension, contentType);
     }
 
     private byte[] readBytes(MultipartFile file, long maxSize) {

@@ -19,6 +19,7 @@ import community.likelion.growwithusserver.harvest.garden.HarvestGardenReader;
 import community.likelion.growwithusserver.harvest.service.HarvestGardenService;
 import community.likelion.growwithusserver.harvest.service.VisitService;
 import community.likelion.growwithusserver.harvest.service.VisitSlotPolicy;
+import community.likelion.growwithusserver.harvest.service.VisitCapacityGuard;
 import community.likelion.growwithusserver.harvest.service.VisitSlotPolicy.Slot;
 import community.likelion.growwithusserver.notification.data.dto.NotificationSendDto;
 import community.likelion.growwithusserver.notification.data.enums.NotificationType;
@@ -47,9 +48,17 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doThrow;
 
 @ExtendWith(MockitoExtension.class)
 class VisitServiceTest {
+    @Test void omittedHeadcountUsesTheOwnersFamilySize() {
+        garden.setFamilySize(4);
+        visitService.reserve("minji",request(null,null));
+        ArgumentCaptor<Visit> captured=ArgumentCaptor.forClass(Visit.class);
+        verify(visitRepository).saveAndFlush(captured.capture());
+        assertThat(captured.getValue().getHeadcount()).isEqualTo(4);
+    }
     private static final Long GARDEN_ID = 3L;
     private static final Long FARM_ID = 1L;
 
@@ -61,6 +70,8 @@ class VisitServiceTest {
     private UserService userService;
     @Mock
     private NotificationService notificationService;
+    @Mock
+    private VisitCapacityGuard capacity;
 
     private VisitService visitService;
     private User owner;
@@ -73,7 +84,7 @@ class VisitServiceTest {
     @BeforeEach
     void setUp() {
         visitService = new VisitService(visitRepository, new HarvestGardenService(harvestGardenReader),
-                harvestGardenReader, userService, notificationService);
+                harvestGardenReader, userService, notificationService, capacity);
 
         owner = User.builder().id(1L).username("minji").name("김민지").build();
         caretaker = User.builder().id(2L).username("soonja").name("박순자").build();
@@ -124,6 +135,7 @@ class VisitServiceTest {
         assertThat(response.getDate()).isEqualTo(saturday);
         assertThat(response.getStartTime()).isEqualTo("10:00");
         assertThat(response.getStatus()).isEqualTo(VisitStatus.RESERVED);
+        verify(capacity).requireCapacity(FARM_ID, slot);
 
         ArgumentCaptor<Visit> visit = ArgumentCaptor.forClass(Visit.class);
         verify(visitRepository).saveAndFlush(visit.capture());
@@ -161,8 +173,7 @@ class VisitServiceTest {
 
     @Test
     void 정원이_찬_슬롯은_C4096이다() {
-        when(visitRepository.countByFarmIdAndVisitDateAndStartTimeAndStatus(FARM_ID, saturday, LocalTime.of(10, 0), VisitStatus.RESERVED))
-                .thenReturn((long) VisitSlotPolicy.SLOT_CAPACITY);
+        doThrow(new VisitSlotFullException()).when(capacity).requireCapacity(FARM_ID, slot);
 
         assertThatThrownBy(() -> visitService.reserve("minji", request(null, null)))
                 .isInstanceOf(VisitSlotFullException.class);
@@ -248,7 +259,7 @@ class VisitServiceTest {
     @Test
     void 방문_전날까지는_취소하고_관리사에게_알린다() {
         Visit visit = reservedVisit(LocalDate.now().plusDays(1));
-        when(visitRepository.findById(5L)).thenReturn(Optional.of(visit));
+        when(visitRepository.findByIdForUpdate(5L)).thenReturn(Optional.of(visit));
 
         visitService.cancel("minji", "vst_5");
 
@@ -266,7 +277,7 @@ class VisitServiceTest {
     @Test
     void 방문_당일에는_취소할_수_없다() {
         Visit visit = reservedVisit(LocalDate.now());
-        when(visitRepository.findById(5L)).thenReturn(Optional.of(visit));
+        when(visitRepository.findByIdForUpdate(5L)).thenReturn(Optional.of(visit));
 
         assertThatThrownBy(() -> visitService.cancel("minji", "vst_5"))
                 .isInstanceOf(VisitCancelDeadlinePassedException.class);
@@ -276,7 +287,7 @@ class VisitServiceTest {
     @Test
     void 남의_예약은_C403_이미_취소한_예약은_C4095다() {
         Visit visit = reservedVisit(LocalDate.now().plusDays(3));
-        when(visitRepository.findById(5L)).thenReturn(Optional.of(visit));
+        when(visitRepository.findByIdForUpdate(5L)).thenReturn(Optional.of(visit));
 
         assertThatThrownBy(() -> visitService.cancel("other", "vst_5"))
                 .isInstanceOf(VisitAccessDeniedException.class);

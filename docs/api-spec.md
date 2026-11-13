@@ -1,6 +1,10 @@
 # 대신텃밭 API 명세 요약
 
-> 원본: Notion "API 명세서 (초안)" 데이터베이스 (API 54개). 이 문서는 쓰지 않는 푸시 토큰 등록을 뺀 53개를 담는다. 필드 단위 Request, Response, Example은 Notion 각 페이지를 기준으로 한다.
+후속 추가 (2026-11-13): 관리사 AI 아바타 API 2개를 구현했고, 운영자가 실제 농장의 칸과 담당 관리사를 넣는 내부 키 전용 GET /internal/farms/{farmId}/plots와 PUT /internal/farms/{farmId}/plots/{plotCode}를 추가했다. 상세는 [api-detail.md](api-detail.md)의 3.7, 3.8, 8.1이다.
+
+후속 추가: 주인 프로필의 familySize(선택, 1~20, 등록 생략 시 1), /users/me의 owner.familySize와 owner.sentHearts, 예약 인원 생략 시 가족 수 기본값을 지원한다. 내부 키 전용 GET/PUT /internal/crops/{cropId}/task-guidance와 POST /internal/weather/daily를 추가했다. 상세 필드와 운영 조건은 [ai-completion.md](ai-completion.md)를 따른다.
+
+> 원본: Notion "API 명세서 (초안)" 데이터베이스 (API 54개). 쓰지 않는 푸시 토큰 등록을 제외하고 음성 재시도와 복구 조회 API를 추가했다. 작업 브랜치의 구현 범위와 추가 상태 필드는 [ai-integration.md](ai-integration.md), [voice-api.md](voice-api.md)를 함께 확인한다.
 >
 > 엔드포인트별 요청, 응답 필드는 [api-detail.md](api-detail.md)를 본다.
 
@@ -41,8 +45,8 @@
 | character.mood | HAPPY, CALM, SAD |
 | character.animation | sunny_happy, rain_umbrella, hot_sweat, sad_droop |
 | task.type | WATER, SUPPORT, WEED, PRUNE, FERTILIZE, HARVEST_PREP, CHECK |
-| stage-check observed | FLOWER, FRUIT, NO_CHANGE |
-| diary item type | CARE_LOG, STAGE_CHANGE, REST_DAY |
+| stage-check observed | SPROUT, FLOWER, FRUIT, NO_CHANGE |
+| diary item type | CARE_LOG, STAGE_CHANGE (REST_DAY는 계획 항목, 현재 미생성) |
 | district | SUJI, GIHEUNG, CHEOIN |
 | nextStep | ROLE_SELECT, PROFILE_OWNER, PROFILE_CARE, OWNER_HOME, CARE_TODAY |
 
@@ -105,11 +109,11 @@
 
 | Method | Endpoint | 기능 | 권한 | 화면 |
 | --- | --- | --- | --- | --- |
-| GET | /gardens/{gardenId}/home | 홈 한 번에 조회 (캐릭터, 날씨, 스트릭, XP, D-day, 최근 돌봄) | OWNER | DT_HOME |
+| GET | /gardens/{gardenId}/home | 홈 한 번에 조회 (농장 이름, 칸, 별명, 캐릭터, 날씨, 스트릭, XP, D-day, 최근 돌봄) | OWNER | DT_HOME |
 | GET | /gardens/{gardenId}/growth | 성장 시뮬레이션 상세 (AI 핵심 2) | OWNER | DT_HOME, DT_HARVEST |
 | POST | /gardens/{gardenId}/cheers | 오늘의 응원 (스트릭, XP) | OWNER | DT_HOME |
 | POST | /care-logs/{careLogId}/hearts | 감사 하트 보내기 | OWNER | DT_HOME, DT_DIARY |
-| GET | /gardens/{gardenId}/diary | 성장 일기 (ALL, PHOTO, STAGE 필터) | OWNER | DT_DIARY |
+| GET | /gardens/{gardenId}/diary | 성장 일기 (필터, 원문과 정리문, dry_ 커서) | OWNER | DT_DIARY |
 | GET | /gardens/{gardenId}/events | 미확인 진화 이벤트 | OWNER | DT_HOME, DT_EVOLVE |
 | POST | /events/{eventId}/ack | 진화 이벤트 확인과 보상 지급 | OWNER | DT_EVOLVE |
 | GET | /leagues/current | 이웃 텃밭 주간 리그 | OWNER | DT_LEAGUE, DT_MY |
@@ -123,20 +127,22 @@
 
 | Method | Endpoint | 기능 | 권한 | 화면 |
 | --- | --- | --- | --- | --- |
-| GET | /gardens/{gardenId}/harvest | 수확 안내 (AI 예측 수확일, 함께 돌본 일수) | OWNER | DT_HARVEST |
+| GET | /gardens/{gardenId}/harvest | 수확 안내 (현재 단계, AI 예측 수확일, 함께 돌본 일수) | OWNER | DT_HARVEST |
 | GET | /gardens/{gardenId}/visit-slots | 방문 가능 시간 | OWNER | DT_HARVEST |
 | POST | /visits | 주말 방문 예약 (관리사 알림) | OWNER | DT_HARVEST |
 | DELETE | /visits/{visitId} | 방문 예약 취소 (하루 전까지) | OWNER | DT_HARVEST |
 | GET | /gardens/{gardenId}/outings | 처인 나들이 추천 (체험농장, 식당) | OWNER | DT_HARVEST |
 
-### 4.5 Task (6)
+### 4.5 Task (8)
 
 | Method | Endpoint | 기능 | 권한 | 화면 |
 | --- | --- | --- | --- | --- |
 | GET | /caretaker/tasks/today | 오늘 할 일 카드 (AI 생성) | CARETAKER | DT_CARE_TODAY |
 | POST | /caretaker/tasks/{taskId}/photos | 작업 인증 사진 (AI 사진 확인) | CARETAKER | DT_CARE_PHOTO |
 | POST | /caretaker/tasks/{taskId}/voice-memos | 말로 남기기 (STT, LLM 정리) | CARETAKER | DT_CARE_TODAY, DT_CARE_VOICE |
+| GET | /caretaker/tasks/{taskId}/voice-memos/latest | 마지막 저장 음성 메모와 처리 상태 복구 조회 | CARETAKER | DT_CARE_VOICE |
 | POST | /caretaker/voice-memos/{voiceMemoId}/confirm | 음성 메모 확정 (맞아요, 보낼게요) | CARETAKER | DT_CARE_VOICE |
+| POST | /caretaker/voice-memos/{voiceMemoId}/retry | 실패한 음성 인식 또는 문장 정리 재시도 | CARETAKER | DT_CARE_VOICE |
 | POST | /caretaker/tasks/{taskId}/complete | 작업 완료 (돌봄 기록 생성, 가족 알림) | CARETAKER | DT_CARE_TODAY, DT_CARE_PHOTO, DT_CARE_DONE |
 | POST | /gardens/{gardenId}/stage-checks | 성장 단계 확인 (시뮬레이션 보정) | CARETAKER | DT_CARE_DONE |
 
@@ -153,18 +159,19 @@
 | --- | --- | --- | --- |
 | POST | /internal/weather/sync | 1시간마다 | 기상청 단기예보, 실황 수집 |
 | POST | /internal/ai/daily-tasks | 매일 05:00 | AI 오늘의 작업 생성과 규칙 검증 (AI 핵심 1) |
-| POST | /internal/ai/growth-simulation | 매일 06:00 | 적산온도 누적, 단계와 수확일 갱신 (AI 핵심 2) |
+| POST | /internal/ai/growth-simulation | 매일 04:00 (작업 생성보다 먼저 돌도록 명세의 06:00에서 변경) | 적산온도 누적, 단계와 수확일 갱신 (AI 핵심 2) |
 | POST | /internal/streaks/check | 매일 00:05 | 스트릭 끊김 처리, 캐릭터 SAD |
 | POST | /internal/leagues/settle | 매주 월 00:10 | 리그 정산, 새 리그와 퀘스트 생성 |
 | POST | /internal/farms/sync | 매주 월 03:00 | 공공데이터포털 주말농장 동기화 |
 
-### 4.8 시연 (4, DEMO)
+### 4.8 시연 (5, DEMO)
 
 | Method | Endpoint | 기능 | 화면 |
 | --- | --- | --- | --- |
 | GET | /demo/state | 데모 상태 (날씨, 꽃 3/4, 빨리 감기 18일) | DT_DEMO |
 | PUT | /demo/weather | 날씨 바꾸기, 작업 즉시 재생성 | DT_DEMO, DT_HOME, DT_CARE_TODAY |
 | POST | /demo/fast-forward | 시간 빨리 감기, 열매 진화 이벤트 발생 | DT_DEMO, DT_EVOLVE, DT_HARVEST |
+| PUT | /demo/stage | 성장 단계 선택 (씨앗부터 열매까지 단계별 시연) | DT_DEMO, DT_HOME, DT_EVOLVE |
 | POST | /demo/reset | 맑음, 꽃 단계, 할 일 3곳으로 초기화 | DT_DEMO |
 
 ## 5. 핵심 로직
@@ -211,20 +218,22 @@
 | 5 | 18일 빨리 감기, 열매 진화와 수확 예약 | POST /demo/fast-forward, GET .../events, POST /visits |
 | 6 | 리허설 반복 | POST /demo/reset |
 
-## 7. 현재 구현과 차이 (2026-11-11 기준)
+## 7. 현재 구현과 차이 (2026-11-12 기준)
 
 명세를 기준으로 맞춰 나간다. 현재 코드 상태는 [architecture.md](architecture.md)를 본다.
 
 4.1 User의 8개, 4.4 Harvest의 5개, 4.6 Notification의 2개 API와 4.8 시연의 3개(state, weather, reset)를 구현했다. 경로 접두어는 명세를 따라 `/api/v1` 없이 쓰기로 정했다.
 
+4장의 API는 모두 구현되어 있다 (2026-11-13). 아래 표는 명세와 다르게 동작하는 부분만 남긴 것이다.
+
 | 항목 | 명세 | 현재 구현 |
 | --- | --- | --- |
 | ID 형식 | `usr_minji`처럼 읽기 쉬운 예시 ID | `usr_12`처럼 접두어에 숫자 PK를 붙인 문자열. 클라이언트는 ID를 불투명한 문자열로 다룬다 |
-| `/users/me`의 `owner`, `caretaker` | 프로필 요약 | 프로필 도메인 구현 전까지 `null` |
-| `nextStep`의 `OWNER_HOME`, `CARE_TODAY` | 프로필 등록 후 반환 | 프로필 도메인 구현 전까지 `PROFILE_OWNER`, `PROFILE_CARE`까지만 반환 |
-| 4.4 Harvest | 텃밭 기준으로 동작 | 텃밭 도메인 구현 전까지 `/gardens/{gardenId}/harvest`, `visit-slots`, `outings`, `POST /visits`는 `C404` |
+| `/users/me`의 `owner`, `caretaker` | 프로필 요약 | 프로필을 등록하기 전에는 `null` |
+| AI 아바타 | 이미지 생성 결과 | 서버에 `GEMINI_IMAGE_MODEL`이 없거나 생성에 실패하면 `FAILED`와 기본 아바타를 준다 |
+| 실제 농장의 칸 | 칸 번호로 분양 | 공공데이터에 칸이 없어 운영자가 내부 API로 칸을 넣은 농장만 분양받을 수 있다. 시연 농장은 칸이 시드로 들어간다 |
 | 방문 슬롯 ID | `slot_1128_10` | `slot_20261128_10` (연도 포함) |
 | 나들이 추천 | 체험농장, 식당 | 공공데이터에서 고른 처인구의 실제 장소 7곳을 시드로 넣는다 ([public-data.md](public-data.md)) |
 | 푸시 | 알림과 함께 기기 푸시 발송 | 프론트가 웹이라 기기 푸시는 없다. 알림은 저장만 하고 화면이 `GET /notifications`를 다시 조회해 확인한다. `POST /users/me/push-tokens`는 삭제했다 |
-| 4.8 시연 | 날씨, 작업 재생성, 빨리 감기, 초기화 | 날씨 덮어쓰기와 초기화(날씨만) 동작. `POST /demo/fast-forward` 없음 |
-| 그 외 API | 35개 (4.2, 4.3, 4.5, `/internal/weather/sync`를 뺀 4.7, `/demo/fast-forward`) | 미구현 (경로별 권한만 매핑됨) |
+| 4.8 시연 | 날씨, 작업 재생성, 빨리 감기, 초기화 | 날씨 연동, 누적 가상 일수, 18일 열매 진화, 기록을 보존하는 작업 회차 초기화 구현. 세 시연 텃밭 시드 지원 |
+| 후속 구현 상태 | 주인 프로필, 홈, 일기, 진화 이벤트, 게임, 관리사 작업 및 음성 | 구현되어 있으며 최신 세부 범위와 운영 조건은 architecture.md 상단 및 ai-completion.md 참고 |

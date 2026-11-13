@@ -42,6 +42,7 @@ import java.util.Set;
  * 3. 커서는 날짜다. 하루를 페이지 사이에서 나누지 않으므로, 그 날을 다 담았을 때 limit을 넘으면 거기서 끊는다
  *    (그래서 한 페이지가 limit보다 조금 많을 수 있다). nextCursor는 이번 페이지에 담은 마지막 날짜다.
  */
+@org.springframework.context.annotation.Profile("!local-demo")
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -114,6 +115,7 @@ public class DiaryService {
                         .careLogId(IdPrefix.CARE_LOG.format(careLog.careLogId()))
                         .taskTypes(careLog.taskTypes())
                         .summary(careLog.summary())
+                        .transcript(careLog.transcript())
                         .photoUrl(careLog.photoUrl())
                         .caretakerName(caretakerNames.computeIfAbsent(careLog.caretakerUsername(),
                                 caretakerUsername -> resolveCaretakerName(garden, caretakerUsername)))

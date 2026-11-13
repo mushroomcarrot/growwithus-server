@@ -14,7 +14,7 @@ import lombok.NoArgsConstructor;
 public class DemoStateResponseDto {
     // 시연 날씨. 덮어쓴 적이 없으면 null (실제 날씨를 쓰는 중)
     private WeatherCondition weather;
-    // 아래 값은 텃밭, 성장 시뮬레이션, 작업 도메인이 붙기 전까지 null
+    // 시연 텃밭이 없으면 단계와 작업 수는 null
     private String stage;
     private String stageProgress;
     private Integer fastForwardDays;

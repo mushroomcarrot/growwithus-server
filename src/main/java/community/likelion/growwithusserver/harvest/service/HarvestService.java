@@ -24,12 +24,14 @@ public class HarvestService {
 
     private final HarvestGardenService harvestGardenService;
     private final OutingRepository outingRepository;
+    private final community.likelion.growwithusserver.growth.service.GrowthStatusService growth;
 
     @Transactional(readOnly = true)
     public GlobalResponse<HarvestResponseDto> getHarvest(String username, String gardenId) {
         HarvestGarden garden = harvestGardenService.getOwnedGarden(username, gardenId);
         LocalDate today = LocalDate.now();
-        LocalDate expectedDate = garden.getExpectedHarvestDate();
+        var storedForecast = growth.forecast(garden.getGardenId());
+        LocalDate expectedDate = storedForecast.isPresent() ? storedForecast.get().expectedHarvestDate() : garden.getExpectedHarvestDate();
 
         Integer dDay = expectedDate == null
                 ? null
@@ -39,13 +41,14 @@ public class HarvestService {
                 : (int) Math.max(0, ChronoUnit.DAYS.between(garden.getStartedOn(), today) + 1);
 
         return GlobalResponse.ok(HarvestResponseDto.builder()
+                .stage(garden.getStage())
                 .expectedDate(expectedDate)
                 .dDay(dDay)
                 .harvestable(garden.isHarvestable())
                 .daysCaredTogether(daysCaredTogether)
                 .careLogCount(garden.getCareLogCount())
                 .caretakerName(garden.getCaretakerName())
-                .message(createMessage(garden))
+                .message(createMessage(garden, expectedDate))
                 .build());
     }
 
@@ -66,17 +69,16 @@ public class HarvestService {
         return GlobalResponse.ok(outings);
     }
 
-    private String createMessage(HarvestGarden garden) {
+    private String createMessage(HarvestGarden garden, LocalDate expectedDate) {
         String name = garden.getCharacterName() == null ? "작물" : garden.getCharacterName();
 
         if (garden.isHarvestable()) {
             return KoreanParticle.subject(name) + " 다 자랐어요. 주말에 만나러 오세요";
         }
-        if (garden.getExpectedHarvestDate() == null) {
+        if (expectedDate == null) {
             return KoreanParticle.subject(name) + " 자라는 중이에요. 수확일을 곧 알려드릴게요";
         }
 
-        LocalDate expectedDate = garden.getExpectedHarvestDate();
         return expectedDate.getMonthValue() + "월 " + expectedDate.getDayOfMonth() + "일쯤 " + KoreanParticle.object(name) + " 만나러 오세요";
     }
 

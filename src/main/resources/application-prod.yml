@@ -10,7 +10,8 @@ spring:
       password: ${REDIS_PASSWORD}
   jpa:
     hibernate:
-      ddl-auto: validate
+      # 새 DB에 처음 띄울 때만 JPA_DDL_AUTO=update로 테이블을 만들고, 그 뒤에는 validate로 되돌린다
+      ddl-auto: ${JPA_DDL_AUTO:validate}
     properties:
       hibernate:
         format_sql: false

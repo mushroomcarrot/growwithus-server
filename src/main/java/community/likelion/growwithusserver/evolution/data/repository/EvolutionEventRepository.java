@@ -11,6 +11,9 @@ import java.util.List;
 import java.util.Optional;
 
 public interface EvolutionEventRepository extends JpaRepository<EvolutionEvent, Long> {
+    @Query("select e.garden.id from EvolutionEvent e where e.id = :id")
+    Optional<Long> findGardenIdById(Long id);
+
     List<EvolutionEvent> findAllByGardenIdAndAckedFalseOrderByIdAsc(Long gardenId);
 
     boolean existsByGardenIdAndAckedFalse(Long gardenId);

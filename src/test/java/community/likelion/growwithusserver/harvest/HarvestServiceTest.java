@@ -34,7 +34,11 @@ class HarvestServiceTest {
 
     @BeforeEach
     void setUp() {
-        harvestService = new HarvestService(new HarvestGardenService(harvestGardenReader), outingRepository);
+        var growth = new community.likelion.growwithusserver.growth.service.GrowthStatusService(
+                community.likelion.growwithusserver.support.FakeRepository.of(
+                        community.likelion.growwithusserver.growth.data.repository.GrowthStateRepository.class,
+                        (method, args) -> Optional.empty()));
+        harvestService = new HarvestService(new HarvestGardenService(harvestGardenReader), outingRepository, growth);
         garden = HarvestGarden.builder()
                 .gardenId(3L)
                 .ownerUsername("minji")
@@ -116,4 +120,12 @@ class HarvestServiceTest {
         assertThat(outings).extracting(OutingResponseDto::getName).containsExactly("첫째", "둘째");
         assertThat(outings).allMatch(outing -> outing.getDistanceKm() == null);
     }
+
+    @Test void 수확_안내는_수확_확인과_별개로_현재_단계를_준다() {
+        garden.setStage(community.likelion.growwithusserver.farm.data.enums.GrowthStage.FRUIT);
+        var response = harvestService.getHarvest("minji", "gdn_3").getData();
+        assertThat(response.getStage()).isEqualTo(garden.getStage());
+        assertThat(response.isHarvestable()).isFalse();
+    }
+
 }

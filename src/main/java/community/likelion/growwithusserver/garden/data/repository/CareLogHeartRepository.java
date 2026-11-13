@@ -9,6 +9,7 @@ import java.util.Collection;
 import java.util.List;
 
 public interface CareLogHeartRepository extends JpaRepository<CareLogHeart, Long> {
+    long countByUserUsername(String username);
     boolean existsByCareLogId(Long careLogId);
 
     // 주어진 돌봄 기록 중 하트를 받은 것의 PK

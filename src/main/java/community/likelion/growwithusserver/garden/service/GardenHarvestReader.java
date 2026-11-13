@@ -25,6 +25,7 @@ public class GardenHarvestReader implements HarvestGardenReader {
     private final OwnerProfileRepository ownerProfileRepository;
     private final FarmCaretakerReader farmCaretakerReader;
     private final GardenCareLogReader gardenCareLogReader;
+    private final community.likelion.growwithusserver.growth.service.GrowthStatusService growth;
 
     @Override
     @Transactional(readOnly = true)
@@ -38,7 +39,9 @@ public class GardenHarvestReader implements HarvestGardenReader {
 
         return HarvestGarden.builder()
                 .gardenId(garden.getId())
+                .stage(garden.getStage())
                 .ownerUsername(garden.getOwner().getUsername())
+                .familySize(ownerProfileRepository.findByUserId(garden.getOwner().getId()).map(OwnerProfile::getFamilySize).orElse(1))
                 .ownerNickname(ownerProfileRepository.findByUserId(garden.getOwner().getId())
                         .map(OwnerProfile::getNickname)
                         .orElse(garden.getOwner().getName()))
@@ -52,7 +55,7 @@ public class GardenHarvestReader implements HarvestGardenReader {
                         .orElse(caretaker.getName()))
                 .startedOn(garden.getStartedOn())
                 .expectedHarvestDate(garden.getExpectedHarvestDate())
-                .harvestable(garden.getStage() == GrowthStage.FRUIT)
+                .harvestable(growth.harvestable(garden.getId(), garden.getStage() == GrowthStage.FRUIT))
                 .careLogCount(gardenCareLogReader.countByGarden(garden.getId()))
                 .build();
     }

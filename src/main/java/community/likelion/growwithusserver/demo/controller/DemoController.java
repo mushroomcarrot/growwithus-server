@@ -1,5 +1,10 @@
 package community.likelion.growwithusserver.demo.controller;
 
+import community.likelion.growwithusserver.demo.service.DemoResetService;
+import community.likelion.growwithusserver.demo.service.DemoSimulationService;
+import community.likelion.growwithusserver.demo.data.dto.DemoFastForwardRequestDto;
+import community.likelion.growwithusserver.demo.data.dto.DemoFastForwardResponseDto;
+
 import community.likelion.growwithusserver.common.response.GlobalResponse;
 import community.likelion.growwithusserver.demo.data.dto.DemoStateResponseDto;
 import community.likelion.growwithusserver.demo.data.dto.DemoWeatherRequestDto;
@@ -21,6 +26,23 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class DemoController {
     private final DemoService demoService;
+    private final DemoResetService resetService;
+    private final DemoSimulationService simulation;
+
+    @PutMapping("/stage")
+    @Operation(summary = "시연 성장 단계 선택")
+    public GlobalResponse<DemoFastForwardResponseDto> setStage(
+            @Valid @RequestBody community.likelion.growwithusserver.demo.data.dto.DemoStageRequestDto request) {
+        return GlobalResponse.ok(simulation.setStage(request.getStage()));
+    }
+
+    @PostMapping("/fast-forward")
+    @Operation(summary = "시연 시간 빨리 감기")
+    public GlobalResponse<DemoFastForwardResponseDto> fastForward(
+            @Valid @RequestBody DemoFastForwardRequestDto request) {
+        return GlobalResponse.ok(simulation.advance(request.getDays()));
+    }
+
 
     @GetMapping("/state")
     @Operation(summary = "데모 상태")
@@ -35,8 +57,8 @@ public class DemoController {
     }
 
     @PostMapping("/reset")
-    @Operation(summary = "맑음 상태로 초기화")
+    @Operation(summary = "시연 성장과 맑음 상태로 초기화")
     public GlobalResponse<DemoStateResponseDto> reset() {
-        return demoService.reset();
+        return resetService.reset();
     }
 }

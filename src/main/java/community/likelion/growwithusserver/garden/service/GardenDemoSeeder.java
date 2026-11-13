@@ -89,9 +89,22 @@ public class GardenDemoSeeder implements ApplicationRunner {
         }
 
         User owner = seedUser(OWNER_USERNAME, "김민지", UserRole.OWNER);
-        if (owner.getRole() != UserRole.OWNER || plot.isAssigned() || ownerProfileRepository.existsByUserId(owner.getId())) {
-            return;
+        if (owner.getRole() == UserRole.OWNER && !plot.isAssigned() && !ownerProfileRepository.existsByUserId(owner.getId())) {
+            seedGarden(owner, plot);
         }
+        seedAdditionalGarden(plot.getFarm(), caretaker, "B-13", "demo_owner_b13", "시연 가족 13");
+        seedAdditionalGarden(plot.getFarm(), caretaker, "B-15", "demo_owner_b15", "시연 가족 15");
+    }
+
+    private void seedAdditionalGarden(Farm farm, User caretaker, String code, String username, String name) {
+        var found = plotRepository.findPlot(farm.getId(), code);
+        if (found.isEmpty() || found.get().isAssigned() || caretaker.getRole() != UserRole.CARETAKER) return;
+        Plot plot = found.get();
+        // 이미 다른 관리사가 배정된 칸은 시연에 편입하지 않는다.
+        if (plot.getCaretaker() != null && !CARETAKER_USERNAME.equals(plot.getCaretaker().getUsername())) return;
+        User owner = seedUser(username, name, UserRole.OWNER);
+        if (owner.getRole() != UserRole.OWNER || ownerProfileRepository.existsByUserId(owner.getId())) return;
+        plot.setCaretaker(caretaker);
         seedGarden(owner, plot);
     }
 
@@ -115,7 +128,7 @@ public class GardenDemoSeeder implements ApplicationRunner {
 
         ownerProfileRepository.save(OwnerProfile.builder()
                 .user(owner)
-                .nickname("민지네")
+                .nickname(OWNER_USERNAME.equals(owner.getUsername()) ? "민지네" : owner.getName())
                 .district(District.SUJI)
                 .createdAt(now)
                 .updatedAt(now)

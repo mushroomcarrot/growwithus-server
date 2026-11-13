@@ -15,7 +15,11 @@ import java.util.List;
  * @param createdAt         작업을 끝낸 시각
  */
 public record GardenCareLog(Long careLogId, Long gardenId, String caretakerUsername, List<String> taskTypes,
-                            String summary, String photoUrl, LocalDateTime createdAt) {
+                            String summary, String photoUrl, LocalDateTime createdAt, String transcript) {
+    public GardenCareLog(Long careLogId, Long gardenId, String caretakerUsername, List<String> taskTypes,
+                         String summary, String photoUrl, LocalDateTime createdAt) {
+        this(careLogId, gardenId, caretakerUsername, taskTypes, summary, photoUrl, createdAt, null);
+    }
     public GardenCareLog {
         taskTypes = taskTypes == null ? List.of() : List.copyOf(taskTypes);
     }

@@ -1,0 +1,9 @@
+CREATE TABLE IF NOT EXISTS crop_guidance_settings (
+    crop_id BIGINT PRIMARY KEY,
+    rules_json TEXT NOT NULL,
+    updated_at DATETIME(6) NOT NULL
+);
+
+ALTER TABLE daily_weather ADD COLUMN IF NOT EXISTS observed BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE daily_weather ADD COLUMN IF NOT EXISTS source_url VARCHAR(512) NULL;
+ALTER TABLE owner_profile ADD COLUMN IF NOT EXISTS family_size INTEGER NOT NULL DEFAULT 1;

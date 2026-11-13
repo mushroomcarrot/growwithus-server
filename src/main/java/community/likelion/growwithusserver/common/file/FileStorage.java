@@ -13,4 +13,12 @@ public interface FileStorage {
      * @return 클라이언트가 접근할 수 있는 URL
      */
     String store(String directory, String filename, InputStream content, long size, String contentType);
+
+    default byte[] readAudio(String storedUrl) {
+        throw new community.likelion.growwithusserver.common.file.exception.FileUploadFailedException();
+    }
+
+    default void deleteAudio(String storedUrl) {
+        throw new community.likelion.growwithusserver.common.file.exception.FileUploadFailedException();
+    }
 }
