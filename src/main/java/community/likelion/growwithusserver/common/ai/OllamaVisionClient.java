@@ -22,7 +22,7 @@ public final class OllamaVisionClient implements VisionClient {
         if (image == null || image.length == 0 || image.length > 10 * 1024 * 1024
                 || description == null || description.isBlank() || description.length() > 2000) return Optional.empty();
         try {
-            byte[] preview = preview(image);
+            byte[] preview = ImagePreview.jpeg(image);
             if (preview == null) return Optional.empty();
             JsonNode response = client.post().uri("/api/chat").contentType(MediaType.APPLICATION_JSON)
                     .body(Map.of("model", model, "stream", false, "format", "json",
@@ -43,32 +43,4 @@ public final class OllamaVisionClient implements VisionClient {
         }
     }
 
-    // 원본 인증 사진은 유지하고 모델에는 크기를 제한한 미리보기만 보낸다.
-    private byte[] preview(byte[] image) throws java.io.IOException {
-        try (var input = javax.imageio.ImageIO.createImageInputStream(new java.io.ByteArrayInputStream(image))) {
-            var readers = javax.imageio.ImageIO.getImageReaders(input);
-            if (!readers.hasNext()) return null;
-            var reader = readers.next();
-            try {
-                String format = reader.getFormatName().toLowerCase(Locale.ROOT);
-                if (!Set.of("jpeg", "jpg", "png").contains(format)) return null;
-                reader.setInput(input, true, true);
-                int width = reader.getWidth(0), height = reader.getHeight(0);
-                if (width < 1 || height < 1 || width > 20000 || height > 20000
-                        || (long) width * height > 50000000) return null;
-                var parameters = reader.getDefaultReadParam();
-                int scale = Math.max(1, (Math.max(width, height) + 767) / 768);
-                parameters.setSourceSubsampling(scale, scale, 0, 0);
-                var decoded = reader.read(0, parameters);
-                var rgb = new java.awt.image.BufferedImage(decoded.getWidth(), decoded.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
-                var graphics = rgb.createGraphics();
-                try {
-                    graphics.setColor(java.awt.Color.WHITE); graphics.fillRect(0, 0, rgb.getWidth(), rgb.getHeight());
-                    graphics.drawImage(decoded, 0, 0, null);
-                } finally { graphics.dispose(); }
-                var output = new java.io.ByteArrayOutputStream();
-                return javax.imageio.ImageIO.write(rgb, "jpeg", output) ? output.toByteArray() : null;
-            } finally { reader.dispose(); }
-        }
-    }
 }

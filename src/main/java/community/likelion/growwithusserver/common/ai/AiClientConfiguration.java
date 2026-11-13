@@ -14,6 +14,7 @@ import org.springframework.context.annotation.Configuration;
 public class AiClientConfiguration {
 
     @Bean
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "ai.gemini.enabled", havingValue = "false", matchIfMissing = true)
     @ConditionalOnMissingBean(VisionClient.class)
     public VisionClient visionClient(org.springframework.web.client.RestClient externalRestClient,
                                      LocalLlmProperties properties, tools.jackson.databind.ObjectMapper mapper) {
@@ -22,6 +23,7 @@ public class AiClientConfiguration {
     }
 
     @Bean
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "ai.gemini.enabled", havingValue = "false", matchIfMissing = true)
     @ConditionalOnMissingBean(LlmClient.class)
     public LlmClient unconfiguredLlmClient(org.springframework.web.client.RestClient externalRestClient,
                                           LocalLlmProperties localProperties) {
@@ -35,6 +37,7 @@ public class AiClientConfiguration {
     }
 
     @Bean
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "ai.gemini.enabled", havingValue = "false", matchIfMissing = true)
     @ConditionalOnMissingBean(SttClient.class)
     public SttClient unconfiguredSttClient(org.springframework.web.client.RestClient externalRestClient,
                                           LocalSttProperties localSttProperties) {
@@ -48,6 +51,7 @@ public class AiClientConfiguration {
     }
 
     @Bean
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "ai.gemini.enabled", havingValue = "false", matchIfMissing = true)
     @ConditionalOnMissingBean(TtsClient.class)
     public TtsClient unconfiguredTtsClient(org.springframework.web.client.RestClient externalRestClient,
                                          LocalTtsProperties properties) {

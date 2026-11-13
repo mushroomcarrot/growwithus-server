@@ -76,3 +76,8 @@ Java 21, Spring Boot 4.1, Gradle, MariaDB, Redis, JWT (jjwt 0.12.x), Swagger
 4. 목록은 번호 목록을 우선 사용한다.
 5. 문단은 내용이 바뀌는 지점에서 명확하게 나누고 문단 사이에 빈 줄을 넣는다.
 6. 출력 전에 금지한 기호가 있는지 확인하고, 있으면 고친다. 이 규칙을 지켰다는 설명은 덧붙이지 않는다.
+
+
+## 2 GB 서버 AI
+
+- [docs/cloud-ai.md](docs/cloud-ai.md): Gemini API 연결, 비공개 키 설정과 실제 검증 범위.
