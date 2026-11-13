@@ -1,5 +1,6 @@
 package community.likelion.growwithusserver.garden;
 
+import community.likelion.growwithusserver.evolution.data.repository.EvolutionEventRepository;
 import community.likelion.growwithusserver.farm.caretaker.FarmCaretakerReader;
 import community.likelion.growwithusserver.farm.data.repository.CropRepository;
 import community.likelion.growwithusserver.farm.data.repository.FarmRepository;
@@ -67,6 +68,8 @@ class GardenHomeServiceTest {
     private PlotRepository plotRepository;
     @Mock
     private CropRepository cropRepository;
+    @Mock
+    private EvolutionEventRepository evolutionEventRepository;
 
     private GardenHomeService gardenHomeService;
     private Garden garden;
@@ -75,7 +78,7 @@ class GardenHomeServiceTest {
     void setUp() {
         gardenHomeService = new GardenHomeService(new GardenService(gardenRepository), new XpService(xpHistoryRepository),
                 weatherService, new FarmService(farmRepository, plotRepository, cropRepository, farmCaretakerReader),
-                gardenCareLogReader, careLogHeartRepository);
+                gardenCareLogReader, careLogHeartRepository, evolutionEventRepository);
         garden = GardenFixtures.garden();
 
         lenient().when(gardenRepository.findDetail(3L)).thenReturn(Optional.of(garden));
@@ -112,6 +115,14 @@ class GardenHomeServiceTest {
         assertThat(home.getHarvest().getDDay()).isEqualTo(18);
         assertThat(home.getCaretaker().getName()).isEqualTo("박순자");
         assertThat(home.getRecentCareLog()).isNull();
+        assertThat(home.isHasUnreadEvent()).isFalse();
+    }
+
+    @Test
+    void 확인하지_않은_진화_이벤트가_있으면_알려준다() {
+        when(evolutionEventRepository.existsByGardenIdAndAckedFalse(3L)).thenReturn(true);
+
+        assertThat(gardenHomeService.getHome("minji", "gdn_3").getData().isHasUnreadEvent()).isTrue();
     }
 
     @Test

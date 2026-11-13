@@ -3,6 +3,7 @@ package community.likelion.growwithusserver.garden.service;
 import community.likelion.growwithusserver.common.id.IdPrefix;
 import community.likelion.growwithusserver.common.response.GlobalResponse;
 import community.likelion.growwithusserver.common.time.DateTimes;
+import community.likelion.growwithusserver.evolution.data.repository.EvolutionEventRepository;
 import community.likelion.growwithusserver.farm.data.entity.Farm;
 import community.likelion.growwithusserver.farm.service.FarmService;
 import community.likelion.growwithusserver.garden.care.GardenCareLog;
@@ -37,6 +38,7 @@ public class GardenHomeService {
     private final FarmService farmService;
     private final GardenCareLogReader gardenCareLogReader;
     private final CareLogHeartRepository careLogHeartRepository;
+    private final EvolutionEventRepository evolutionEventRepository;
 
     // 홈 화면을 한 번에 조회한다. 텃밭과 그 연관은 조회 한 번(fetch join)으로 가져온다
     @Transactional(readOnly = true)
@@ -64,7 +66,7 @@ public class GardenHomeService {
                 .harvest(toHarvest(garden.getExpectedHarvestDate(), today))
                 .caretaker(farmService.toCaretakerSummary(garden.getCaretaker()))
                 .recentCareLog(gardenCareLogReader.findLatest(garden.getId()).map(this::toRecentCareLog).orElse(null))
-                .hasUnreadEvent(false)
+                .hasUnreadEvent(evolutionEventRepository.existsByGardenIdAndAckedFalse(garden.getId()))
                 .build());
     }
 

@@ -1,5 +1,8 @@
 package community.likelion.growwithusserver.garden.service;
 
+import community.likelion.growwithusserver.evolution.data.entity.EvolutionEvent;
+import community.likelion.growwithusserver.evolution.data.repository.EvolutionEventRepository;
+import community.likelion.growwithusserver.evolution.service.EvolutionEventService;
 import community.likelion.growwithusserver.farm.data.entity.Farm;
 import community.likelion.growwithusserver.farm.data.entity.Plot;
 import community.likelion.growwithusserver.farm.data.enums.District;
@@ -51,6 +54,7 @@ public class GardenDemoSeeder implements ApplicationRunner {
     private final PlotRepository plotRepository;
     private final OwnerProfileRepository ownerProfileRepository;
     private final GardenRepository gardenRepository;
+    private final EvolutionEventRepository evolutionEventRepository;
 
     @Value("${demo.enabled:false}")
     private boolean demoEnabled;
@@ -132,6 +136,23 @@ public class GardenDemoSeeder implements ApplicationRunner {
                 .createdAt(now)
                 .build());
         owner.setProfileRegistered(true);
+
+        // 지나온 단계 변화. 이미 확인한 것으로 넣어 일기에만 보이게 한다
+        seedAckedEvent(garden, GrowthStage.SEED, GrowthStage.SPROUT, now.minusDays(45));
+        seedAckedEvent(garden, GrowthStage.SPROUT, GrowthStage.FLOWER, now.minusDays(5));
         log.info("[seedGarden] 시연 텃밭 생성: {}", garden.getId());
+    }
+
+    private void seedAckedEvent(Garden garden, GrowthStage fromStage, GrowthStage toStage, LocalDateTime occurredAt) {
+        evolutionEventRepository.save(EvolutionEvent.builder()
+                .garden(garden)
+                .fromStage(fromStage)
+                .toStage(toStage)
+                .occurredAt(occurredAt)
+                .rewardXp(EvolutionEventService.rewardXp(toStage))
+                .rewardBadgeCode(EvolutionEventService.rewardBadge(toStage).map(Enum::name).orElse(null))
+                .acked(true)
+                .ackedAt(occurredAt)
+                .build());
     }
 }
