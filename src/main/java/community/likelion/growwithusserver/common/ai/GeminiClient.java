@@ -32,10 +32,14 @@ public final class GeminiClient implements LlmClient, SttClient, VisionClient {
     @Override public String transcribe(byte[] audio, String filename) {
         byte[] wave = normalize.apply(audio);
         String reply = generate("""
+                이 음성은 텃밭 관리사가 작물과 돌봄 작업을 기록한 녹음입니다.
+                식물의 잎, 흙, 줄기, 열매 등 농작업 맥락에서 동음이의어를 해석하세요.
+                이 맥락은 전사 힌트이며, 예시 단어를 실제 발화에 추가해서는 안 됩니다.
                 녹음의 실제 한국어 발화만 받아 적으세요. 작업이나 관찰을 추측해 추가하지 마세요.
                 발화가 없으면 transcript를 빈 문자열로 반환하세요.
                 JSON {"transcript":"실제 발화"}만 반환하세요.
-                """, List.of(Map.of("inlineData", Map.of("mimeType", "audio/wav", "data", Base64.getEncoder().encodeToString(wave)))));
+                """, List.of(Map.of("text", "첨부한 텃밭 작업 녹음의 실제 발화를 빠짐없이 전사하세요."),
+                Map.of("inlineData", Map.of("mimeType", "audio/wav", "data", Base64.getEncoder().encodeToString(wave)))));
         try {
             var root = mapper.readTree(reply);
             if (root == null) throw new AiClientException();

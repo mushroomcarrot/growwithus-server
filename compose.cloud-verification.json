@@ -1,0 +1,62 @@
+{
+  "name": "growwithus-cloud-tests",
+  "services": {
+    "ai-evaluation": {
+      "build": {
+        "context": ".",
+        "target": "build"
+      },
+      "environment": {
+        "SPRING_PROFILES_ACTIVE": "local,local-demo",
+        "DB_HOST": "db",
+        "DB_NAME": "growwithus_demo",
+        "DB_USERNAME": "growwithus",
+        "DB_PASSWORD": "${LOCAL_DB_PASSWORD}",
+        "REDIS_HOST": "redis",
+        "REDIS_PASSWORD": "${LOCAL_REDIS_PASSWORD}",
+        "JWT_SECRET_KEY": "${LOCAL_JWT_SECRET:?Run the preparation script}",
+        "INTERNAL_SERVICE_KEY": "${LOCAL_SERVICE_KEY:?Run the preparation script}",
+        "LOCAL_DEMO_PASSWORD": "${LOCAL_DEMO_PASSWORD:?Run the preparation script}",
+        "LOCAL_DEMO_STARTED_ON": "${LOCAL_DEMO_STARTED_ON:?Run the preparation script}",
+        "CORS_ALLOWED_ORIGINS": "http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173",
+        "AI_LOCAL_ENABLED": "false",
+        "AI_LOCAL_MODEL": "qwen2.5:3b",
+        "AI_LOCAL_BASE_URL": "http://127.0.0.1:11434",
+        "AI_LOCAL_STT_ENABLED": "false",
+        "AI_LOCAL_STT_BASE_URL": "http://127.0.0.1:8765",
+        "EXTERNAL_HTTP_READ_TIMEOUT": "90s",
+        "FILE_UPLOAD_DIR": "/app/uploads",
+        "FILE_BASE_URL": "http://localhost:8080",
+        "SCHEDULER_ENABLED": "false",
+        "DEMO_ENABLED": "true",
+        "CARE_ALLOWANCE_PER_TASK": "0",
+        "AI_GEMINI_ENABLED": "false",
+        "AI_LOCAL_TTS_ENABLED": "false"
+      },
+      "networks": [
+        "demo"
+      ],
+      "volumes": [
+        "./build/reports:/app/build/reports",
+        "./build/cloud-test-uploads:/app/uploads"
+      ]
+    },
+    "live-ai": {
+      "extends": {
+        "service": "ai-evaluation"
+      },
+      "env_file": [
+        {
+          "path": ".env.cloud-ai",
+          "required": false
+        }
+      ]
+    }
+  },
+  "networks": {
+    "demo": {
+      "external": true,
+      "name": "growwithus-local-demo_default"
+    }
+  }
+}

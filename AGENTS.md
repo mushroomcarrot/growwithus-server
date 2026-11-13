@@ -81,3 +81,5 @@ Java 21, Spring Boot 4.1, Gradle, MariaDB, Redis, JWT (jjwt 0.12.x), Swagger
 ## 2 GB 서버 AI
 
 - [docs/cloud-ai.md](docs/cloud-ai.md): Gemini API 연결, 비공개 키 설정과 실제 검증 범위.
+
+- `verifyCloudAi`와 `scripts/verify-cloud-ai.ps1`은 실제 외부 API를 호출하는 명시적 검증이다. 기본 test에 연결하지 않으며 공개 합성 입력만 사용한다. 결과에서 저장소 대역과 운영 DB, 합성 음성과 사람 음성을 구분한다.

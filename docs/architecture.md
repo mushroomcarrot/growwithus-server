@@ -1740,3 +1740,14 @@ verifyLocalAi Gradle 작업은 설치된 실제 STT와 LLM, TTS 및 비전 모�
 ## 2 CPU, 2 GB 서버 AI
 
 `AI_GEMINI_ENABLED=true`이면 STT, LLM과 사진 판정을 Gemini API로 처리한다. 프론트 API와 실패 복구 흐름은 유지한다. TTS는 앱 이미지의 eSpeak NG와 FFmpeg로 처리하며 Ollama, Whisper와 별도 TTS 작업자를 실행하지 않는다. Cloud Billing을 연결하지 않은 무료 프로젝트의 서버용 키를 사용하며 유료 모델로 자동 전환하지 않는다. 설정, 한도와 데이터 처리는 [cloud-ai.md](cloud-ai.md)를 참고한다. 모의 테스트로 실제 인식 품질이나 운영 부하 검증을 대신하지 않는다.
+
+
+### 클라우드 AI 명시적 검증
+
+`verifyCloudAi` Gradle 작업과 `scripts/verify-cloud-ai.ps1`은 공개 합성 음성과 체크섬이 고정된 공개 사진으로 실제 Gemini를 검사한다. 기본 test와 build에서는 이 외부 호출 작업을 실행하지 않는다. STT 4종, 문장 정리, 성장 설명, 사진과 경량 TTS를 검증하며 메모 확정의 저장소 대역 검사와 운영 DB 검증을 구분한다. 실패는 비정상 종료와 JSON 결과로 남긴다. 자세한 입력과 결과 범위는 [cloud-ai.md](cloud-ai.md)를 따른다.
+
+
+공개 음성 기준은 같은 경로의 synthetic-korean-reference.txt를 사용한다. 검증은 기준 문장에 없는 단어를 필수로 요구하지 않으며 인식 원문을 검사 성공 여부와 무관하게 결과에 기록한다.
+
+
+STT에는 템플릿 정답 문장 대신 텃밭 관리 녹음이라는 도메인 맥락을 제공한다. 잎과 흙 같은 동음이의어 해석을 돕되 실제 발화에 없는 작업이나 상태를 추가하지 않도록 지시한다. 인식 후 단어를 강제 치환하지 않는다. 요약 검사는 정확도 검사를 통과한 형식의 원문을 사용하며 선택한 형식을 결과에 남긴다. 다른 형식의 실패는 그대로 전체 실패로 처리한다.
