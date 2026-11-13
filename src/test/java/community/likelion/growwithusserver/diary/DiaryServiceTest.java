@@ -39,6 +39,16 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class DiaryServiceTest {
+    @Test
+    void preservesTranscriptAlongsideSummary() {
+        when(gardenCareLogReader.findByGarden(eq(3L), any(), any())).thenReturn(List.of(
+                new GardenCareLog(99L, 3L, "soonja", List.of("CHECK"), "summary", "photo", today.atTime(9, 0), "original")));
+        CursorPageRequest page = new CursorPageRequest();
+        var items = diaryService.getDiary("minji", "gdn_3", DiaryFilter.PHOTO, page).getData().getItems();
+        assertThat(items).hasSize(1);
+        assertThat(items.getFirst().getTranscript()).isEqualTo("original");
+        assertThat(items.getFirst().getSummary()).isEqualTo("summary");
+    }
 
     @Mock
     private GardenRepository gardenRepository;

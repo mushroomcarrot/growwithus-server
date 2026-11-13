@@ -1,0 +1,22 @@
+local-demo:
+  started-on: ${LOCAL_DEMO_STARTED_ON}
+  password: ${LOCAL_DEMO_PASSWORD}
+
+demo:
+  enabled: true
+
+scheduler:
+  enabled: false
+
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        show_sql: false
+
+logging:
+  level:
+    community.likelion.growwithusserver: INFO
+    org.hibernate.SQL: WARN

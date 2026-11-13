@@ -25,6 +25,7 @@ public class DiaryItemDto {
     private String careLogId;
     private List<String> taskTypes;
     private String summary;
+    private String transcript;
     private String photoUrl;
     private String caretakerName;
     private Boolean hearted;

@@ -1,0 +1,137 @@
+# 로컬 AI 기능 시연
+
+RUN-AI-EVALUATION.cmd를 실행하면 Java 실제 분석 서비스를 통해 합성 한국어 문장 12개를 로컬 모델로 평가한다. 모델 응답 수신, JSON과 근거 검증, 이상 징후 결과를 함께 검사한다. 보고서는 build/reports/local-ai-evaluation.json이며 modelReplies에는 합성 문장에 대한 원본 모델 응답이 들어간다. DB 기록이나 사용자 녹음은 변경하지 않는다. 빌드 실패 시 새 평가 보고서가 만들어지지 않을 수 있으므로 measuredAt도 확인한다. 모든 사례가 통과하지 않으면 명령은 실패 상태로 끝나며 실제 결과를 확인해 원인을 구분한다.
+
+## 합성 음성으로 STT 확인
+
+STT는 통과하지만 메모가 LLM_FAILED라면 CHECK-LOCAL-LLM.cmd로 앱과 같은 프롬프트의 모델 원본 응답을 검사한다. build/reports/local-llm-diagnostic.json에 공개 합성 문장에 대한 모델 응답 또는 통신 오류를 저장한다. 사용자 녹음과 비밀번호는 사용하지 않으며 기존 작업도 변경하지 않는다. 모델 응답을 받았다는 사실만으로 앱의 JSON, 근거, 정리문 길이 검증까지 통과한 것은 아니다.
+
+`TypeError: open() got an unexpected keyword argument 'metadata_errors'`가 나오면 `FIX-LOCAL-STT.cmd`를 실행한다. STT 이미지의 faster-whisper 1.2.1과 PyAV 18 조합을 설치하고, 빌드 중 WAV 해독을 실제 검사한 뒤 STT 컨테이너만 교체한다. DB, 모델, 업로드 파일은 삭제하지 않는다. 컨테이너 상태 확인 후 합성 음성 진단까지 자동 실행하며 결과 파일 경로는 아래와 같다. 실패한 빌드나 진단을 성공으로 표시하지 않는다.
+
+원인은 [faster-whisper 공식 이슈 #1589](https://github.com/SYSTRAN/faster-whisper/issues/1589)에 보고된 PyAV 19의 인자 삭제다. 라이브러리 내부 코드를 임의 수정하지 않고 requirements.txt에서 호환 범위를 제한한다.
+
+`src/test/resources/ai-evaluation/synthetic-korean.wav`는 Windows 내장 음성으로 생성한 약 5.3초의 한국어 파일이다. 정답 문장과 생성 정보도 같은 폴더에 있다. 사람의 음성 인식 성능 자료로 사용하지 않는다.
+
+실행 중인 로컬 시연 서버의 STT가 실패하면 일반 Windows 환경에서 `CHECK-LOCAL-STT.cmd`를 실행한다. 실행 중인 STT 컨테이너에서 같은 파일로 모델을 직접 검사하고 `build/reports/local-stt-diagnostic.json`을 기록한다. 설정 파일 내용, 비밀번호, 사용자 녹음은 출력하지 않는다. 기존 작업과 녹음은 변경하지 않는다.
+
+모델 직접 검사에 성공한 뒤 아래 명령으로 HTTP 음성 업로드, 확정, 작업 완료와 가족 일기를 검사한다. 실제 시연 작업 하나가 완료되며 인증 사진은 합성 테스트 이미지다.
+
+```powershell
+python scripts/smoke_local_demo.py --audio src/test/resources/ai-evaluation/synthetic-korean.wav --complete
+```
+
+결과는 `build/reports/local-demo-smoke.json`에 기록된다. STT 실패 시 파일을 보존하고 확정이나 작업 완료를 실행하지 않는다.
+
+관리사의 실제 음성 녹음, 로컬 STT와 LLM, 메모 확정, 사진 저장, 작업 완료, 가족 일기를 한 PC에서 확인하는 환경이다. 팀 프론트와 운영 서버 배포를 대신하지 않는다. 유료 API 키를 사용하지 않는다. 모델 학습은 하지 않고 공개된 모델을 로컬에서 추론한다.
+
+## 준비와 실행
+
+Windows에서 설치 준비까지 한 번에 진행하려면 저장소 루트의 `RUN-LOCAL-DEMO.cmd`를 더블클릭한다. 사용자 PC에서 실행하는 설치 도구이며 작성 환경에서는 실제 설치를 실행하지 않았다.
+
+1. 깨끗한 feat/seungyoon-ai 체크아웃과 지정한 origin일 때만 그 브랜치를 업로드한다. 다른 브랜치, 다른 원격, 커밋하지 않은 변경이 있으면 업로드를 건너뛰고 로컬 준비를 계속한다. checkout, merge, rebase와 강제 push는 하지 않는다.
+2. Docker가 없으면 공식 Docker URL에서 설치 파일을 받고 유효한 Docker 전자 서명을 확인한 뒤 사용자별 모드로 설치한다. 설치 과정에서 Docker 이용 약관을 수락하는 --accept-license 옵션을 사용한다. 이미 Docker CLI가 있으면 설치를 건너뛴다.
+3. Docker를 시작하고 준비되면 기존 시작 스크립트로 모델, DB, 서버를 띄운다. Python이 있으면 음성과 완료를 소진하지 않는 기본 smoke 검사를 수행하고 시연 화면을 연다.
+4. WSL 활성화, Windows 승인이나 재부팅이 요구되면 사용자가 직접 처리해야 한다. 이 도구는 Windows를 자동 재시작하지 않고 기존 볼륨과 설정을 삭제하지 않는다. 완료 후 같은 파일을 다시 실행한다.
+5. 서명 검사, 브랜치 제한, 설치 없는 확인 모드는 검사했지만 실제 다운로드, 설치와 서버 부팅은 아직 검증하지 않았다.
+
+설치와 업로드 없이 상태만 확인하려면 다음 명령을 사용한다.
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/setup-local-demo.ps1 -CheckOnly
+```
+
+직접 설치하거나 기존 Docker를 사용하는 경우는 아래 절차를 따른다.
+
+1. [Docker Desktop Windows 설치 안내](https://docs.docker.com/desktop/setup/install/windows-install/)에 따라 설치하고 Linux 컨테이너 엔진을 시작한다. WSL 설정이나 재부팅이 필요하면 먼저 끝낸다. 시스템 여유 메모리와 디스크가 필요하며 CPU 추론 속도는 PC마다 다르다.
+2. 저장소 루트의 PowerShell에서 실행한다. Java와 Python을 호스트에 별도로 설치하지 않아도 컨테이너 내부에서 실행한다.
+
+```powershell
+.\scripts\start-local-demo.ps1
+```
+
+3. 최초 실행은 이미지, Java 의존성, Whisper base, Qwen2.5 3B 모델을 다운로드한다. Qwen 모델 파일만 약 1.9GB다. 다운로드와 빌드 시간을 시연 직전에 잡지 않는다. [Ollama 모델 정보](https://ollama.com/library/qwen2.5:3b), [Whisper base 파일](https://huggingface.co/Systran/faster-whisper-base/tree/main)을 참고한다.
+4. 스크립트가 세 계정 로그인과 시연 프로필 응답을 확인한 뒤 `http://localhost:8080/local-demo`를 연다. `.env.local-demo`의 `LOCAL_DEMO_PASSWORD` 값을 화면에 입력한다. 계정은 관리사 `soonja`, 가족 `minji`, 날씨 제어 `demo_admin`이다. 비밀번호나 토큰을 팀 채팅, 화면 녹화, 커밋에 포함하지 않는다.
+5. 설정 파일은 최초 실행에만 생성한다. 재실행은 비밀번호와 시작일을 보존한다. DB, 업로드 파일, 모델도 Docker 볼륨에 남는다. 시연 직전 설정이나 볼륨을 삭제하지 않는다.
+
+8080 포트를 다른 서버가 사용 중이면 먼저 해당 서버를 종료한다. DB와 모델 서버 포트는 호스트에 공개하지 않으며, 백엔드만 `127.0.0.1:8080`으로 접근한다. 백엔드와 모델은 같은 네트워크 공간을 사용해 기존 loopback 제한을 유지한다. 이 구성은 외부 Vercel 화면의 공개 HTTPS API 주소가 아니다.
+
+## 시연 순서
+
+1. 관리사를 연결하면 가상 B14 텃밭의 오늘 할 일이 실제 DB에 생성된다. 작업을 고른다.
+2. 녹음 시작을 누르고 마이크 권한을 허용한다. 예를 들어 "잎과 흙을 살펴봤어요. 잎에 작은 점이 보였어요"라고 말한 뒤 녹음을 끝낸다. 인코딩 여유를 두고 59초에 자동 종료하며 60초 이하의 WEBM, MP4, M4A, WAV 파일을 직접 선택할 수도 있다. 녹음 중에는 탭을 전면에 유지한다.
+3. 음성 정리하기를 누른다. 원문과 가족에게 보낼 문장이 실제 발언에 맞는지 사람이 확인한다. 틀린 정리문을 수정한 뒤 확정한다. 인식 정확도나 한국어 요약 품질을 단위 테스트 결과로 보장하지 않는다.
+4. 실제 시연 사진을 선택해 저장하고 작업을 완료한다. 비전 모델은 기본 구성에 없으므로 사진 검증 결과는 `null`이다. 실제 작업을 판정했다고 설명하지 않는다.
+5. 가족을 연결하거나 가족 기록을 새로 불러온다. 방금 확정한 원문, 정리문, 사진이 같은 돌봄 일기에 보이는지 확인한다.
+6. 필요하면 날씨 제어를 연결해 비를 선택한다. 관리사 화면에서 물 주기가 빠지고 관찰 작업이 남는지 확인한다. 완료한 기록은 보존된다. 하루의 작업을 모두 마친 뒤에는 재조회해도 같은 날의 작업이 새로 생기지 않는다.
+7. 성장 단계 확인에서 꽃이나 열매를 확인한 뒤 가족 기록을 다시 조회한다. 단계가 상승하면 성장 일기가 추가된다. 예측 기온과 작물 임계값은 가상 시연 자료이며 실제 작물 예측 성능으로 소개하지 않는다.
+
+음성 처리 도중 응답이 끊기면 같은 작업의 마지막 메모 복구 조회를 먼저 누른다. 처리 중에는 기다리고, 재시도 가능한 상태에서 분석 다시 시도를 누른다. STT 실패는 실제 원문을 만들어내지 않는다. LLM만 실패하면 원문을 대체 정리문으로 보존한다. TTS는 기본 공급자가 없어 C502이며 팀 프론트의 브라우저 읽어주기 대체가 필요하다.
+
+## 실제 서버 검사
+
+호스트에 Python이 있을 때 사용한다. 비밀번호와 토큰, 음성 내용은 출력하지 않는다.
+
+```powershell
+python scripts/smoke_local_demo.py
+python scripts/smoke_local_demo.py --audio C:\path\recording.webm --complete
+```
+
+1. 기본 실행은 로그인, 역할 차단, 오늘 작업, 성장, 수확 안내, 일기 조회를 확인한다. 음성과 완료는 `not_tested`로 보고한다.
+2. 음성을 지정하면 실제 STT 결과가 있어야 확정한다. `--complete`는 실제 작업을 완료하고 가족 일기에서 원문과 정리문이 일치하는지 확인한다. 사진에는 합성 1픽셀 PNG를 쓰며 `synthetic_test_image`로 보고한다. 발표 사진이나 실제 비전 검증의 증거가 아니다.
+3. LLM 대체 경로를 사용했다면 `llm=fallback_used`다. STT 성공만으로 LLM도 성공했다고 해석하지 않는다. 발언과 인식 결과가 맞는지는 화면에서 따로 확인한다.
+4. 다른 날까지 기다리거나 데이터 초기화를 강요하지 않는다. 이미 완료한 시연 작업은 보존한다. 녹화용 마지막 작업을 테스트에서 먼저 소진하지 않도록 순서를 정한다.
+
+## 종료와 문제 확인
+
+```powershell
+docker compose --env-file .env.local-demo -f compose.local-demo.json ps -a
+docker compose --env-file .env.local-demo -f compose.local-demo.json logs --tail 80 backend stt ollama-init whisper-init
+docker compose --env-file .env.local-demo -f compose.local-demo.json stop
+```
+
+로그를 공유하기 전 계정 정보, 경로, 발언 내용이 없는지 확인한다. `down -v`는 저장 기록과 모델을 삭제하므로 복구 명령으로 사용하지 않는다. 다운로드 실패는 네트워크를 해결한 뒤 시작 스크립트를 다시 실행한다. 메모리 부족 시 다른 큰 프로그램을 종료하고 Docker 자원 할당을 확인한다. 외부 주소로 모델 서버를 노출해 우회하지 않는다.
+
+## 구현 범위와 검증 상태
+
+1. `local-demo` 프로필에서만 가상 농장 조회와 전용 계정 시드가 활성화된다. 실제 사용자, 작업, 메모, 사진, 성장, 일기는 MariaDB에 저장한다. 비밀번호가 기존 시드 계정과 다르면 기존 계정을 변경하지 않고 시작을 중단한다. 기본 프로필에서는 실제 팀 텃밭 조회 구현체가 여전히 필요하다.
+2. 가족 일기는 새 돌봄 완료와 성장 상승을 원래 트랜잭션 안에서 저장한다. 기존 돌봄 기록의 일괄 이관, REST_DAY, 하트 보내기, XP 보상, 주인 홈 API는 이번 연결 범위에 포함되지 않는다. 운영 스키마에는 `db/manual/diary.sql`을 검토해 반영해야 한다.
+3. 작성 환경에서는 Docker가 없어 Compose 부팅, Java 21 전체 빌드, 실제 MariaDB 쿼리와 잠금, 모델 다운로드와 추론, 브라우저 녹음은 아직 실행하지 못했다. Java 핵심 JUnit 77개, Python 32개, Node 화면 로직 10개는 통과했지만 전체 연동 성공을 의미하지 않는다. Java 검사는 캐시 의존성과 JDK 25의 release 21로 수행했다. Node 검사는 DOM과 네트워크 대역을 사용하며 실제 브라우저 검사는 아니다.
+4. 시연 영상과 배포 링크 제출 준비는 실제 실행 검사를 마친 뒤 진행한다. 운영 서버, HTTPS 주소, 최신 팀 코드 통합은 별도 확인이 필요하다. 공개 인터넷에서 이 로컬 시연 프로필을 운영하지 않는다.
+
+
+## 로컬 LLM 품질 측정
+
+기본 시작 스크립트에서는 평가를 자동 실행하지 않는다. 모델이 준비된 뒤 명시적으로 선택한다. Compose는 모델 포트를 호스트에 공개하지 않으므로 같은 네트워크 공간의 평가 컨테이너를 사용한다.
+
+```powershell
+docker compose --env-file .env.local-demo -f compose.local-demo.json --profile evaluation run --rm --build ai-evaluation
+```
+
+호스트에서 Ollama를 별도로 실행 중이고 Java 21과 Gradle 다운로드가 가능하면 AI_LOCAL_MODEL을 설정한 뒤 .\gradlew.bat evaluateLocalAi도 사용할 수 있다. 두 실행 방식 모두 운영과 같은 VoiceMemoAnalysisService를 호출한다. 결과는 build/reports/local-ai-evaluation.json에 남는다.
+
+1. 사람이 정답 코드를 붙인 합성 한국어 관찰문 12개를 사용한다. 5종 이상 징후, 부정문, 가정, 원문 안의 지시문을 포함한다. 학습 데이터로 사용하거나 실제 농장 자료라고 소개하지 않는다.
+2. 정확히 맞힌 문장 수, 원문 대체 횟수, 코드 기준 micro precision, recall, F1, p50과 p95 지연을 기록한다. 태그가 우연히 같아도 대체 경로이면 모델 성공으로 세지 않는다. 실패가 있으면 보고서를 남기고 종료 코드 1을 반환한다.
+3. 첫 요청의 모델 적재 시간도 포함한다. 자료 12개는 작고 합성 자료이므로 전체 정확도나 일반 사용자 성능을 대표하지 않는다. 요약의 의미 보존과 실제 녹음 STT 정확도는 사람이 별도로 확인한다.
+4. 현재는 평가기 계산과 자료 검사만 통과했다. 실제 모델 보고서와 점수는 아직 없다. 평가 명령 실행이 성공하기 전에는 측정값을 발표 자료에 넣지 않는다.
+
+시연 콘솔은 계정별 토큰을 메모리에 두고 401에서 한 번 갱신한다. 동시 401은 갱신 요청을 공유하고 403이나 네트워크 오류에서는 쓰기 요청을 자동 재전송하지 않는다. 화면 읽어주기는 브라우저 음성이며 서버 TTS 공급자 구현을 의미하지 않는다.
+
+
+## 주말 방문 시연
+
+가족 연결 후 방문 가능한 시간을 조회하고 내일 이후 주말 시간을 선택한다. 1명 방문 예약을 누르면 기존 POST /visits로 예약하고 관리사 알림을 저장한다. 이번 화면에서 받은 예약은 취소 버튼으로 취소할 수 있다. 예약과 취소의 실제 저장, 날짜 제한, 알림은 서버가 다시 검사한다.
+
+1. 예약 인원은 이 검사 화면에서 1명이다. 가족 수 연동을 구현한 것은 아니다.
+2. 페이지를 새로고침하면 메모리의 예약 ID를 잃는다. 아직 예약 목록 조회나 예약 생성 응답 유실을 복구하는 화면은 없다. 시연 중 이미 예약했다면 중복 예약 오류로 다시 만들지 않는다.
+3. 취소 요청의 네트워크 응답을 놓치면 같은 화면에서 수동 재시도할 수 있다. 서버의 이미 취소된 C4095 응답도 취소 완료로 표시한다. 다른 권한 오류나 기한 오류를 성공으로 처리하지 않는다.
+4. 예약 정원에는 농장 날짜 잠금과 현재 예약 잠금 조회를 추가했으나 실제 MariaDB 동시 실행은 아직 확인하지 못했다. 새 visit_booking_day 테이블이 필요하며 운영 스키마는 수동 검토한다.
+
+
+Git Bash에서는 저장소 루트에서 다음처럼 시작 스크립트를 실행할 수 있다. 실행 정책은 이 PowerShell 프로세스에만 적용하며 시스템 설정을 바꾸지 않는다.
+
+```bash
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/start-local-demo.ps1
+```
+
+
+검사 실행 결과는 build/reports/local-demo-smoke.json에서도 확인할 수 있다. status와 checkedAt을 함께 확인한다. passed여도 기본 실행의 voice와 completion은 not_tested이므로 음성과 완료가 검증됐다는 뜻은 아니다. 실행 중단으로 running이 남거나 failed이면 실제 서버를 다시 점검해야 한다. 이 파일은 실행 시에만 만들며 비밀번호, 토큰과 발언을 저장하지 않는다.

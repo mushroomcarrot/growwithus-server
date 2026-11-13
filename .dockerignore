@@ -1,0 +1,10 @@
+.git
+.gradle
+build
+.env
+.env.*
+!.env.example
+uploads
+local-ai/.venv
+local-ai/models
+**/__pycache__

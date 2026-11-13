@@ -38,6 +38,13 @@ out/
 
 ### Env ###
 .env
+.env.local-demo
 
 ### Uploads ###
 /uploads/
+
+### Local AI ###
+/local-ai/.venv/
+/local-ai/models/
+__pycache__/
+*.pyc

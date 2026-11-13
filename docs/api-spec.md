@@ -1,6 +1,6 @@
 # 대신텃밭 API 명세 요약
 
-> 원본: Notion "API 명세서 (초안)" 데이터베이스 (API 54개). 이 문서는 쓰지 않는 푸시 토큰 등록을 뺀 53개를 담는다. 필드 단위 Request, Response, Example은 Notion 각 페이지를 기준으로 한다.
+> 원본: Notion "API 명세서 (초안)" 데이터베이스 (API 54개). 쓰지 않는 푸시 토큰 등록을 제외하고 음성 재시도와 복구 조회 API를 추가했다. 작업 브랜치의 구현 범위와 추가 상태 필드는 [ai-integration.md](ai-integration.md), [voice-api.md](voice-api.md)를 함께 확인한다.
 >
 > 엔드포인트별 요청, 응답 필드는 [api-detail.md](api-detail.md)를 본다.
 
@@ -42,7 +42,7 @@
 | character.animation | sunny_happy, rain_umbrella, hot_sweat, sad_droop |
 | task.type | WATER, SUPPORT, WEED, PRUNE, FERTILIZE, HARVEST_PREP, CHECK |
 | stage-check observed | FLOWER, FRUIT, NO_CHANGE |
-| diary item type | CARE_LOG, STAGE_CHANGE, REST_DAY |
+| diary item type | CARE_LOG, STAGE_CHANGE (REST_DAY는 계획 항목, 현재 미생성) |
 | district | SUJI, GIHEUNG, CHEOIN |
 | nextStep | ROLE_SELECT, PROFILE_OWNER, PROFILE_CARE, OWNER_HOME, CARE_TODAY |
 
@@ -109,7 +109,7 @@
 | GET | /gardens/{gardenId}/growth | 성장 시뮬레이션 상세 (AI 핵심 2) | OWNER | DT_HOME, DT_HARVEST |
 | POST | /gardens/{gardenId}/cheers | 오늘의 응원 (스트릭, XP) | OWNER | DT_HOME |
 | POST | /care-logs/{careLogId}/hearts | 감사 하트 보내기 | OWNER | DT_HOME, DT_DIARY |
-| GET | /gardens/{gardenId}/diary | 성장 일기 (ALL, PHOTO, STAGE 필터) | OWNER | DT_DIARY |
+| GET | /gardens/{gardenId}/diary | 성장 일기 (필터, 원문과 정리문, dry_ 커서) | OWNER | DT_DIARY |
 | GET | /gardens/{gardenId}/events | 미확인 진화 이벤트 | OWNER | DT_HOME, DT_EVOLVE |
 | POST | /events/{eventId}/ack | 진화 이벤트 확인과 보상 지급 | OWNER | DT_EVOLVE |
 | GET | /leagues/current | 이웃 텃밭 주간 리그 | OWNER | DT_LEAGUE, DT_MY |
@@ -129,14 +129,16 @@
 | DELETE | /visits/{visitId} | 방문 예약 취소 (하루 전까지) | OWNER | DT_HARVEST |
 | GET | /gardens/{gardenId}/outings | 처인 나들이 추천 (체험농장, 식당) | OWNER | DT_HARVEST |
 
-### 4.5 Task (6)
+### 4.5 Task (8)
 
 | Method | Endpoint | 기능 | 권한 | 화면 |
 | --- | --- | --- | --- | --- |
 | GET | /caretaker/tasks/today | 오늘 할 일 카드 (AI 생성) | CARETAKER | DT_CARE_TODAY |
 | POST | /caretaker/tasks/{taskId}/photos | 작업 인증 사진 (AI 사진 확인) | CARETAKER | DT_CARE_PHOTO |
 | POST | /caretaker/tasks/{taskId}/voice-memos | 말로 남기기 (STT, LLM 정리) | CARETAKER | DT_CARE_TODAY, DT_CARE_VOICE |
+| GET | /caretaker/tasks/{taskId}/voice-memos/latest | 마지막 저장 음성 메모와 처리 상태 복구 조회 | CARETAKER | DT_CARE_VOICE |
 | POST | /caretaker/voice-memos/{voiceMemoId}/confirm | 음성 메모 확정 (맞아요, 보낼게요) | CARETAKER | DT_CARE_VOICE |
+| POST | /caretaker/voice-memos/{voiceMemoId}/retry | 실패한 음성 인식 또는 문장 정리 재시도 | CARETAKER | DT_CARE_VOICE |
 | POST | /caretaker/tasks/{taskId}/complete | 작업 완료 (돌봄 기록 생성, 가족 알림) | CARETAKER | DT_CARE_TODAY, DT_CARE_PHOTO, DT_CARE_DONE |
 | POST | /gardens/{gardenId}/stage-checks | 성장 단계 확인 (시뮬레이션 보정) | CARETAKER | DT_CARE_DONE |
 
@@ -211,11 +213,13 @@
 | 5 | 18일 빨리 감기, 열매 진화와 수확 예약 | POST /demo/fast-forward, GET .../events, POST /visits |
 | 6 | 리허설 반복 | POST /demo/reset |
 
-## 7. 현재 구현과 차이 (2026-11-11 기준)
+## 7. 현재 구현과 차이 (2026-11-12 기준)
 
 명세를 기준으로 맞춰 나간다. 현재 코드 상태는 [architecture.md](architecture.md)를 본다.
 
 4.1 User의 8개, 4.4 Harvest의 5개, 4.6 Notification의 2개 API와 4.8 시연의 3개(state, weather, reset)를 구현했다. 경로 접두어는 명세를 따라 `/api/v1` 없이 쓰기로 정했다.
+
+음성 메모 업로드와 확정 경로 2개 및 저장 로직을 추가했다. 실제 작업 접점 구현이 없어 업로드는 아직 C404이며, 실제 모델과 DB 및 프론트 통합 검증은 남아 있다.
 
 | 항목 | 명세 | 현재 구현 |
 | --- | --- | --- |
@@ -227,4 +231,4 @@
 | 나들이 추천 | 체험농장, 식당 | 공공데이터에서 고른 처인구의 실제 장소 7곳을 시드로 넣는다 ([public-data.md](public-data.md)) |
 | 푸시 | 알림과 함께 기기 푸시 발송 | 프론트가 웹이라 기기 푸시는 없다. 알림은 저장만 하고 화면이 `GET /notifications`를 다시 조회해 확인한다. `POST /users/me/push-tokens`는 삭제했다 |
 | 4.8 시연 | 날씨, 작업 재생성, 빨리 감기, 초기화 | 날씨 덮어쓰기와 초기화(날씨만) 동작. `POST /demo/fast-forward` 없음 |
-| 그 외 API | 35개 (4.2, 4.3, 4.5, `/internal/weather/sync`를 뺀 4.7, `/demo/fast-forward`) | 미구현 (경로별 권한만 매핑됨) |
+| 그 외 API | 4.2, 4.3, 음성 메모 2개를 제외한 4.5, `/internal/weather/sync`를 뺀 4.7, `/demo/fast-forward` | 미구현 (경로별 권한만 매핑됨) |

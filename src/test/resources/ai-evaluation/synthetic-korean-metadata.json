@@ -1,0 +1,8 @@
+{
+  "synthetic": true,
+  "source": "Windows built-in Korean speech synthesis",
+  "sampleRate": 16000,
+  "channels": 1,
+  "sampleWidth": 2,
+  "durationSeconds": 5.3
+}

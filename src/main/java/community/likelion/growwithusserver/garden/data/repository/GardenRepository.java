@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface GardenRepository extends JpaRepository<Garden, Long> {
+    List<Garden> findAllByCaretakerUsername(String username);
 
     // 화면 조회용. 주인, 칸, 농장, 작물, 담당 관리사를 한 번에 가져온다
     @Query("select g from Garden g join fetch g.owner join fetch g.plot p join fetch p.farm "

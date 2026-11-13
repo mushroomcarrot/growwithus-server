@@ -432,27 +432,49 @@ Refresh Token도 새로 발급하고 이전 토큰은 무효가 된다. 에러: 
 
 `GET /gardens/{gardenId}/diary?filter=ALL&cursor=&limit=20` | 권한 OWNER | 화면 DT_DIARY
 
-`filter`: `ALL`, `PHOTO`, `STAGE`
+`filter`: `ALL`, `PHOTO`, `STAGE`. 본인 소유 텃밭만 조회한다. 최신 저장 순으로 반환하며 `limit`은 1~50이다. `nextCursor`는 `dry_숫자` 형식의 불투명 커서다. 날짜 대신 응답 커서를 그대로 보낸다.
 
 ```json
 {
   "items": [
     {
+      "diaryId": "dry_12",
       "type": "CARE_LOG",
       "date": "2026-11-10",
-      "careLogId": "cl_1110_01",
-      "taskTypes": ["SUPPORT", "PRUNE"],
-      "summary": "지지대를 세우고 곁순을 정리했어요",
+      "careLogId": "cl_8",
+      "eventId": null,
+      "taskTypes": ["CHECK"],
+      "transcript": "잎과 흙을 살펴봤어요. 잎에 작은 점이 보였어요.",
+      "summary": "잎과 흙을 살폈어요. 잎의 작은 점은 다시 확인할게요.",
       "photoUrl": "...",
       "caretakerName": "박순자",
-      "hearted": false
+      "hearted": false,
+      "fromStage": null,
+      "toStage": null,
+      "createdAt": "2026-11-10T10:21:00+09:00"
     },
-    { "type": "STAGE_CHANGE", "date": "2026-11-05", "fromStage": "SPROUT", "toStage": "FLOWER" },
-    { "type": "REST_DAY", "date": "2026-11-04", "message": "오늘은 쉬는 날이었어요" }
+    {
+      "diaryId": "dry_11",
+      "type": "STAGE_CHANGE",
+      "date": "2026-11-05",
+      "careLogId": null,
+      "eventId": "evt_3",
+      "taskTypes": [],
+      "transcript": null,
+      "summary": "작물이 다음 단계로 자랐어요.",
+      "photoUrl": null,
+      "caretakerName": null,
+      "hearted": false,
+      "fromStage": "SPROUT",
+      "toStage": "FLOWER",
+      "createdAt": "2026-11-05T09:00:00+09:00"
+    }
   ],
-  "nextCursor": "2026-11-03"
+  "nextCursor": "dry_11"
 }
 ```
+
+돌봄 완료와 단계 상승 시 원래 저장 트랜잭션 안에서 일기 스냅샷을 추가한다. `transcript`는 확정 메모의 STT 원문이며 없으면 `null`이다. `summary`는 확정 정리문 또는 작업 완료 문구다. `PHOTO`는 사진이 있는 항목, `STAGE`는 성장 항목만 반환한다. `hearted`는 연결된 돌봄 기록의 현재 하트 수를 반영한다. 하트 전송 API, REST_DAY 생성, 과거 기록의 일괄 이관은 아직 구현하지 않았다. 새 테이블 준비는 `db/manual/diary.sql`을 확인한다.
 
 ### 4.6 미확인 진화 이벤트
 
@@ -611,7 +633,7 @@ Refresh Token도 새로 발급하고 이전 토큰은 무효가 된다. 에러: 
 { "visitId": "vst_1128_b14", "date": "2026-11-28", "startTime": "10:00", "status": "RESERVED" }
 ```
 
-관리사에게 알림을 보낸다. 내일 이후의 슬롯만 예약할 수 있다. 에러: `C4096` 이미 찬 시간, `C4095` 그 텃밭에 같은 날 예약 있음, `C002` 없는 슬롯이거나 오늘 또는 지난 날짜
+같은 농장과 날짜의 예약 처리를 잠금으로 직렬화하고 현재 예약을 잠금 조회해 정원을 다시 검사한다. 관리사에게 알림을 보낸다. 내일 이후의 슬롯만 예약할 수 있다. 에러: `C4096` 이미 찬 시간, `C4095` 그 텃밭에 같은 날 예약 있음, `C002` 없는 슬롯이거나 오늘 또는 지난 날짜
 
 ### 5.4 방문 예약 취소
 
@@ -699,7 +721,13 @@ AI 사진 확인이 실패해도 사진은 저장하고 `aiCheck`는 `null`로 �
 
 STT로 받아 적고 LLM이 가족용 문장으로 정리한다. `issues`는 다음 날 작업 생성에 쓰인다.
 
+현재 작업 조회는 구현했으며 실제 텃밭 조회 어댑터 연결이 필요하다. 코드별 한글 문구와 상태 필드는 [voice-api.md](voice-api.md)를 본다. 원문은 요약과 분리해 저장하고, 확정된 메모만 후속 작업에 사용한다. 필수 `audio` 파트 누락은 C002, 담당 작업이 아니면 C403, 완료된 작업이면 C4095다.
+
+초안 응답에는 `processingStatus`, `retryable`, `processingError`가 추가된다. 정상 결과는 READY다. 인식 실패 시 파일을 보관하고 `STT_FAILED`, 원문과 요약 null, `retryable=true`로 반환한다. 정리만 실패하면 `LLM_FAILED`와 임시 요약을 제공한다. 이 경우 HTTP 응답은 성공이므로 화면은 처리 상태도 검사해야 한다. `POST /caretaker/voice-memos/{voiceMemoId}/retry`로 같은 초안을 재시도한다. 형식 및 길이가 잘못된 INVALID_AUDIO는 다시 녹음해야 한다.
+
 ### 6.4 음성 메모 확정
+
+연결 중단으로 업로드 응답을 받지 못했다면 먼저 `GET /caretaker/tasks/{taskId}/voice-memos/latest`를 호출한다. 마지막 저장 메모 하나와 업로드 응답과 같은 처리 상태를 반환한다. 본인 담당 작업만 조회 가능하며 저장된 메모가 없으면 C404다. PROCESSING 상태의 처리 시작 후 유효 시간(기본 2분, 읽기 제한 90초일 때 3분 30초)이 지나면 `retryable=true`로 표시되어 같은 메모 ID로 retry할 수 있다. 조회는 새 파일이나 메모를 만들지 않는다. 복구 순서와 중복 녹음 시 주의점은 [voice-api.md](voice-api.md)를 본다.
 
 `POST /caretaker/voice-memos/{voiceMemoId}/confirm` | 권한 CARETAKER | 화면 DT_CARE_VOICE
 
@@ -710,6 +738,8 @@ STT로 받아 적고 LLM이 가족용 문장으로 정리한다. `issues`는 다
 // 응답
 { "voiceMemoId": "vm_1110_b14", "status": "CONFIRMED" }
 ```
+
+본문을 생략하거나 빈 객체를 보내도 원래 요약으로 확정한다. 같은 확정 요청 재시도는 허용하고, 확정한 메모를 다른 문장으로 다시 바꾸면 C4095다. 초안 요약을 실제 수정하면 원문은 유지하고 이전 자동 추출 코드는 비운다. 상세 구현 및 남은 연결은 [voice-api.md](voice-api.md)를 본다.
 
 ### 6.5 작업 완료
 
