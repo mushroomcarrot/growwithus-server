@@ -72,4 +72,25 @@ class GrowthServiceTest {
                 new GrowthDtos.CheckRequest(GrowthDtos.Observed.FRUIT, null)));
         assertNull(state); assertTrue(events.isEmpty());
     }
+
+    @Test void demoSimulationUsesVirtualDaysWithoutRealWeather() {
+        state = GrowthState.builder().gardenId(1L).stage(Stage.FLOWER).demoDays(18).build();
+        weather = List.of();
+        var detail = service().get("owner", 1L);
+        assertEquals(Stage.FRUIT, detail.getStage());
+        assertEquals(LocalDate.now(), detail.getExpectedHarvestDate());
+        assertTrue(detail.getExplanation().contains("시연용"));
+        assertNull(state.getCalibrationStage());
+        assertEquals(Stage.FRUIT, service().get("owner", 1L).getStage());
+    }
+
+    @Test void demoSimulationRequiresCaretakerConfirmationForHarvest() {
+        state = GrowthState.builder().gardenId(1L).stage(Stage.FLOWER).demoDays(9).build();
+        var detail = service().get("owner", 1L);
+        assertEquals(Stage.FLOWER, detail.getStage());
+        assertEquals(LocalDate.now().plusDays(9), detail.getExpectedHarvestDate());
+        service().check("care", 1L, new GrowthDtos.CheckRequest(GrowthDtos.Observed.FRUIT, null));
+        assertEquals(Stage.FRUIT, state.getCalibrationStage());
+        assertEquals(Stage.FRUIT, service().get("owner", 1L).getStage());
+    }
 }

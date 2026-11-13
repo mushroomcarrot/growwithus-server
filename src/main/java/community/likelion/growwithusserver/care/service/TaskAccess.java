@@ -34,7 +34,7 @@ public class TaskAccess {
 
     public Task open(String username, Long id, boolean lock) {
         Task task = owned(username, id, lock);
-        if (task.getStatus() != TaskStatus.TODO) throw new VoiceMemoException(ErrorCode.ALREADY_PROCESSED);
+        if (task.getArchiveNumber() != 0 || task.getStatus() != TaskStatus.TODO) throw new VoiceMemoException(ErrorCode.ALREADY_PROCESSED);
         return task;
     }
 }

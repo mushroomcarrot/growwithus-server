@@ -23,7 +23,7 @@ class DemoGardenServiceTest {
     private final TaskRepository tasks = mock(TaskRepository.class);
     private final TaskGenerationService generation = mock(TaskGenerationService.class);
     private final TaskVisibility visibility = mock(TaskVisibility.class);
-    private final DemoGardenService service = new DemoGardenService(gardens, tasks, generation, visibility);
+    private final DemoGardenService service = new DemoGardenService(gardens, tasks, generation, visibility, mock(community.likelion.growwithusserver.growth.data.repository.GrowthStateRepository.class));
 
     private Garden garden(String externalId) {
         return Garden.builder().id(1L).stage(GrowthStage.FLOWER)

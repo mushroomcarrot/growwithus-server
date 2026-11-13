@@ -12,9 +12,13 @@ import java.time.LocalDateTime;
 @Data @Builder @NoArgsConstructor @AllArgsConstructor
 @Entity
 @Table(name = "care_task", indexes = @Index(name = "idx_task_garden_completed", columnList = "garden_id,completed_at"),
-        uniqueConstraints = @UniqueConstraint(name = "uk_task_garden_date_type",
-        columnNames = {"garden_id", "task_date", "task_type"}))
+        uniqueConstraints = @UniqueConstraint(name = "uk_task_garden_date_type_archive",
+        columnNames = {"garden_id", "task_date", "task_type", "archive_number"}))
 public class Task {
+    // 0은 현재 작업, 시연 초기화로 보관하면 자신의 PK를 넣는다.
+    @Column(name = "archive_number", nullable = false)
+    private long archiveNumber;
+
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
     @Column(name = "garden_id", nullable = false) private Long gardenId;
     @Column(name = "caretaker_username", nullable = false, length = 20) private String caretakerUsername;

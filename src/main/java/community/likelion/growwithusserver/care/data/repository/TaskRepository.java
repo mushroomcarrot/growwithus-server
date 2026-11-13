@@ -11,12 +11,14 @@ import java.util.List;
 import java.util.Optional;
 
 public interface TaskRepository extends JpaRepository<Task, Long> {
+    @Query("select t from Task t where t.caretakerUsername = :username and t.date = :date and t.archiveNumber = 0 order by t.id")
     List<Task> findAllByCaretakerUsernameAndDateOrderByIdAsc(String username, LocalDate date);
     List<Task> findAllByGardenIdAndDateBetweenOrderByDateDesc(Long gardenId, LocalDate from, LocalDate to);
     @Query("select t from Task t where t.gardenId = :gardenId and t.status = :status "
             + "and t.completedAt >= :since and t.completedAt < :until order by t.completedAt desc")
     List<Task> findCompletedHistory(@Param("gardenId") Long gardenId, @Param("status") TaskStatus status,
                                     @Param("since") LocalDateTime since, @Param("until") LocalDateTime until);
+    @Query("select (count(t) > 0) from Task t where t.gardenId = :gardenId and t.date = :date and t.archiveNumber = 0")
     boolean existsByGardenIdAndDate(Long gardenId, LocalDate date);
     long countByCaretakerUsernameAndDateAndStatus(String username, LocalDate date, TaskStatus status);
     @Lock(LockModeType.PESSIMISTIC_WRITE)

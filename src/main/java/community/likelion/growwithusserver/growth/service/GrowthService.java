@@ -66,6 +66,41 @@ public class GrowthService {
         return garden;
     }
 
+    // 시연 전용 상태가 있는 텃밭만 합성 기온을 사용한다. 실제 일별 기상 자료는 변경하지 않는다.
+    private Updated simulate(CareGardenReader.Garden garden, GrowthState state, Stage observed) {
+        LocalDate today = LocalDate.now();
+        int days = state.getDemoDays();
+        double dailyGdd = (garden.requiredGdd().get(Stage.FRUIT) - garden.requiredGdd().get(Stage.FLOWER)) / 18;
+        var weatherDays = java.util.stream.IntStream.range(0, days)
+                .mapToObj(i -> new GrowthCalculator.WeatherDay(today.plusDays(i), garden.baseTemp() + dailyGdd))
+                .toList();
+        var result = new GrowthCalculator().calculate(today, today.plusDays(days), garden.baseTemp(),
+                garden.requiredGdd(), weatherDays, new GrowthCalculator.Calibration(today, Stage.FLOWER));
+        Stage target = result.stage();
+        if (days >= 18) target = Stage.FRUIT;
+        if (observed != null) {
+            state.setCalibrationOn(today);
+            state.setCalibrationStage(observed);
+            state.setCalibratedAt(LocalDateTime.now());
+        }
+        if (state.getCalibrationStage() == Stage.FRUIT) target = Stage.FRUIT;
+        LocalDate harvest = today.plusDays(target == Stage.FRUIT ? 0 : Math.max(0, 18 - days));
+        state.setStage(target);
+        state.setAccumulatedGdd(Math.max(result.accumulatedGdd(), garden.requiredGdd().get(target)));
+        state.setProgress(target == Stage.FRUIT ? 1 : result.progress());
+        state.setExpectedHarvestDate(harvest);
+        state.setUpdatedAt(LocalDateTime.now());
+        states.save(state);
+        String eventId = projection.synchronize(garden.gardenId(), target, state.getAccumulatedGdd(), harvest, null);
+        return new Updated(GrowthDtos.Detail.builder().stage(target).level(target.ordinal() + 1)
+                .accumulatedGdd(state.getAccumulatedGdd()).nextStage(target == Stage.FRUIT ? null : Stage.FRUIT)
+                .nextStageGdd(target == Stage.FRUIT ? null : garden.requiredGdd().get(Stage.FRUIT))
+                .progress(state.getProgress()).expectedHarvestDate(harvest)
+                .calibratedAt(DateTimes.toOffset(state.getCalibratedAt()))
+                .explanation("시연용 합성 기온과 가상 일수로 계산했어요. 실제 수확 예측이 아니에요.")
+                .dailyGdd(result.dailyGdd()).build(), eventId);
+    }
+
     private Updated update(CareGardenReader.Garden garden, Stage observed) {
         if (garden.startedOn() == null || !Double.isFinite(garden.baseTemp()) || garden.requiredGdd().isEmpty()) {
             throw new VoiceMemoException(ErrorCode.DATA_NOT_FOUND);
@@ -73,6 +108,7 @@ public class GrowthService {
         LocalDate today = LocalDate.now();
         if (garden.startedOn().isAfter(today)) throw new VoiceMemoException(ErrorCode.INVALID_PARAMETER);
         GrowthState state = states.findById(garden.gardenId()).orElseGet(() -> GrowthState.builder().gardenId(garden.gardenId()).build());
+        if (state.getDemoDays() != null) return simulate(garden, state, observed);
         Stage before = state.getStage() == null ? garden.stage() : state.getStage();
         var calibration = observed != null ? new GrowthCalculator.Calibration(today, observed)
                 : state.getCalibrationOn() == null ? null : new GrowthCalculator.Calibration(state.getCalibrationOn(), state.getCalibrationStage());
