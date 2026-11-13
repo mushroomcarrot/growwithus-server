@@ -309,7 +309,9 @@ Refresh Token도 새로 발급하고 이전 토큰은 무효가 된다. 에러: 
 { "avatarJobId": "avj_soonja_01", "status": "PENDING" }
 ```
 
-생성은 비동기로 진행한다. 에러: `C4003` 초상권 미동의, `C4001` 파일 형식 또는 크기 초과
+생성은 비동기로 진행한다. 실제 `avatarJobId`는 `avj_3`처럼 숫자가 붙는다. 올린 사진 원본은 서버에 저장하지 않는다.
+
+에러: `C4003` 초상권 미동의 (`portraitConsent`가 없거나 `false`), `C4001` 파일 형식 또는 크기 초과 (사진이 없거나 읽을 수 없는 경우 포함), `C404` 관리사 프로필 없음, `C4095` 이미 진행 중인 요청이 있음
 
 ### 3.8 AI 아바타 결과 조회
 
@@ -319,7 +321,14 @@ Refresh Token도 새로 발급하고 이전 토큰은 무효가 된다. 에러: 
 { "avatarJobId": "avj_soonja_01", "status": "DONE", "avatarUrl": "https://.../crt_soonja.png" }
 ```
 
-`status`: `PENDING`, `DONE`, `FAILED`. 클라이언트는 2초 간격으로 폴링한다. 실패하면 기본 아바타를 쓴다.
+`status`: `PENDING`, `DONE`, `FAILED`. 클라이언트는 2초 간격으로 폴링한다.
+
+1. `avatarUrl`은 `PENDING`이면 `null`, `DONE`이면 만든 그림, `FAILED`면 지금 쓰는 아바타 (처음이면 기본 아바타)다. 화면은 `FAILED`일 때 받은 `avatarUrl`을 그대로 쓰면 된다.
+2. 5분이 지나도 `PENDING`이면 서버가 `FAILED`로 바꾼다. `FAILED` 뒤에는 다시 요청할 수 있다.
+3. 서버에 이미지 모델이 설정되어 있지 않으면 항상 `FAILED`와 기본 아바타가 나온다.
+4. `DONE`이 되면 `/users/me`의 `caretaker.avatarUrl`과 주인 화면의 관리사 아바타도 새 그림으로 바뀐다.
+
+에러: `C404` 관리사 프로필이 없거나 아바타를 요청한 적이 없음
 
 ### 3.9 이번 달 활동 요약
 
@@ -840,6 +849,28 @@ STT로 받아 적고 LLM이 가족용 문장으로 정리한다. `issues`는 다
 1. `daily-tasks`의 `fallback`은 LLM 실패로 규칙 기반 작업을 쓴 텃밭 수다.
 2. 대상을 비워 두면 전체를 처리한다.
 3. 에러: `C4014` 서비스 키 불일치
+4. 성장 시뮬레이션의 실제 스케줄은 매일 04:00이다. 05:00의 작업 생성이 갱신된 성장 단계를 쓰도록 앞에 둔다. 실제 응답은 `{ "updated": 3, "failed": 0 }`이다.
+
+### 8.1 칸 관리 (운영자용)
+
+공공데이터에는 칸 정보가 없으므로 실제 농장은 운영자가 칸을 넣어야 분양받을 수 있다. 배치가 아니라 수동으로 호출하며 `X-Service-Key` 헤더가 필요하다.
+
+`GET /internal/farms/{farmId}/plots`: 농장의 칸 목록
+
+`PUT /internal/farms/{farmId}/plots/{plotCode}`: 칸 등록 및 수정. 없는 칸은 만들고, 있는 칸은 보낸 값만 고친다.
+
+```json
+// 요청 (둘 다 선택. 칸을 새로 만들 때는 cropId 필수)
+{ "cropId": "crop_1", "caretakerUsername": "soonja" }
+
+// 응답
+{ "farmId": "farm_3", "plotCode": "A-1", "cropId": "crop_1", "cropName": "방울토마토", "caretakerUsername": "soonja", "assigned": false }
+```
+
+1. `plotCode`는 한글, 영문, 숫자로 시작하고 하이픈을 쓸 수 있는 20자 이하다 (예: `B-14`).
+2. `caretakerUsername`은 역할이 `CARETAKER`인 회원의 로그인 아이디다.
+3. 이미 분양된 칸은 작물을 바꿀 수 없다. 담당 관리사는 비어 있을 때만 채울 수 있고, 채우면 그 칸의 텃밭에도 반영된다.
+4. 에러: `C404` 농장 또는 작물 없음, `C4041` 회원 없음, `C002` 칸 번호 오류, 새 칸에 작물 없음, 관리사가 아닌 회원, `C4093` 분양된 칸의 작물 변경 또는 담당 관리사 교체, `C4014` 서비스 키 불일치
 
 ## 9. 시연
 

@@ -27,6 +27,11 @@ public interface GardenRepository extends JpaRepository<Garden, Long> {
 
     Optional<Garden> findByOwnerUsername(String username);
 
+    // 칸의 텃밭. 분양된 칸에 담당 관리사를 뒤늦게 배정할 때 잠그고 고친다
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select g from Garden g where g.plot.id = :plotId")
+    Optional<Garden> findByPlotIdForUpdate(Long plotId);
+
     // 주인의 텃밭 PK. 잠그기 전에 엔티티를 읽어 두지 않으려고 PK만 가져온다 (GardenService.findMyGardenForUpdate)
     @Query("select g.id from Garden g where g.owner.username = :username")
     Optional<Long> findIdByOwnerUsername(String username);

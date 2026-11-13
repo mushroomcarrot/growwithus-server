@@ -1,6 +1,19 @@
 # 현재 구조
 
-마지막 갱신: 2026-11-13, Docker 배포 세트와 GitHub Actions 빌드 체크 및 배포 추가.
+마지막 갱신: 2026-11-13, 관리사 AI 아바타 API, 시연 관리사 프로필 시드, 실제 농장의 칸과 담당 관리사를 넣는 내부 관리 API 추가.
+
+## 빠진 기능 보완 (#5, #3)
+
+1. `POST /caretakers/me/avatar` (multipart `photo`, `portraitConsent`)는 초상권 동의와 사진을 확인하고 PENDING 작업만 만든 뒤 바로 돌아온다. 동의가 없으면 C4003, 사진이 jpg, png 10MB 이하가 아니거나 읽을 수 없으면 C4001, 프로필이 없으면 C404, 진행 중인 작업이 있으면 C4095다. 응답은 `CaretakerDtos.Avatar` (`avatarJobId` 예: `avj_3`, `status`, `avatarUrl`)다.
+2. `GET /caretakers/me/avatar`는 가장 최근 작업을 준다. 요청한 적이 없으면 C404다. `avatarUrl`은 PENDING이면 null, DONE이면 만든 그림, FAILED면 지금 쓰는 아바타 (처음이면 기본 아바타 `/images/caretaker-default.svg`)다. 클라이언트는 PENDING인 동안 2초 간격으로 폴링한다.
+3. 그림은 `AvatarService`가 가진 실행기 (스레드 1개, 대기 8개)에서 트랜잭션 밖으로 만든다. 대기열이 가득 차면 바로 FAILED로 돌려준다. 5분이 지나도 PENDING인 작업 (서버 재시작 등)은 조회하거나 새로 요청할 때 FAILED로 정리한다 (`AvatarJobStore.STALE_AFTER`).
+4. 올린 사진 원본은 저장하지 않는다. `FileUploadService.readImage`로 검증만 하고 768픽셀 이하 JPEG로 줄여 메모리에 들고 있다가 버린다. 만든 그림만 `FileUploadService.storeGeneratedPng`로 `avatars/` 아래에 저장하고 프로필의 `avatarUrl`을 바꾼다. 동의 여부와 시각은 `caretaker_profile.portrait_consent`, `portrait_consented_at`에 남긴다.
+5. 그림 생성은 `common/ai`의 `AvatarImageClient`로만 호출한다. `AI_GEMINI_ENABLED=true`이고 `GEMINI_IMAGE_MODEL`을 넣었을 때만 `GeminiAvatarClient`가 Gemini Interactions API (`POST /v1beta/interactions`)를 부른다. 받은 그림은 그대로 쓰지 않고 가운데를 잘라 512픽셀 PNG로 다시 만든다. 모델을 넣지 않았거나 호출이 실패하면 비어 있는 값을 주고 작업은 FAILED가 된다. 다른 모델로 자동 전환하지 않는다. 실제 키로 이미지 모델을 호출하는 검증은 하지 않았다 (모의 HTTP 응답으로만 검사).
+6. `CaretakerDemoSeeder` (순서 `FarmSeeder.ORDER + 15`)가 `demo.enabled=true`일 때 `GardenDemoSeeder`가 만든 soonja 계정에 시연 농장 소속 프로필 (성함 박순자, 기본 아바타)을 붙이고 `profileRegistered`를 true로 바꾼다. 명세의 `crt_soonja`에 해당하며, soonja로 로그인하면 `nextStep`이 바로 `CARE_TODAY`다. 이미 프로필이 있으면 건드리지 않는다.
+7. `GET /internal/farms/{farmId}/plots`와 `PUT /internal/farms/{farmId}/plots/{plotCode}` (`X-Service-Key`)로 운영자가 농장의 칸을 넣고 고친다 (`FarmPlotAdminService`). 요청은 `PlotAdminRequestDto` (`cropId`, `caretakerUsername`, 둘 다 선택)이고 응답은 `PlotAdminResponseDto` (`farmId`, `plotCode`, `cropId`, `cropName`, `caretakerUsername`, `assigned`)다. 없는 칸은 만들고 (이때 `cropId` 필수), 있는 칸은 보낸 값만 고친다. 칸 번호는 한글, 영문, 숫자로 시작하고 하이픈을 쓸 수 있는 20자 이하다.
+8. 칸 관리의 오류: 농장이나 작물이 없으면 C404, 회원이 없으면 C4041, 관리사 (`CARETAKER`)가 아닌 회원이거나 칸 번호가 틀리거나 새 칸에 작물이 없으면 C002다. 이미 분양된 칸은 작물을 바꿀 수 없고 담당 관리사는 비어 있을 때만 채울 수 있다 (C4093). 분양된 칸에 관리사를 채우면 `PlotGardenLink` (구현체 `GardenPlotLink`)가 그 칸의 텃밭을 잠그고 담당 관리사를 함께 채운다. 관리사의 오늘 할 일은 다음 조회 때 만들어진다.
+9. prod는 `db/manual/avatar_job.sql`의 `caretaker_avatar_job` 테이블을 먼저 적용한다.
+10. 검증: `./gradlew unitTest` 312개가 통과했다 (실패 0, 건너뜀 3). 격리한 로컬 MariaDB와 Redis에 서버를 띄워 실제 HTTP로 아바타 요청과 폴링, C4003, C4001, C404, 권한 (주인 토큰은 C403), 시연 관리사의 `CARE_TODAY`와 `/users/me`의 `caretaker`, 칸 등록, 신규 주인의 실제 농장 칸 분양, 분양 후 관리사 배정과 오늘 할 일 반영을 확인했다. 운영 배포와 프론트 연동, 실제 이미지 모델 호출은 확인하지 않았다.
 
 ## 배포 (Docker, GitHub Actions)
 
@@ -44,9 +57,9 @@
 
 ### 남는 운영 조건
 
-1. 실제 농장의 칸, 관리사 방문 가능 시간과 실제 과거 기상 자료는 운영 데이터가 필요하다. 임의의 실농장 자료를 생성하지 않았다.
+1. 실제 농장의 칸, 관리사 방문 가능 시간과 실제 과거 기상 자료는 운영 데이터가 필요하다. 임의의 실농장 자료를 생성하지 않았다. 칸은 내부 관리 API로 넣을 수 있다 (문서 상단).
 2. 운영 스키마 적용, 인증키, HTTPS와 프론트 연동은 운영 환경에서 확인해야 한다.
-3. JungSeungYoon 담당의 실제 AI 공급자, 서버 TTS, AI 아바타 및 사람 음성 품질 검증은 이번 담당 이슈 범위에 포함하지 않았다.
+3. 실제 AI 공급자 (Gemini), 서버 TTS, AI 아바타는 이후 구현됐다. 사람 음성 품질과 실제 이미지 모델 호출 검증은 운영 환경에서 확인해야 한다.
 4. 초기화는 재시연을 위한 작업 회차와 성장 상태 초기화다. 사용자의 과거 기록과 보상까지 삭제하는 DB 전체 재적재는 수행하지 않는다.
 
 ## PR #32 이후 마무리 구현
@@ -267,6 +280,10 @@ community.likelion.growwithusserver/
 | PUT | `/demo/stage` | ADMIN + `X-Demo-Mode` | `DemoStageRequestDto` (`stage`) | `DemoFastForwardResponseDto` | 시연 성장 단계 선택 (SEED, SPROUT, FLOWER, FRUIT) |
 | POST | `/demo/fast-forward` | ADMIN + `X-Demo-Mode` | `DemoFastForwardRequestDto` (`days`) | `DemoFastForwardResponseDto` | 시연 시간 빨리 감기 |
 | POST | `/internal/weather/sync` | SYSTEM (`X-Service-Key`) | `WeatherSyncRequestDto` (본문 생략 가능) | `WeatherSyncResponseDto` | 기상청 단기예보와 초단기실황 수집. 스케줄러가 매시 15분에 같은 로직을 돌린다 |
+| POST | `/caretakers/me/avatar` | CARETAKER | multipart `photo`, `portraitConsent` | `CaretakerDtos.Avatar` | AI 아바타 생성 요청. PENDING 작업을 만들고 바로 돌아온다 |
+| GET | `/caretakers/me/avatar` | CARETAKER | 없음 | `CaretakerDtos.Avatar` | 가장 최근 아바타 작업 상태 (PENDING, DONE, FAILED). 폴링용 |
+| GET | `/internal/farms/{farmId}/plots` | SYSTEM (`X-Service-Key`) | 없음 | `List<PlotAdminResponseDto>` | 농장의 칸 목록 (운영자용) |
+| PUT | `/internal/farms/{farmId}/plots/{plotCode}` | SYSTEM (`X-Service-Key`) | `PlotAdminRequestDto` | `PlotAdminResponseDto` | 칸 등록 및 수정 (작물, 담당 관리사) |
 | POST | `/caretaker/tasks/{taskId}/voice-memos` | CARETAKER | multipart `audio` | `VoiceMemoResponseDto` | 음성 원문과 요약을 DRAFT로 저장. 실제 작업 조회 구현체가 없으면 C404 |
 | POST | `/caretaker/voice-memos/{voiceMemoId}/confirm` | CARETAKER | `VoiceMemoConfirmRequestDto` 선택 | `VoiceMemoConfirmResponseDto` | 본인 초안 확정. 같은 확정 요청은 재시도 가능 |
 
@@ -354,7 +371,7 @@ ADMIN은 RoleHierarchy로 USER, OWNER, CARETAKER 권한을 갖는다. SYSTEM은 
 | `FARM` | `farm` | `PHOTO` | `pht` |
 | `CARETAKER` | `crt` | `EVENT` | `evt` |
 | `TASK` | `tsk` | `VISIT` | `vst` |
-| `NOTIFICATION` | `ntf` | | |
+| `NOTIFICATION` | `ntf` | `AVATAR_JOB` | `avj` |
 
 방문 슬롯 ID(`slot_20261128_10`)는 DB에 없는 계산 값이라 `IdPrefix`를 쓰지 않고 `VisitSlotPolicy`가 만들고 읽는다.
 
@@ -648,6 +665,7 @@ ADMIN은 RoleHierarchy로 USER, OWNER, CARETAKER 권한을 갖는다. SYSTEM은 
 | `INVALID_REQUEST` | C001 | 400 | 잘못된 요청입니다. | 미사용 |
 | `INVALID_PARAMETER` | C002 | 400 | 유효하지 않은 파라미터입니다. | `@Valid` 검증 실패, 읽을 수 없는 본문 (잘못된 enum 값 포함), 필수 쿼리 누락, 쿼리와 경로 값의 형식 오류 (날짜 등), `RoleNotAllowedException`, `InvalidIdException` (슬롯 ID 포함), `VisitSlotNotBookableException`, `DemoWeatherNotAllowedException` |
 | `FILE_NOT_SUPPORTED` | C4001 | 400 | 지원하지 않는 파일입니다. | `FileNotSupportedException` (형식, 크기, 길이 위반), multipart 상한 초과 |
+| `PORTRAIT_CONSENT_REQUIRED` | C4003 | 400 | 초상권 동의가 필요합니다. | `CaretakerException` (AI 아바타 요청에 초상권 동의가 없음) |
 | `CANCEL_DEADLINE_PASSED` | C4005 | 400 | 취소 기한이 지났습니다. | `VisitCancelDeadlinePassedException` |
 | `VERIFICATION_INVALID` | C4011 | 401 | 인증 정보가 유효하지 않습니다. | EntryPoint (미인증 접근), `AuthenticationInfoException` |
 | `PASSWORD_INVALID` | C4012 | 401 | 비밀번호가 일치하지 않습니다. | `PasswordInvalidException` |
@@ -708,6 +726,8 @@ ADMIN은 RoleHierarchy로 USER, OWNER, CARETAKER 권한을 갖는다. SYSTEM은 
 | `AI_LOCAL_MODEL` | (없음) | 미리 다운로드한 로컬 모델. 활성화 시 필수, cloud 이름 거부 |
 | `AI_LOCAL_STT_ENABLED` | `false` | 로컬 음성 인식 작업 서버 사용 여부 |
 | `AI_LOCAL_STT_BASE_URL` | `http://127.0.0.1:8765` | 음성 인식 작업 서버, loopback HTTP 주소만 허용 |
+| `AI_GEMINI_ENABLED`, `GEMINI_API_KEY`, `GEMINI_MODEL` | `false`, (없음), `gemini-3.5-flash-lite` | Gemini로 STT, LLM, 사진 판정을 처리한다 ([cloud-ai.md](cloud-ai.md)) |
+| `GEMINI_IMAGE_MODEL` | (없음) | 관리사 AI 아바타를 그리는 Gemini 이미지 모델. 비워 두면 생성하지 않고 기본 아바타를 쓴다. `AI_GEMINI_ENABLED=true`일 때만 쓰인다 |
 | `STT_API_KEY`, `STT_BASE_URL`, `STT_MODEL` | (없음) | STT 연결 설정 |
 | `TTS_API_KEY`, `TTS_BASE_URL`, `TTS_MODEL`, `TTS_VOICE` | (없음) | TTS 연결 설정 |
 
@@ -1049,11 +1069,15 @@ community.likelion.growwithusserver/
 | PUT | `/demo/stage` | ADMIN + `X-Demo-Mode` | `DemoStageRequestDto` (`stage`) | `DemoFastForwardResponseDto` | 시연 성장 단계 선택 (SEED, SPROUT, FLOWER, FRUIT) |
 | POST | `/demo/fast-forward` | ADMIN + `X-Demo-Mode` | `DemoFastForwardRequestDto` (`days`) | `DemoFastForwardResponseDto` | 시연 시간 빨리 감기 |
 | POST | `/internal/weather/sync` | SYSTEM (`X-Service-Key`) | `WeatherSyncRequestDto` (본문 생략 가능) | `WeatherSyncResponseDto` | 기상청 단기예보와 초단기실황 수집. 스케줄러가 매시 15분에 같은 로직을 돌린다 |
+| POST | `/caretakers/me/avatar` | CARETAKER | multipart `photo`, `portraitConsent` | `CaretakerDtos.Avatar` | AI 아바타 생성 요청. PENDING 작업을 만들고 바로 돌아온다 |
+| GET | `/caretakers/me/avatar` | CARETAKER | 없음 | `CaretakerDtos.Avatar` | 가장 최근 아바타 작업 상태 (PENDING, DONE, FAILED). 폴링용 |
+| GET | `/internal/farms/{farmId}/plots` | SYSTEM (`X-Service-Key`) | 없음 | `List<PlotAdminResponseDto>` | 농장의 칸 목록 (운영자용) |
+| PUT | `/internal/farms/{farmId}/plots/{plotCode}` | SYSTEM (`X-Service-Key`) | `PlotAdminRequestDto` | `PlotAdminResponseDto` | 칸 등록 및 수정 (작물, 담당 관리사) |
 | POST | `/internal/farms/sync` | SYSTEM (`X-Service-Key`) | 없음 | `FarmSyncResponseDto` | 공공데이터 주말농장 파일 동기화. 스케줄러는 매주 월 03:00 |
 | POST | `/internal/streaks/check` | SYSTEM (`X-Service-Key`) | `StreakCheckRequestDto` (본문 생략 가능) | `StreakCheckResponseDto` | 전날 응원이 없는 텃밭의 스트릭 끊김 처리. 스케줄러는 매일 00:05 |
 | POST | `/internal/leagues/settle` | SYSTEM (`X-Service-Key`) | `LeagueSettleRequestDto` (본문 생략 가능) | `LeagueSettleResponseDto` | 지난주 리그 정산, 새 주의 리그와 퀘스트 생성. 스케줄러는 매주 월 00:10 |
 
-아직 없는 API: 관리사 프로필과 작업 (`/caretakers/**`, `/caretaker/**`, `/tts`, `/gardens/*/stage-checks`), `POST /internal/ai/daily-tasks`, `POST /internal/ai/growth-simulation`. 돌봄 기록 도메인이 없어서 `POST /care-logs/{careLogId}/hearts`는 항상 `C404`다 ([알려진 이슈](#알려진-이슈--결정-대기)).
+관리사 프로필과 작업 (`/caretakers/**`, `/caretaker/**`, `/tts`, `/gardens/*/stage-checks`), `POST /internal/ai/daily-tasks`, `POST /internal/ai/growth-simulation`은 이후 구현됐다 (문서 상단 참고). 아래 문장은 당시 기록이다. 돌봄 기록 도메인이 없어서 `POST /care-logs/{careLogId}/hearts`는 항상 `C404`다 ([알려진 이슈](#알려진-이슈--결정-대기)).
 
 ### 경로별 권한 (`SecurityConfiguration`)
 
@@ -1103,7 +1127,7 @@ ADMIN은 RoleHierarchy로 USER, OWNER, CARETAKER 권한을 갖는다. SYSTEM은 
 | `AuthResponseDto` | `userId`, `accessToken`, `refreshToken`, `expiresIn` (초), `role`, `nextStep` (조립은 `AuthService.createAuthResponse` 한 곳에서만) |
 | `TokenRefreshResponseDto` | `accessToken`, `refreshToken`, `expiresIn` (초) |
 | `UsernameCheckResponseDto` | `username`, `available` |
-| `UserMeResponseDto` | `userId`, `name`, `username`, `role`, `nextStep`, `owner` (`nickname`, `district`, `gardenId`. 주인 프로필이 없으면 `null`), `caretaker` (`caretakerId`, `name`, `farmId`, `avatarUrl`. 관리사 프로필 도메인이 없어 항상 `null`) |
+| `UserMeResponseDto` | `userId`, `name`, `username`, `role`, `nextStep`, `owner` (`nickname`, `district`, `gardenId`. 주인 프로필이 없으면 `null`), `caretaker` (`caretakerId`, `name`, `farmId`, `avatarUrl`, `completedTasks`. 관리사 프로필이 없으면 `null`) |
 | `RoleChangeResponseDto` | `role`, `accessToken`, `refreshToken`, `nextStep` |
 | `NotificationListResponseDto` | `items` (`NotificationItemDto` 목록), `unreadCount`, `nextCursor` |
 | `NotificationItemDto` | `notificationId` (`ntf_3`), `type`, `title`, `body`, `target` (`screen`, `id`. 이동 대상이 없으면 `null`), `read`, `createdAt` |
@@ -1284,7 +1308,7 @@ ADMIN은 RoleHierarchy로 USER, OWNER, CARETAKER 권한을 갖는다. SYSTEM은 
 | `HarvestGardenReader` (harvest) | 수확, 방문 | `GardenHarvestReader` (garden) |
 | `WeatherFarmReader` (weather) | 날씨 수집 | `FarmWeatherFarmReader` (farm) |
 | `OwnerSummaryReader` (user) | `/users/me`의 `owner` | `GardenOwnerSummaryReader` (garden) |
-| `FarmCaretakerReader` (farm) | 칸 미리보기, 홈, 일기의 관리사 프로필 (`caretakerId`, `avatarUrl`) | 없음. 관리사 프로필 도메인(#5)이 등록한다. 그 전에는 이름만 나간다 |
+| `FarmCaretakerReader` (farm) | 칸 미리보기, 홈, 일기의 관리사 프로필 (`caretakerId`, `avatarUrl`) | `StoredFarmCaretakerReader` (caretaker). 프로필이 없는 관리사는 이름만 나간다 |
 | `GardenCareLogReader` (garden) | 홈의 최근 돌봄, 하트, 일기, 수확의 돌봄 횟수 | 없음. 돌봄 기록 도메인(#7)이 등록한다. 그 전에는 돌봄 기록이 없는 것으로 동작한다 |
 
 ### 농장, 칸, 작물
@@ -1292,7 +1316,7 @@ ADMIN은 RoleHierarchy로 USER, OWNER, CARETAKER 권한을 갖는다. SYSTEM은 
 1. `Farm`은 공공데이터 "경기도 용인시 주말농장" 파일(`src/main/resources/data/weekend-farms.csv`, 8곳)에서 온다. 오픈 API가 아니라 한 번 올라온 파일이라 저장소에 넣어 두고 `FarmSyncService.sync`가 읽는다. 같은 농장은 `externalId`로 찾아 바뀐 값만 고친다. 출처는 [public-data.md](public-data.md)를 본다.
 2. 원본에 좌표가 없어서 주소의 읍면동 대표 좌표(`YonginTown`)를 쓰고, 그 좌표로 기상청 격자(`KmaGrid`)를 구해 `nx`, `ny`에 넣는다.
 3. `FarmSeeder`가 부팅할 때 작물(방울토마토, 기준온도 10℃)을 넣고, 농장이 하나도 없으면 한 번 동기화한다. `demo.enabled=true`면 시연 농장(`demo:theme`, 처인 테마 주말농장)과 칸 B-13, B-14, B-15를 넣는다.
-4. `Plot`은 농장의 칸이다. 칸마다 작물과 담당 관리사가 정해져 있고, 주인이 프로필을 등록하면 `assigned=true`가 된다. 실제 농장의 칸 데이터는 없어서 지금은 시연 농장에만 칸이 있다.
+4. `Plot`은 농장의 칸이다. 칸마다 작물과 담당 관리사가 정해져 있고, 주인이 프로필을 등록하면 `assigned=true`가 된다. 실제 농장의 칸은 공공데이터에 없으므로 운영자가 `PUT /internal/farms/{farmId}/plots/{plotCode}`로 넣는다. 시연 농장의 칸은 시드로 들어간다.
 
 ### 주인 프로필과 텃밭 시작
 
@@ -1578,6 +1602,7 @@ XP, 스트릭, 보상처럼 값을 읽고 고치는 API는 텃밭 행을 잠그�
 | `INVALID_REQUEST` | C001 | 400 | 잘못된 요청입니다. | 미사용 |
 | `INVALID_PARAMETER` | C002 | 400 | 유효하지 않은 파라미터입니다. | `@Valid` 검증 실패, 읽을 수 없는 본문 (잘못된 enum 값 포함), 필수 쿼리 누락, 쿼리와 경로 값의 형식 오류 (날짜 등), `RoleNotAllowedException`, `InvalidIdException` (슬롯 ID 포함), `VisitSlotNotBookableException`, `DemoWeatherNotAllowedException`, `OwnerDistrictNotAllowedException`, `DiaryCursorInvalidException`, `QuizChoiceInvalidException` |
 | `FILE_NOT_SUPPORTED` | C4001 | 400 | 지원하지 않는 파일입니다. | `FileNotSupportedException` (형식, 크기, 길이 위반), multipart 상한 초과 |
+| `PORTRAIT_CONSENT_REQUIRED` | C4003 | 400 | 초상권 동의가 필요합니다. | `CaretakerException` (AI 아바타 요청에 초상권 동의가 없음) |
 | `NOT_COMPLETED` | C4004 | 400 | 아직 완료되지 않았습니다. | `QuestNotCompletedException` |
 | `CANCEL_DEADLINE_PASSED` | C4005 | 400 | 취소 기한이 지났습니다. | `VisitCancelDeadlinePassedException` |
 | `VERIFICATION_INVALID` | C4011 | 401 | 인증 정보가 유효하지 않습니다. | EntryPoint (미인증 접근), `AuthenticationInfoException` |
@@ -1660,19 +1685,19 @@ docker run -d -p 6379:6379 redis:7
 
 | 항목 | 현재 상태 | 영향 |
 | --- | --- | --- |
-| `profileRegistered` 갱신 | 주인 프로필을 등록하면 true가 되고, 역할을 바꿨다가 OWNER로 돌아오면 기존 주인 프로필이 있을 때 true로 복원된다. 관리사 프로필 도메인은 아직 없다 | 관리사는 `nextStep`이 `PROFILE_CARE`에서 멈춘다. 관리사 프로필 등록 API를 만들 때 true로 바꾼다 |
-| `/users/me`의 `caretaker` | 항상 `null` (`owner`는 채워진다) | 관리사 프로필 도메인을 만들 때 `UserService.getMe`에서 채운다 |
+| `profileRegistered` 갱신 | 주인 프로필을 등록하면 true가 되고, 역할을 바꿨다가 돌아오면 그 역할의 기존 프로필이 있을 때 true로 복원된다. 관리사도 `POST /caretakers/me/profile`로 등록하면 true가 된다 | 해결됨 |
+| `/users/me`의 `caretaker` | 관리사 프로필이 있으면 채워진다 | 해결됨 |
 | 기존 로컬 DB의 `user` 테이블 | `ddl-auto: update`는 예전 `email` 컬럼(not null)을 지우지 않는다 | 가입 시 insert가 실패한다. 로컬 DB의 `user`, `product` 테이블을 직접 drop하고 다시 띄운다 |
-| prod `ddl-auto: validate` | 스키마 자동 생성 안 함 | prod DB에 테이블을 미리 만들어야 부팅됨 (마이그레이션 도구 없음). 이번에 추가된 테이블: `farm`, `plot`, `crop`, `owner_profile`, `garden`, `xp_history`, `care_log_heart`, `evolution_event`, `badge`, `user_badge`, `league`, `league_member`, `quest`, `user_quest`, `garden_quiz` |
+| prod `ddl-auto: validate` | 스키마 자동 생성 안 함 | prod DB에 테이블을 미리 만들어야 부팅됨 (마이그레이션 도구 없음). 이번에 추가된 테이블: `farm`, `plot`, `crop`, `owner_profile`, `garden`, `xp_history`, `care_log_heart`, `evolution_event`, `badge`, `user_badge`, `league`, `league_member`, `quest`, `user_quest`, `garden_quiz`. 이후 추가분은 `db/manual/`의 SQL (`care_growth.sql`, `voice_memo.sql`, `diary.sql`, `visit_booking_day.sql`, `demo_simulation.sql`, `ai_completion.sql`, `avatar_job.sql`)을 적용한다 |
 | `@CreatedDate` 미동작 | `@EnableJpaAuditing` 없음 | 감사 필드는 서비스에서 `LocalDateTime.now()`로 직접 채운다 |
 | 검증 실패 메시지 | 클라이언트에는 C002 고정 메시지만 반환 | 어떤 필드가 틀렸는지는 서버 로그에만 남음 |
 | 테스트 | `contextLoads`, `common` 단위 테스트 (페이지네이션, ID, 파일 검증, 필터, 날짜 직렬화), `notification`, `harvest`, `weather`, `demo`, `farm`, `garden`, `diary`, `evolution`, `game` 서비스 단위 테스트 (저장소는 Mockito로 대체) | 실제 DB를 쓰는 저장소 쿼리 테스트는 없음. 잠금과 동시 요청은 로컬 MariaDB에 서버를 띄워 손으로 확인했다 |
-| AI 클라이언트 구현체 | 제공자 미정, 인터페이스와 기본 빈만 있음 | `LlmClient`, `SttClient`, `TtsClient` 호출은 항상 `C502`. 제공자가 정해지면 구현체를 추가한다 |
+| AI 클라이언트 구현체 | Gemini (`AI_GEMINI_ENABLED`)와 로컬 모델 (`AI_LOCAL_*`) 구현체가 있다. 둘 다 끄면 기본 빈이 쓰인다 | 기본 빈에서는 `LlmClient`, `SttClient`, `TtsClient` 호출이 `C502`이고 규칙 기반 대체가 동작한다. 아바타는 `GEMINI_IMAGE_MODEL`이 없으면 FAILED와 기본 아바타다 |
 | 시연 계정 | 가입 API로는 ADMIN을 만들 수 없음 | 시연 전에 DB에서 시연 계정의 `role`을 `ADMIN`으로 직접 바꾼다. 시연이 끝나면 prod `DEMO_ENABLED=false` |
 | 브라우저 녹음 길이 | webm과 사파리 조각 mp4는 서버가 길이를 읽지 못함 | 5MB 이하로만 확인한다. 60초 제한은 프론트 녹음 제한에 기대며, STT 제공자가 정해지면 STT 결과 길이로 다시 확인할 수 있다 |
 | 돌봄 기록, 관리사 프로필 접점 | 실제 도메인 구현체 연결 완료 | 홈, 일기, 감사 하트 연결을 격리 환경 실제 HTTP로 검증 |
 | 단계를 올리는 곳 | GrowthService와 GardenGrowthProjection에서 EvolutionEventService에 연결 | 시연도 같은 이벤트와 보상 경로 사용 |
-| 실제 농장의 칸 | 공공데이터에 칸 정보가 없어 시연 농장에만 칸이 있음 | 실제 농장 8곳은 목록에는 나오지만 분양받을 수 없다 (`C404`). 칸을 넣는 관리 기능이나 시드가 필요하다 |
+| 실제 농장의 칸 | 공공데이터에 칸 정보가 없다. 운영자가 `PUT /internal/farms/{farmId}/plots/{plotCode}`로 칸, 작물, 담당 관리사를 넣는다 | 칸을 넣기 전의 실제 농장은 목록에는 나오지만 분양받을 수 없다 (`C404`). 실제 칸 자료는 운영자가 확보해야 한다 |
 | 농장 좌표 | 원본에 좌표가 없어 읍면동 대표 좌표를 쓴다 | 같은 읍면동의 농장은 좌표와 거리가 같게 나온다 |
 | 방문 슬롯 정원의 동시성 | VisitCapacityGuard가 날짜 행을 잠근 뒤 정원을 검사한다 | 같은 텃밭의 같은 날 예약은 유니크 키로 보호한다 |
 | 관리사별 방문 가능 시간 | 데이터가 없어 주말 고정 시간(10, 11, 14, 15시)을 쓴다 | 관리사가 시간을 고르게 하려면 프로필에 가능 시간을 추가하고 `VisitSlotPolicy`를 고친다 |
@@ -1688,6 +1713,7 @@ docker run -d -p 6379:6379 redis:7
 
 | 이슈 | 남은 항목 | 필요한 것 |
 | --- | --- | --- |
+| #5 | AI 아바타 API와 시연 관리사 프로필 시드 구현 완료 | 실제 이미지 모델 호출은 `GEMINI_IMAGE_MODEL`과 키를 넣은 환경에서 확인해야 한다. 그 전에는 FAILED와 기본 아바타로 동작한다 |
 | #14 | 방문 시드 구현 완료 | DEMO_SEED_VISIT_ENABLED=true로 선택 실행. 실제 관리사 방문 가능 시간은 운영 자료가 필요하다 |
 | #16 | 코드 구현 및 격리 환경 HTTP 검증 완료 | 운영 스키마 적용과 실제 프론트 리허설 필요. 과거 기록을 삭제하는 전체 DB 재적재는 하지 않는다 |
 | #11 | 리그, 마이 화면 디자인 반영 | 디자인이 아직 없어 응답 구조를 명세 기준으로 만들었다. 디자인이 나오면 필드를 맞춘다 |
