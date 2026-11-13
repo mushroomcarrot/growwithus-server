@@ -24,6 +24,22 @@ public class GardenService {
         return garden;
     }
 
+    // 내 텃밭을 잠그고 가져온다. XP나 스트릭을 바꾸는 작업이 쓴다
+    public Garden getOwnedGardenForUpdate(String username, String gardenId) {
+        Garden garden = getGardenForUpdate(IdPrefix.GARDEN.parse(gardenId));
+        requireOwner(username, garden);
+
+        return garden;
+    }
+
+    public Garden getGardenForUpdate(Long id) {
+        return gardenRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> {
+                    log.error("[getGardenForUpdate] 텃밭 조회 실패: {}", id);
+                    return new GardenNotFoundException();
+                });
+    }
+
     public Garden getGardenEntity(Long id) {
         return gardenRepository.findDetail(id)
                 .orElseThrow(() -> {
