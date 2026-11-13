@@ -1708,3 +1708,4 @@ verifyLocalAi Gradle 작업은 설치된 실제 STT와 LLM, TTS 및 비전 모�
 
 사진 판정은 업로드 원본을 변경하지 않고 JPEG 또는 PNG를 가로 세로 최대 768픽셀의 JPEG 미리보기로 바꿔 호출한다. 최대 5000만 픽셀과 20000픽셀 변 길이를 검사하고 손상된 입력은 판정 불가로 처리한다. 작은 로컬 비전 모델의 입력 메모리를 줄이기 위한 제한이다. compose.ai-ready.json은 로컬 시연 Compose에만 겹쳐 쓰는 선택 설정이며 qwen3-vl:2b-instruct 설치 후 사용한다. 운영 서버 사양에 맞는 모델 선택은 배포 단계에서 확인한다.
 배포 Dockerfile의 build 작업 디렉터리는 /app이다. 로컬 검사 보고서와 공개 자료도 /app/build/reports에 마운트하여 verifyLocalAi와 전체 JUnit 보고서가 같은 호스트 폴더를 사용한다. scripts/test_local_demo.py에서 Dockerfile과 검사 마운트 경로의 일치를 확인한다.
+로컬 TTS 클라이언트는 JSON을 UTF-8 바이트로 직렬화하고 Content-Length를 명시한다. 작업자는 길이가 없는 전송을 거절하므로 Map을 직접 전송해 chunked 요청이 되는 경우를 피한다. 실제 JDK HTTP 클라이언트와 로컬 HTTP 서버로 이 통신 조건을 검사한다.
