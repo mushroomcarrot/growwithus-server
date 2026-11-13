@@ -115,7 +115,8 @@ public class UserService {
             log.info("[changeRole] 역할 변경: {} ({} > {})", username, user.getRole(), newRole);
             user.setRole(newRole);
             // 프로필은 역할별로 따로 있으므로 역할이 바뀌면 새 역할의 프로필을 다시 등록해야 한다
-            user.setProfileRegistered(newRole == UserRole.CARETAKER && caretakerProfiles.existsByUsername(username));
+            user.setProfileRegistered(newRole == UserRole.CARETAKER
+                    ? caretakerProfiles.existsByUsername(username) : ownerProfiles.findByUsername(username).isPresent());
         }
 
         // 이전 역할이 담긴 토큰을 무효로 만들고 새 역할로 다시 발급한다

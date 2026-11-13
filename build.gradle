@@ -44,6 +44,7 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+    reports.junitXml.outputLocation = layout.buildDirectory.dir('reports/junit')
 }
 
 // 사용자가 명시적으로 실행할 때만 로컬 모델을 호출한다. 일반 test와 build에는 포함하지 않는다.

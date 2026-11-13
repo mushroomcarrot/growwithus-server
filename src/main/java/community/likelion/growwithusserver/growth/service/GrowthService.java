@@ -27,6 +27,7 @@ public class GrowthService {
     private final TaskPhotoRepository photos;
     private final TaskRepository tasks;
     private final ApplicationEventPublisher publisher;
+    private final GrowthProjection projection;
     private record Updated(GrowthDtos.Detail detail, String eventId) {}
 
     @Transactional
@@ -94,6 +95,7 @@ public class GrowthService {
             eventId = IdPrefix.EVENT.format(event.getId());
             publisher.publishEvent(new GrowthChanged(garden.ownerUsername(), event.getSummary(), eventId));
         }
+        eventId = projection.synchronize(garden.gardenId(), result.stage(), result.accumulatedGdd(), result.expectedHarvestDate(), eventId);
         return new Updated(GrowthDtos.Detail.builder().stage(result.stage()).level(result.level()).accumulatedGdd(result.accumulatedGdd())
                 .nextStage(result.nextStage()).nextStageGdd(result.nextStageGdd()).progress(result.progress())
                 .expectedHarvestDate(result.expectedHarvestDate()).calibratedAt(DateTimes.toOffset(state.getCalibratedAt()))

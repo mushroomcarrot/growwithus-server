@@ -37,7 +37,8 @@ class GrowthServiceTest {
             if (!method.equals("save")) throw new AssertionError(method);
             var event = (GrowthEvent) args[0]; event.setId((long) events.size() + 1); events.add(event); return event;
         });
-        return new GrowthService(gardens, (nx, ny, from, to) -> weather, states, eventRepo, null, null, notifications::add);
+        return new GrowthService(gardens, (nx, ny, from, to) -> weather, states, eventRepo, null, null, notifications::add,
+                (id, stage, gdd, forecast, event) -> event);
     }
     @Test void persistsGrowthAndEmitsStageChangeOnlyOnce() {
         var service = service();

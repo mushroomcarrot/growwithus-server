@@ -10,6 +10,7 @@ public enum IdPrefix {
     USER("usr"),
     GARDEN("gdn"),
     FARM("farm"),
+    CROP("crop"),
     CARETAKER("crt"),
     TASK("tsk"),
     CARE_LOG("cl"),
@@ -18,7 +19,10 @@ public enum IdPrefix {
     EVENT("evt"),
     DIARY("dry"),
     VISIT("vst"),
-    NOTIFICATION("ntf");
+    NOTIFICATION("ntf"),
+    LEAGUE("lg"),
+    QUEST("qst"),
+    QUIZ("qz");
 
     private static final String SEPARATOR = "_";
 

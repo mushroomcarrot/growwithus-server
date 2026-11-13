@@ -1,0 +1,31 @@
+package community.likelion.growwithusserver.game.service;
+
+import community.likelion.growwithusserver.game.data.dto.StreakCheckResponseDto;
+import community.likelion.growwithusserver.garden.data.enums.CharacterMood;
+import community.likelion.growwithusserver.garden.data.repository.GardenRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+
+// 스트릭 끊김 배치 (매일 00:05). 전날 응원하지 않은 텃밭의 스트릭을 0으로 돌리고 캐릭터를 시무룩하게 한다.
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class StreakService {
+    private final GardenRepository gardenRepository;
+
+    /**
+     * @param date 응원했는지 확인할 날. null이면 어제. 그날이나 그 뒤에 응원한 텃밭은 건드리지 않는다
+     */
+    @Transactional
+    public StreakCheckResponseDto check(LocalDate date) {
+        LocalDate target = date == null ? LocalDate.now().minusDays(1) : date;
+        int broken = gardenRepository.breakStreaks(target, CharacterMood.SAD);
+        log.info("[check] 스트릭 끊김 처리: {} (텃밭 {}개)", target, broken);
+
+        return new StreakCheckResponseDto(broken);
+    }
+}

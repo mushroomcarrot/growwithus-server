@@ -6,6 +6,7 @@ import community.likelion.growwithusserver.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
+@org.springframework.context.annotation.Profile("local-demo")
 @Component @RequiredArgsConstructor
 public class GrowthNotificationListener {
     private final NotificationService notifications;

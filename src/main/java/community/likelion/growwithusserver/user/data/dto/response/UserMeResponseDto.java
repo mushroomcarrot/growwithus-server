@@ -17,7 +17,7 @@ public class UserMeResponseDto {
     private String username;
     private UserRole role;
     private NextStep nextStep;
-    // 주인 프로필 요약. 주인 프로필 도메인이 생기기 전까지는 항상 null이다.
+    // 주인 프로필 요약. 주인 프로필을 등록하기 전이면 null이다.
     private OwnerSummary owner;
     // 관리사 프로필 요약. 관리사 프로필 도메인이 생기기 전까지는 항상 null이다.
     private CaretakerSummary caretaker;

@@ -23,6 +23,7 @@ public class CaretakerService {
     private final CaretakerProfileRepository profiles;
     private final CaretakerFarmReader farms;
     private final CareLogRepository logs;
+    private final community.likelion.growwithusserver.garden.data.repository.CareLogHeartRepository hearts;
     @Value("${care.allowance-per-task:0}") private long allowancePerTask;
     @Value("${file.base-url}") private String fileBaseUrl;
 
@@ -61,7 +62,8 @@ public class CaretakerService {
         return GlobalResponse.ok(CaretakerDtos.Summary.builder().month(selected.toString()).completedTasks(records.size())
                 .gardenCount(records.stream().map(r -> r.getGardenId()).distinct().count())
                 .workDays(records.stream().map(r -> r.getCreatedAt().toLocalDate()).distinct().count())
-                .heartsReceived(records.stream().mapToLong(r -> r.getHeartsReceived()).sum())
+                .heartsReceived(hearts.countByCaretakerUsernameAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(username,
+                        selected.atDay(1).atStartOfDay(), selected.plusMonths(1).atDay(1).atStartOfDay()))
                 .expectedAllowance(Math.multiplyExact((long) records.size(), allowancePerTask))
                 .allowanceNote("가정치예요. 실제 수당과 다를 수 있어요.").build());
     }
