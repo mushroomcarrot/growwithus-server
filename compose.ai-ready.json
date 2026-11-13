@@ -1,0 +1,14 @@
+{
+  "services": {
+    "backend": {
+      "environment": {
+        "AI_LOCAL_VISION_MODEL": "qwen3-vl:2b-instruct"
+      }
+    },
+    "ai-evaluation": {
+      "environment": {
+        "AI_LOCAL_VISION_MODEL": "qwen3-vl:2b-instruct"
+      }
+    }
+  }
+}

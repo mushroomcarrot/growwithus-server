@@ -70,3 +70,13 @@ tasks.register('unitTest', Test) {
     exclude '**/AiDomainContextTest.class'
     exclude '**/AiCompletionPersistenceTest.class'
 }
+// 설치된 로컬 모델의 실제 동작 확인. 일반 test와 build에서는 실행하지 않는다.
+tasks.register('verifyLocalAi', JavaExec) {
+    group = 'verification'
+    description = '로컬 STT, LLM, TTS 및 사진 비전 실제 동작 검사'
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'community.likelion.growwithusserver.ai.evaluation.AiPredeployCheck'
+    args layout.buildDirectory.dir('reports/ai-fixtures').get().asFile.absolutePath,
+            layout.buildDirectory.file('reports/ai-predeploy.json').get().asFile.absolutePath
+}
