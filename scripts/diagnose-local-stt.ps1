@@ -1,4 +1,4 @@
-param([switch]$Rebuild)
+param([switch]$Rebuild, [switch]$CheckLlm)
 $ErrorActionPreference = 'Stop'
 $projectDir = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 Set-Location -LiteralPath $projectDir
@@ -11,6 +11,51 @@ else {
     }
 }
 if (-not (Test-Path -LiteralPath $dockerPath)) { throw 'Docker CLI was not found.' }
+
+if ($CheckLlm) {
+    # Match the application prompt, using only the public fixture reference text.
+    $source = Get-Content -LiteralPath (Join-Path $projectDir 'src\main\java\community\likelion\growwithusserver\ai\service\VoiceMemoAnalysisService.java') -Raw -Encoding UTF8
+    $match = [regex]::Match($source, '(?s)llmClient\.complete\("""(.*?)"""')
+    if (-not $match.Success) { throw 'The voice analysis prompt was not found.' }
+    $reference = (Get-Content -LiteralPath (Join-Path $projectDir 'src\test\resources\ai-evaluation\synthetic-korean-reference.txt') -Raw -Encoding UTF8).Trim()
+    $payload = @{system = $match.Groups[1].Value.Trim(); transcript = $reference} | ConvertTo-Json -Compress
+    $encodedPayload = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($payload))
+    $probe = @"
+import base64, json, time, urllib.request, urllib.error
+fixture = json.loads(base64.b64decode('$encodedPayload'))
+body = {'model': 'qwen2.5:3b', 'stream': False, 'format': 'json', 'messages': [
+    {'role': 'system', 'content': fixture['system']},
+    {'role': 'user', 'content': json.dumps({'transcript': fixture['transcript']}, ensure_ascii=False)}],
+    'options': {'temperature': 0, 'num_predict': 1024}}
+started = time.monotonic()
+report = {'syntheticText': True}
+try:
+    request = urllib.request.Request('http://127.0.0.1:11434/api/chat', data=json.dumps(body).encode(), headers={'Content-Type': 'application/json'})
+    with urllib.request.urlopen(request, timeout=100) as response:
+        reply = json.load(response)
+    content = reply.get('message', {}).get('content', '')
+    report.update(status='passed', modelReply=content[:16000], doneReason=reply.get('done_reason'))
+except urllib.error.HTTPError as error:
+    report.update(status='failed', errorType=type(error).__name__, httpStatus=error.code, message=error.read(1200).decode('utf-8', errors='replace'))
+except Exception as error:
+    report.update(status='failed', errorType=type(error).__name__, message=str(error)[:600])
+report['seconds'] = round(time.monotonic() - started, 2)
+print(json.dumps(report, ensure_ascii=True), flush=True)
+"@
+    Write-Host 'Checking local LLM with the application prompt and public synthetic text. No records are changed.'
+    $result = $probe | & $dockerPath compose --env-file .env.local-demo -f compose.local-demo.json exec -T stt python -
+    if ($LASTEXITCODE -ne 0) { throw 'LLM diagnostic command failed. Keep this window open.' }
+    $report = ($result -join "`n") | ConvertFrom-Json
+    $report | Add-Member -NotePropertyName checkedAt -NotePropertyValue ([DateTime]::UtcNow.ToString('o'))
+    $reportDir = Join-Path $projectDir 'build\reports'
+    New-Item -ItemType Directory -Path $reportDir -Force | Out-Null
+    $reportPath = Join-Path $reportDir 'local-llm-diagnostic.json'
+    $report | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $reportPath -Encoding UTF8
+    Write-Host "Result saved: $reportPath"
+    Write-Host "LLM transport result: $($report.status). Application summary validation is checked separately."
+    if ($report.status -eq 'failed') { Write-Host "$($report.errorType): $($report.message)"; exit 1 }
+    return
+}
 
 if ($Rebuild) {
     Write-Host 'Rebuilding only STT with compatible audio libraries. Models and database records are preserved.'

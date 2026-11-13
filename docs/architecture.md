@@ -1,5 +1,7 @@
 # 현재 구조
 
+CHECK-LOCAL-LLM.cmd는 기존 진단 스크립트의 CheckLlm 모드로 Ollama 통신과 응답을 확인한다. 실제 Java 정리 프롬프트를 읽고 공개 합성 문장만 전송한다. 내부 AI 포트를 외부에 공개하지 않고 STT 컨테이너의 공유 네트워크를 이용한다. 진단 결과는 로컬 보고서에 기록하고 DB나 작업은 변경하지 않는다.
+
 STT 이미지는 faster-whisper 1.2.1과 PyAV 18 계열을 사용한다. PyAV 19에서 삭제된 metadata_errors 인자로 음성 해독이 실패하는 조합을 제외한다. 이미지 빌드 때 check_audio_decoder.py가 모델 다운로드 없이 생성한 PCM WAV를 실제 faster-whisper 해독기로 읽고 샘플 수를 확인한다. 실패하면 이미지 빌드도 중단한다. FIX-LOCAL-STT.cmd는 STT만 재빌드하고 교체한 뒤 상태와 한국어 합성 음성을 검사한다. 모델 볼륨과 DB는 보존하며 나머지 서비스는 재시작하지 않는다.
 
 로컬 STT 진단에는 `CHECK-LOCAL-STT.cmd`와 `scripts/diagnose-local-stt.ps1`을 사용한다. 기존 STT 컨테이너에서 공개 합성 음성으로 모델을 직접 실행하고 비밀번호나 사용자 녹음 없이 진단 보고서를 기록한다. 일반 Windows 계정의 Docker 접근 권한을 사용하며 작업 기록을 변경하지 않는다. 기본 서버 HTTP 검사와 실제 음성 처리 성공 여부는 별도로 기록한다. 합성 WAV는 `src/test/resources/ai-evaluation/`에 정답 문장과 생성 정보를 함께 보관한다.

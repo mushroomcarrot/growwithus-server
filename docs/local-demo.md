@@ -2,6 +2,8 @@
 
 ## 합성 음성으로 STT 확인
 
+STT는 통과하지만 메모가 LLM_FAILED라면 CHECK-LOCAL-LLM.cmd로 앱과 같은 프롬프트의 모델 원본 응답을 검사한다. build/reports/local-llm-diagnostic.json에 공개 합성 문장에 대한 모델 응답 또는 통신 오류를 저장한다. 사용자 녹음과 비밀번호는 사용하지 않으며 기존 작업도 변경하지 않는다. 모델 응답을 받았다는 사실만으로 앱의 JSON, 근거, 정리문 길이 검증까지 통과한 것은 아니다.
+
 `TypeError: open() got an unexpected keyword argument 'metadata_errors'`가 나오면 `FIX-LOCAL-STT.cmd`를 실행한다. STT 이미지의 faster-whisper 1.2.1과 PyAV 18 조합을 설치하고, 빌드 중 WAV 해독을 실제 검사한 뒤 STT 컨테이너만 교체한다. DB, 모델, 업로드 파일은 삭제하지 않는다. 컨테이너 상태 확인 후 합성 음성 진단까지 자동 실행하며 결과 파일 경로는 아래와 같다. 실패한 빌드나 진단을 성공으로 표시하지 않는다.
 
 원인은 [faster-whisper 공식 이슈 #1589](https://github.com/SYSTRAN/faster-whisper/issues/1589)에 보고된 PyAV 19의 인자 삭제다. 라이브러리 내부 코드를 임의 수정하지 않고 requirements.txt에서 호환 범위를 제한한다.
