@@ -1719,3 +1719,6 @@ verifyLocalAi Gradle 작업은 설치된 실제 STT와 LLM, TTS 및 비전 모�
 ### 클라우드 AI 명시적 검증
 
 `verifyCloudAi` Gradle 작업과 `scripts/verify-cloud-ai.ps1`은 공개 합성 음성과 체크섬이 고정된 공개 사진으로 실제 Gemini를 검사한다. 기본 test와 build에서는 이 외부 호출 작업을 실행하지 않는다. STT 4종, 문장 정리, 성장 설명, 사진과 경량 TTS를 검증하며 메모 확정의 저장소 대역 검사와 운영 DB 검증을 구분한다. 실패는 비정상 종료와 JSON 결과로 남긴다. 자세한 입력과 결과 범위는 [cloud-ai.md](cloud-ai.md)를 따른다.
+
+
+공개 음성 기준은 같은 경로의 synthetic-korean-reference.txt를 사용한다. 검증은 기준 문장에 없는 단어를 필수로 요구하지 않으며 인식 원문을 검사 성공 여부와 무관하게 결과에 기록한다.

@@ -32,7 +32,7 @@ foreach ($file in $xmlReports) {
     if ([int]$xml.testsuite.failures -ne 0 -or [int]$xml.testsuite.errors -ne 0) { throw 'A unit or database test failed.' }
     $count += [int]$xml.testsuite.tests - [int]$xml.testsuite.skipped
 }
-if ($count -lt 303) { throw 'Expected at least 303 fresh successful tests.' }
+if ($count -lt 305) { throw 'Expected at least 305 fresh successful tests.' }
 $native=$xmlReports | Where-Object { $_.Name -eq 'TEST-community.likelion.growwithusserver.common.ai.NativeAudioTest.xml' }
 if (-not $native) { throw 'Native decoder and Korean TTS tests did not run.' }
 $nativeXml=[xml](Get-Content -LiteralPath $native.FullName -Raw -Encoding UTF8)

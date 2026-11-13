@@ -48,6 +48,27 @@ public final class AiPredeployCheck {
     }
     private static void require(boolean valid) { if (!valid) throw new IllegalStateException("AI check failed"); }
 
+    static boolean matchesReference(String actual, String reference) {
+        if (actual == null || reference == null) return false;
+        String observed = actual.replaceAll("[^가-힣A-Za-z0-9]", "");
+        String expected = reference.replaceAll("[^가-힣A-Za-z0-9]", "");
+        if (expected.isEmpty() || observed.isEmpty()) return false;
+        for (String detail : List.of("물", "흙", "잎", "점")) {
+            if (expected.contains(detail) && !observed.contains(detail)) return false;
+        }
+        int[] previous = new int[observed.length() + 1];
+        for (int j = 0; j < previous.length; j++) previous[j] = j;
+        for (int i = 1; i <= expected.length(); i++) {
+            int[] current = new int[observed.length() + 1]; current[0] = i;
+            for (int j = 1; j <= observed.length(); j++) {
+                current[j] = Math.min(Math.min(current[j - 1] + 1, previous[j] + 1),
+                        previous[j - 1] + (expected.charAt(i - 1) == observed.charAt(j - 1) ? 0 : 1));
+            }
+            previous = current;
+        }
+        return previous[observed.length()] <= expected.length() * 0.35;
+    }
+
     private static void preparePublicFixtures(Path directory) throws Exception {
         Files.createDirectories(directory);
         byte[] photo = Files.readAllBytes(directory.resolve("tomato.jpg"));
@@ -105,13 +126,18 @@ public final class AiPredeployCheck {
         }
         var analysis = new VoiceMemoAnalysisService(stt, llm, mapper);
         var transcripts = new LinkedHashMap<String, String>();
+        String reference;
+        try (var stream = AiPredeployCheck.class.getResourceAsStream("/ai-evaluation/synthetic-korean-reference.txt")) {
+            require(stream != null); reference = new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        }
+        runner.samples.put("reference", reference);
         for (String format : List.of("wav", "webm", "mp4", "m4a")) {
             runner.check("stt_" + format, () -> {
                 String text = stt.transcribe(Files.readAllBytes(directory.resolve("sample." + format)), "sample." + format);
-                require(text.codePoints().filter(c -> c >= 0xac00 && c <= 0xd7a3).count() >= 5);
-                if (runner.cloud) require(text.contains("물") && text.contains("잎") && text.contains("점"));
-                transcripts.put(format, text);
                 runner.samples.put("transcript_" + format, text);
+                require(text.codePoints().filter(c -> c >= 0xac00 && c <= 0xd7a3).count() >= 5);
+                if (runner.cloud) require(matchesReference(text, reference));
+                transcripts.put(format, text);
             });
         }
         var analyzed = new ArrayList<VoiceAnalysis.Result>();
