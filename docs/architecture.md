@@ -1702,3 +1702,10 @@ TTS 구현체 LocalTtsClient는 선택적으로 127.0.0.1:8766의 로컬 작업�
 운영 활성화는 AI_LOCAL_TTS_ENABLED=true와 AI_LOCAL_TTS_BASE_URL 설정이 필요하다. compose.ai-workers.json에 독립 tts 작업자를 추가했고 compose.local-demo.json은 같은 네트워크 공간에서 연결한다. 새 DB 스키마는 없다. 사진 비전은 출력 토큰을 제한하고 미설정, 모델 오류와 잘못된 결과를 판정 불가로 처리한다. 실제 비전 모델 설치와 운영 사양 검증은 별도다.
 
 최신 시연 가상 성장 상태도 내부 simulated 표시로 구분하여 LLM 설명에서 제외한다. 이 표시는 JSON 응답에 노출하지 않으며 기존 시연 안내 문구를 유지한다.
+## 배포 전 실제 AI 검사
+
+verifyLocalAi Gradle 작업은 설치된 실제 STT와 LLM, TTS 및 비전 모델에 연결하며 일반 빌드에서는 실행하지 않는다. WAV, WEBM, MP4, M4A로 변환한 공개 합성 한국어 음성, 성장 설명과 실제 토마토 사진의 관련 여부를 검사한다. 결과는 build/reports/ai-predeploy.json이며 사람의 녹음 정확도, 청취 평가와 운영 검증은 별도 상태로 기록한다. 사진 원본은 Softeis의 Tomato je.jpg이며 출처와 CC BY-SA 3.0 표기를 검사 자료에 함께 저장하고 SHA-1을 확인한다.
+
+사진 판정은 업로드 원본을 변경하지 않고 JPEG 또는 PNG를 가로 세로 최대 768픽셀의 JPEG 미리보기로 바꿔 호출한다. 최대 5000만 픽셀과 20000픽셀 변 길이를 검사하고 손상된 입력은 판정 불가로 처리한다. 작은 로컬 비전 모델의 입력 메모리를 줄이기 위한 제한이다. compose.ai-ready.json은 로컬 시연 Compose에만 겹쳐 쓰는 선택 설정이며 qwen3-vl:2b-instruct 설치 후 사용한다. 운영 서버 사양에 맞는 모델 선택은 배포 단계에서 확인한다.
+배포 Dockerfile의 build 작업 디렉터리는 /app이다. 로컬 검사 보고서와 공개 자료도 /app/build/reports에 마운트하여 verifyLocalAi와 전체 JUnit 보고서가 같은 호스트 폴더를 사용한다. scripts/test_local_demo.py에서 Dockerfile과 검사 마운트 경로의 일치를 확인한다.
+로컬 TTS 클라이언트는 JSON을 UTF-8 바이트로 직렬화하고 Content-Length를 명시한다. 작업자는 길이가 없는 전송을 거절하므로 Map을 직접 전송해 chunked 요청이 되는 경우를 피한다. 실제 JDK HTTP 클라이언트와 로컬 HTTP 서버로 이 통신 조건을 검사한다.

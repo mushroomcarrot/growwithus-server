@@ -9,6 +9,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class LocalDemoSetupTest(unittest.TestCase):
+    def test_evaluation_reports_follow_the_docker_build_working_directory(self):
+        dockerfile = (ROOT / 'Dockerfile').read_text(encoding='utf-8')
+        workdir = next(line.split()[1] for line in dockerfile.splitlines() if line.startswith('WORKDIR '))
+        config = json.loads((ROOT / 'compose.local-demo.json').read_text(encoding='utf-8'))
+        self.assertIn('./build/reports:' + workdir + '/build/reports', config['services']['ai-evaluation']['volumes'])
     def test_deployment_workers_have_no_demo_database_and_bind_only_loopback(self):
         config = json.loads((ROOT / "compose.ai-workers.json").read_text(encoding="utf-8"))
         services = config["services"]
@@ -109,6 +114,30 @@ class LocalDemoSetupTest(unittest.TestCase):
         self.assertEqual(result["voice"], "not_tested")
         self.assertEqual(result["completion"], "not_tested")
         client.upload.assert_not_called()
+
+    def test_reference_photo_requires_real_vision_and_preserves_negative_finding(self):
+        with tempfile.TemporaryDirectory(dir=ROOT / 'build') as temporary:
+            audio, photo = Path(temporary) / 'reference.wav', Path(temporary) / 'tomato.jpg'
+            audio.write_bytes(b'RIFFfixture'); photo.write_bytes(b'public-photo')
+            for vision in (None, {'matched': False, 'message': 'Cannot prove watering from this photo'}):
+                client = Mock(); client.login.side_effect = ['care-token', 'owner-token']
+                def request(path, *args, **kwargs):
+                    if kwargs.get('expected') == 403: return {}
+                    if path == '/local-demo/status': return {'localDemo': True}
+                    if path == '/users/me': return {'role': 'CARETAKER', 'caretaker': {'name': 'fixture'}}
+                    if path == '/caretaker/tasks/today': return {'gardens': [{'gardenId': 'gdn_1', 'tasks': [{'taskId': 'tsk_1', 'type': 'CHECK', 'status': 'TODO'}]}]}
+                    if path.endswith('/growth'): return {'stage': 'FLOWER'}
+                    if path.endswith('/complete'): return {'careLogId': 'clg_1'}
+                    if path.endswith('/diary'): return {'items': [{'careLogId': 'clg_1', 'transcript': 'source', 'summary': 'summary'}]}
+                    return {}
+                client.request.side_effect = request
+                client.upload.side_effect = [{'voiceMemoId': 'vm_1', 'transcript': 'source', 'summary': 'summary', 'processingStatus': 'READY'},
+                                             {'photoId': 'pht_1', 'aiCheck': vision}]
+                if vision is None:
+                    with self.assertRaises(RuntimeError): run(client, 'fixture', audio, True, photo)
+                else:
+                    result = run(client, 'fixture', audio, True, photo)
+                    self.assertEqual('passed', result['vision']); self.assertEqual('passed', result['completion'])
 
 
 if __name__ == "__main__":

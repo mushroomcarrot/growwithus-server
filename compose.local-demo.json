@@ -125,7 +125,7 @@
         "evaluateLocalAi"
       ],
       "volumes": [
-        "./build/reports:/source/build/reports"
+        "./build/reports:/app/build/reports"
       ],
       "depends_on": {
         "ollama": {

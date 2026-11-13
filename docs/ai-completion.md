@@ -72,3 +72,10 @@ Spring 설정은 AI_LOCAL_TTS_ENABLED=true와 AI_LOCAL_TTS_BASE_URL=http://127.0
 사진 비전은 기존 OllamaVisionClient를 유지하고 입력과 생성 토큰을 제한했다. 설치된 이미지 지원 모델을 AI_LOCAL_VISION_MODEL에 지정해야 한다. 예시 모델은 qwen2.5vl:3b이며 서버에서 직접 내려받아야 한다. 모델 파일 크기가 실행 메모리 요구량과 같지는 않다. 미설정이나 오류는 aiCheck=null이며 성공으로 꾸미지 않는다. 실제 이미지 정확도와 운영 서버 실행은 아직 확인이 필요하다.
 
 아바타는 이번 보완 범위에서 제외했다. 운영 DB, HTTPS, CORS와 실제 배포 검증을 완료했다는 의미는 아니다. 최신 develop 통합과 전체 Java 21 검사는 현재 작업 커밋 기준으로 별도 확인한다.
+## 배포 전 검사 절차
+
+후순위 아바타를 제외한 구현의 실제 모델 연결은 verifyLocalAi로 확인한다. 먼저 설치된 Ollama에 qwen3-vl:2b-instruct를 내려받고 compose.ai-ready.json을 local-demo Compose와 함께 사용한다. 원본 사진과 운영 DB는 검사 도구가 초기화하지 않는다. 사진 전송은 업로드 원본이 아닌 최대 768픽셀 미리보기를 사용한다.
+
+scripts/prepare-ai-fixtures.py는 공개 합성 음성을 FFmpeg로 WAV, WEBM, MP4, M4A로 준비하고 출처와 체크섬이 확인된 토마토 사진을 검사 폴더에 저장한다. Gradle verifyLocalAi는 같은 애플리케이션 클라이언트와 분석 서비스로 실제 인식, 요약, 성장 설명, 음성 생성과 사진 판정을 검사한다. 모든 항목이 통과해야 성공으로 종료하며 실패나 판정 불가를 성공으로 기록하지 않는다.
+
+사람의 녹음 정확도와 TTS 청취 여부는 자동 검사로 대신하지 않는다. 로컬 페이지에서 직접 녹음한 결과를 확인하고 build/reports/tts-review.mp3를 들어야 한다. 운영 서버와 프론트 전체 흐름은 배포 후 다시 확인한다. 합성 자료 검사 통과를 실제 사용자 음성 품질 보장으로 설명하지 않는다.
