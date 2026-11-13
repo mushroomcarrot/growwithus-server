@@ -1,5 +1,7 @@
 # 대신텃밭 API 명세 요약
 
+후속 추가 (2026-11-13): 관리사 AI 아바타 API 2개를 구현했고, 운영자가 실제 농장의 칸과 담당 관리사를 넣는 내부 키 전용 GET /internal/farms/{farmId}/plots와 PUT /internal/farms/{farmId}/plots/{plotCode}를 추가했다. 상세는 [api-detail.md](api-detail.md)의 3.7, 3.8, 8.1이다.
+
 후속 추가: 주인 프로필의 familySize(선택, 1~20, 등록 생략 시 1), /users/me의 owner.familySize와 owner.sentHearts, 예약 인원 생략 시 가족 수 기본값을 지원한다. 내부 키 전용 GET/PUT /internal/crops/{cropId}/task-guidance와 POST /internal/weather/daily를 추가했다. 상세 필드와 운영 조건은 [ai-completion.md](ai-completion.md)를 따른다.
 
 > 원본: Notion "API 명세서 (초안)" 데이터베이스 (API 54개). 쓰지 않는 푸시 토큰 등록을 제외하고 음성 재시도와 복구 조회 API를 추가했다. 작업 브랜치의 구현 범위와 추가 상태 필드는 [ai-integration.md](ai-integration.md), [voice-api.md](voice-api.md)를 함께 확인한다.
@@ -157,7 +159,7 @@
 | --- | --- | --- | --- |
 | POST | /internal/weather/sync | 1시간마다 | 기상청 단기예보, 실황 수집 |
 | POST | /internal/ai/daily-tasks | 매일 05:00 | AI 오늘의 작업 생성과 규칙 검증 (AI 핵심 1) |
-| POST | /internal/ai/growth-simulation | 매일 06:00 | 적산온도 누적, 단계와 수확일 갱신 (AI 핵심 2) |
+| POST | /internal/ai/growth-simulation | 매일 04:00 (작업 생성보다 먼저 돌도록 명세의 06:00에서 변경) | 적산온도 누적, 단계와 수확일 갱신 (AI 핵심 2) |
 | POST | /internal/streaks/check | 매일 00:05 | 스트릭 끊김 처리, 캐릭터 SAD |
 | POST | /internal/leagues/settle | 매주 월 00:10 | 리그 정산, 새 리그와 퀘스트 생성 |
 | POST | /internal/farms/sync | 매주 월 03:00 | 공공데이터포털 주말농장 동기화 |
@@ -222,14 +224,14 @@
 
 4.1 User의 8개, 4.4 Harvest의 5개, 4.6 Notification의 2개 API와 4.8 시연의 3개(state, weather, reset)를 구현했다. 경로 접두어는 명세를 따라 `/api/v1` 없이 쓰기로 정했다.
 
-음성 메모 업로드와 확정 경로 2개 및 저장 로직을 추가했다. 실제 작업 접점 구현이 없어 업로드는 아직 C404이며, 실제 모델과 DB 및 프론트 통합 검증은 남아 있다.
+4장의 API는 모두 구현되어 있다 (2026-11-13). 아래 표는 명세와 다르게 동작하는 부분만 남긴 것이다.
 
 | 항목 | 명세 | 현재 구현 |
 | --- | --- | --- |
 | ID 형식 | `usr_minji`처럼 읽기 쉬운 예시 ID | `usr_12`처럼 접두어에 숫자 PK를 붙인 문자열. 클라이언트는 ID를 불투명한 문자열로 다룬다 |
-| `/users/me`의 `owner`, `caretaker` | 프로필 요약 | 프로필 도메인 구현 전까지 `null` |
-| `nextStep`의 `OWNER_HOME`, `CARE_TODAY` | 프로필 등록 후 반환 | 프로필 도메인 구현 전까지 `PROFILE_OWNER`, `PROFILE_CARE`까지만 반환 |
-| 4.4 Harvest | 텃밭 기준으로 동작 | 텃밭 도메인 구현 전까지 `/gardens/{gardenId}/harvest`, `visit-slots`, `outings`, `POST /visits`는 `C404` |
+| `/users/me`의 `owner`, `caretaker` | 프로필 요약 | 프로필을 등록하기 전에는 `null` |
+| AI 아바타 | 이미지 생성 결과 | 서버에 `GEMINI_IMAGE_MODEL`이 없거나 생성에 실패하면 `FAILED`와 기본 아바타를 준다 |
+| 실제 농장의 칸 | 칸 번호로 분양 | 공공데이터에 칸이 없어 운영자가 내부 API로 칸을 넣은 농장만 분양받을 수 있다. 시연 농장은 칸이 시드로 들어간다 |
 | 방문 슬롯 ID | `slot_1128_10` | `slot_20261128_10` (연도 포함) |
 | 나들이 추천 | 체험농장, 식당 | 공공데이터에서 고른 처인구의 실제 장소 7곳을 시드로 넣는다 ([public-data.md](public-data.md)) |
 | 푸시 | 알림과 함께 기기 푸시 발송 | 프론트가 웹이라 기기 푸시는 없다. 알림은 저장만 하고 화면이 `GET /notifications`를 다시 조회해 확인한다. `POST /users/me/push-tokens`는 삭제했다 |
