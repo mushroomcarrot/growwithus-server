@@ -77,7 +77,9 @@ class Client:
         return self.request(path, token, "POST", body, "multipart/form-data; boundary=" + boundary)
 
 
-def run(client, password, audio_path=None, complete=False):
+def run(client, password, audio_path=None, complete=False, photo_path=None):
+    if photo_path and (not complete or photo_path.suffix.lower() not in (".jpg", ".jpeg")):
+        raise ValueError("--photo requires --complete and a public JPEG fixture.")
     if complete and audio_path is None:
         raise ValueError("--complete requires --audio so a failed voice test cannot be reported as a complete workflow.")
     care = client.login("soonja", password)
@@ -99,7 +101,8 @@ def run(client, password, audio_path=None, complete=False):
     report = {"login": "passed", "authorization": "passed", "garden": garden,
               "growth": growth["stage"], "voice": "not_tested", "completion": "not_tested"}
     if audio_path:
-        pending = [task for card in today["gardens"] for task in card["tasks"] if task["status"] == "TODO"]
+        pending = [task for card in today["gardens"] if card["gardenId"] == garden
+                   for task in card["tasks"] if task["status"] == "TODO"]
         if not pending:
             raise RuntimeError("No pending demo task. Existing records were preserved.")
         task = next((task for task in pending if task["type"] == "WATER"), pending[0])
@@ -119,7 +122,12 @@ def run(client, password, audio_path=None, complete=False):
         report["llm"] = "passed" if memo["processingStatus"] == "READY" else "fallback_used"
         if complete:
             png = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aRZkAAAAASUVORK5CYII=")
-            photo = client.upload(f"/caretaker/tasks/{task_id}/photos", care, "photo", "smoke-test.png", png, "image/png")
+            photo = client.upload(f"/caretaker/tasks/{task_id}/photos", care, "photo",
+                                 photo_path.name if photo_path else "smoke-test.png",
+                                 photo_path.read_bytes() if photo_path else png,
+                                 "image/jpeg" if photo_path else "image/png")
+            if photo_path and not isinstance((photo.get("aiCheck") or {}).get("matched"), bool):
+                raise RuntimeError("Photo upload did not receive a real vision result")
             finished = client.request(f"/caretaker/tasks/{task_id}/complete", care, "POST",
                                       {"photoId": photo["photoId"], "voiceMemoId": memo["voiceMemoId"]})
             diary = client.request(f"/gardens/{garden}/diary", owner)
@@ -127,11 +135,12 @@ def run(client, password, audio_path=None, complete=False):
             if not entry or entry["transcript"] != memo["transcript"] or entry["summary"] != memo["summary"]:
                 raise RuntimeError("Confirmed voice was not connected to the family diary")
             report["completion"] = "passed"
-            report["photo"] = "synthetic_test_image"
+            report["photo"] = "public_reference_image" if photo_path else "synthetic_test_image"
+            report["vision"] = "passed" if photo_path else "not_tested"
     return report
 
 
-def checked_run(client, password, report_path, audio_path=None, complete=False):
+def checked_run(client, password, report_path, audio_path=None, complete=False, photo_path=None):
     def save(status, **fields):
         report_path.parent.mkdir(parents=True, exist_ok=True)
         report = {"status": status, "checkedAt": datetime.now(timezone.utc).isoformat(), **fields}
@@ -144,7 +153,7 @@ def checked_run(client, password, report_path, audio_path=None, complete=False):
             temporary.unlink(missing_ok=True)
     save("running")
     try:
-        result = run(client, password, audio_path, complete)
+        result = run(client, password, audio_path, complete, photo_path)
     except Exception as error:
         # 비밀번호, 토큰, 발언이나 예외 원문을 보고서에 남기지 않는다.
         save("failed", errorType=type(error).__name__)
@@ -159,9 +168,10 @@ def main():
     parser.add_argument("--settings", type=Path, default=Path(__file__).resolve().parents[1] / ".env.local-demo")
     parser.add_argument("--audio", type=Path)
     parser.add_argument("--complete", action="store_true")
+    parser.add_argument("--photo", type=Path, help="Public JPEG fixture; requires an actual vision result")
     args = parser.parse_args()
     report_path = Path(__file__).resolve().parents[1] / "build" / "reports" / "local-demo-smoke.json"
-    result = checked_run(Client(args.base), settings(args.settings)["LOCAL_DEMO_PASSWORD"], report_path, args.audio, args.complete)
+    result = checked_run(Client(args.base), settings(args.settings)["LOCAL_DEMO_PASSWORD"], report_path, args.audio, args.complete, args.photo)
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 
