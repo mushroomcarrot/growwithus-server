@@ -30,8 +30,7 @@ public final class GrowthCalculator {
         }
         Map<Stage, Double> thresholds = thresholds(requiredGdd);
         if (calibration != null && (calibration.date() == null || calibration.observed() == null
-                || calibration.date().isBefore(startedOn) || calibration.date().isAfter(asOf)
-                || calibration.observed() == Stage.SEED || calibration.observed() == Stage.SPROUT)) {
+                || calibration.date().isBefore(startedOn) || calibration.date().isAfter(asOf))) {
             throw new IllegalArgumentException("보정 날짜와 확인 단계가 유효하지 않습니다.");
         }
 

@@ -43,10 +43,12 @@ public class LocalDemoConfiguration {
         };
     }
     @Bean @Primary public HarvestGardenReader localDemoHarvest(LocalDemoData data,
+            community.likelion.growwithusserver.growth.service.GrowthStatusService growth,
             community.likelion.growwithusserver.care.data.repository.CareLogRepository logs) {
         return id -> Long.valueOf(1).equals(id) ? Optional.of(HarvestGarden.builder().gardenId(1L)
                 .ownerUsername(LocalDemoData.OWNER).ownerNickname("민지 가족").characterName("토순이").farmId(1L)
                 .caretakerUsername(LocalDemoData.CARETAKER).caretakerName("순자 할머니").startedOn(data.garden().startedOn())
+                .stage(community.likelion.growwithusserver.farm.data.enums.GrowthStage.valueOf(growth.stage(data.garden()).name()))
                 .harvestable(false).careLogCount((int) Math.min(Integer.MAX_VALUE, logs.countByGardenId(1L))).build()) : Optional.empty();
     }
 }

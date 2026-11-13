@@ -85,12 +85,26 @@ public class EvolutionEventService {
     @Transactional
     public void resetDemoStage(Long gardenId) {
         Garden garden = gardenService.getGardenForUpdate(gardenId);
+        resetDemoStage(gardenId, garden.getStage());
+        if (garden.getStage().getLevel() < GrowthStage.FLOWER.getLevel()) {
+            advanceStage(gardenId, GrowthStage.FLOWER);
+        } else {
+            resetDemoStage(gardenId, GrowthStage.FLOWER);
+        }
+    }
+
+    @Transactional
+    public void resetDemoStage(Long gardenId, GrowthStage target) {
+        Garden garden = gardenService.getGardenForUpdate(gardenId);
         if (!GardenDemoSeeder.OWNER_USERNAME.equals(garden.getOwner().getUsername())
                 || !FarmSeeder.DEMO_FARM_EXTERNAL_ID.equals(garden.getPlot().getFarm().getExternalId())
                 || !FarmSeeder.DEMO_PLOT_CODE.equals(garden.getPlot().getPlotCode())) {
             throw new GardenAccessDeniedException();
         }
-        garden.setStage(GrowthStage.FLOWER);
+        if (target == null || target.getLevel() > garden.getStage().getLevel()) {
+            throw new IllegalArgumentException("시연 초기화는 같은 단계 또는 이전 단계만 허용합니다.");
+        }
+        garden.setStage(target);
     }
 
     @Transactional(readOnly = true)

@@ -56,7 +56,7 @@ Java 21, Spring Boot 4.1, Gradle, MariaDB, Redis, JWT (jjwt 0.12.x), Swagger
 5. API 경로는 `docs/api-spec.md` 그대로 쓴다. `/api/v1` 같은 접두어를 붙이지 않는다
 6. 페이지네이션, 파일 업로드, 외부 ID, 날짜 형식, 외부 API 호출, 배치는 `common`의 공통 모듈을 쓴다. 도메인마다 새로 만들지 않는다
 7. 알림은 `NotificationService.send(...)`로만 보내고, 날씨는 `WeatherService`로만 조회한다
-8. XP는 `XpService.grant(...)`, 배지는 `BadgeService.grant(...)`, 작물 단계 상승은 EvolutionEventService.advanceStage(...)로만 한다. 시연 초기화의 하향만 대상 검증을 하는 resetDemoStage(...)를 쓴다. XP나 스트릭처럼 값을 읽고 고칠 때는 텃밭을 먼저 잠근다 (`GardenService`의 `ForUpdate` 메서드)
+8. XP는 `XpService.grant(...)`, 배지는 `BadgeService.grant(...)`, 작물 단계 상승은 EvolutionEventService.advanceStage(...)로만 한다. 시연 초기화와 시연 단계 선택 (PUT /demo/stage)의 하향만 대상 검증을 하는 resetDemoStage(...)를 쓴다. XP나 스트릭처럼 값을 읽고 고칠 때는 텃밭을 먼저 잠근다 (`GardenService`의 `ForUpdate` 메서드)
 
 ## Git
 

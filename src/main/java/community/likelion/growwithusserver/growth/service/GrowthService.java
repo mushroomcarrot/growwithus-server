@@ -74,27 +74,36 @@ public class GrowthService {
         var weatherDays = java.util.stream.IntStream.range(0, days)
                 .mapToObj(i -> new GrowthCalculator.WeatherDay(today.plusDays(i), garden.baseTemp() + dailyGdd))
                 .toList();
+        Stage start = state.getDemoStartStage() == null ? Stage.FLOWER : state.getDemoStartStage();
         var result = new GrowthCalculator().calculate(today, today.plusDays(days), garden.baseTemp(),
-                garden.requiredGdd(), weatherDays, new GrowthCalculator.Calibration(today, Stage.FLOWER));
+                garden.requiredGdd(), weatherDays, new GrowthCalculator.Calibration(today, start));
         Stage target = result.stage();
-        if (days >= 18) target = Stage.FRUIT;
+        int totalDays = (int) Math.ceil((garden.requiredGdd().get(Stage.FRUIT)
+                - garden.requiredGdd().get(start)) / dailyGdd);
+        if (days >= totalDays) target = Stage.FRUIT;
         if (observed != null) {
             state.setCalibrationOn(today);
             state.setCalibrationStage(observed);
             state.setCalibratedAt(LocalDateTime.now());
         }
-        if (state.getCalibrationStage() == Stage.FRUIT) target = Stage.FRUIT;
-        LocalDate harvest = today.plusDays(target == Stage.FRUIT ? 0 : Math.max(0, 18 - days));
+        if (state.getCalibrationStage() != null && state.getCalibrationStage().ordinal() > target.ordinal()) {
+            target = state.getCalibrationStage();
+        }
+        double gdd = Math.max(result.accumulatedGdd(), garden.requiredGdd().get(target));
+        LocalDate harvest = today.plusDays(target == Stage.FRUIT ? 0
+                : (long) Math.ceil((garden.requiredGdd().get(Stage.FRUIT) - gdd) / dailyGdd));
+        Stage next = target == Stage.FRUIT ? null : Stage.values()[target.ordinal() + 1];
         state.setStage(target);
         state.setAccumulatedGdd(Math.max(result.accumulatedGdd(), garden.requiredGdd().get(target)));
-        state.setProgress(target == Stage.FRUIT ? 1 : result.progress());
+        state.setProgress(next == null ? 1 : (gdd - garden.requiredGdd().get(target))
+                / (garden.requiredGdd().get(next) - garden.requiredGdd().get(target)));
         state.setExpectedHarvestDate(harvest);
         state.setUpdatedAt(LocalDateTime.now());
         states.save(state);
         String eventId = projection.synchronize(garden.gardenId(), target, state.getAccumulatedGdd(), harvest, null);
         return new Updated(GrowthDtos.Detail.builder().stage(target).level(target.ordinal() + 1)
-                .accumulatedGdd(state.getAccumulatedGdd()).nextStage(target == Stage.FRUIT ? null : Stage.FRUIT)
-                .nextStageGdd(target == Stage.FRUIT ? null : garden.requiredGdd().get(Stage.FRUIT))
+                .accumulatedGdd(state.getAccumulatedGdd()).nextStage(next)
+                .nextStageGdd(next == null ? null : garden.requiredGdd().get(next))
                 .progress(state.getProgress()).expectedHarvestDate(harvest)
                 .calibratedAt(DateTimes.toOffset(state.getCalibratedAt()))
                 .explanation("시연용 합성 기온과 가상 일수로 계산했어요. 실제 수확 예측이 아니에요.")

@@ -33,15 +33,16 @@ public class DemoSimulationService {
     @Transactional
     public void resetGrowth() {
         Garden garden = lockedDemo();
+        evolution.resetDemoStage(garden.getId());
         // 재실행 전에 남아 있던 연출은 닫는다. 이미 지급된 보상과 기록은 보존한다.
         for (var event : events.findAllByGardenIdAndAckedFalseOrderByIdAsc(garden.getId())) {
             event.setAcked(true);
             event.setAckedAt(LocalDateTime.now());
         }
-        evolution.resetDemoStage(garden.getId());
         var state = states.findById(garden.getId()).orElseGet(() ->
                 GrowthState.builder().gardenId(garden.getId()).build());
         state.setDemoDays(0);
+        state.setDemoStartStage(Stage.FLOWER);
         state.setStage(Stage.FLOWER);
         state.setCalibrationStage(null);
         state.setCalibrationOn(null);
@@ -72,6 +73,37 @@ public class DemoSimulationService {
         String eventId = events.findAllByGardenIdAndAckedFalseOrderByIdAsc(garden.getId()).stream()
                 .filter(e -> e.getToStage().name().equals(detail.getStage().name()))
                 .reduce((first, last) -> last).map(e -> IdPrefix.EVENT.format(e.getId())).orElse(null);
+        return new DemoFastForwardResponseDto(detail.getStage().name(), eventId, detail.getExpectedHarvestDate());
+    }
+
+    @Transactional
+    public DemoFastForwardResponseDto setStage(GrowthStage target) {
+        if (target == null) throw new VoiceMemoException(ErrorCode.INVALID_PARAMETER);
+        Garden garden = lockedDemo();
+        String eventId = null;
+        if (target != garden.getStage()) {
+            for (var event : events.findAllByGardenIdAndAckedFalseOrderByIdAsc(garden.getId())) {
+                event.setAcked(true);
+                event.setAckedAt(LocalDateTime.now());
+            }
+            if (target.getLevel() > garden.getStage().getLevel()) {
+                eventId = evolution.advanceStage(garden.getId(), target)
+                        .map(event -> IdPrefix.EVENT.format(event.getId())).orElse(null);
+            } else {
+                evolution.resetDemoStage(garden.getId(), target);
+            }
+        }
+        var state = states.findById(garden.getId()).orElseGet(() ->
+                GrowthState.builder().gardenId(garden.getId()).build());
+        state.setDemoDays(0);
+        state.setDemoStartStage(Stage.valueOf(target.name()));
+        state.setStage(Stage.valueOf(target.name()));
+        state.setCalibrationStage(null);
+        state.setCalibrationOn(null);
+        state.setCalibratedAt(null);
+        state.setUpdatedAt(LocalDateTime.now());
+        states.save(state);
+        var detail = growth.refreshSystem(garden.getId());
         return new DemoFastForwardResponseDto(detail.getStage().name(), eventId, detail.getExpectedHarvestDate());
     }
 
