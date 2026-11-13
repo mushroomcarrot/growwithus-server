@@ -9,7 +9,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-// 텃밭 API가 공통으로 쓰는 텃밭 조회와 소유 확인. 호출한 서비스 메서드의 트랜잭션 안에서 쓴다.
+import java.util.Optional;
+
+/**
+ * 텃밭 API가 공통으로 쓰는 텃밭 조회와 소유 확인. 호출한 서비스 메서드의 트랜잭션 안에서 쓴다.
+ *
+ * XP, 스트릭, 보상처럼 값을 읽고 고치는 작업은 텃밭을 먼저 잠그고(ForUpdate) 그 뒤에 상태를 읽는다.
+ * 잠그기 전에 읽은 값으로 판단하면 동시에 들어온 요청이 보상을 두 번 받을 수 있다.
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -30,6 +37,11 @@ public class GardenService {
         requireOwner(username, garden);
 
         return garden;
+    }
+
+    // 텃밭 ID를 모르는 API(퀘스트 보상, 하트, 퀴즈 답)가 주인의 텃밭을 먼저 잠글 때 쓴다. 주인 한 명에 텃밭은 하나다
+    public Optional<Garden> findMyGardenForUpdate(String username) {
+        return gardenRepository.findIdByOwnerUsername(username).flatMap(gardenRepository::findByIdForUpdate);
     }
 
     public Garden getGardenForUpdate(Long id) {

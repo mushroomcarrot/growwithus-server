@@ -1,5 +1,8 @@
 package community.likelion.growwithusserver.game.service;
 
+import community.likelion.growwithusserver.common.response.GlobalResponse;
+import community.likelion.growwithusserver.common.time.DateTimes;
+import community.likelion.growwithusserver.game.data.dto.BadgeResponseDto;
 import community.likelion.growwithusserver.game.data.entity.Badge;
 import community.likelion.growwithusserver.game.data.entity.UserBadge;
 import community.likelion.growwithusserver.game.data.enums.BadgeCode;
@@ -9,8 +12,10 @@ import community.likelion.growwithusserver.user.data.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 // 배지 지급은 여기 한 곳에서만 한다.
@@ -20,6 +25,19 @@ import java.util.Optional;
 public class BadgeService {
     private final BadgeRepository badgeRepository;
     private final UserBadgeRepository userBadgeRepository;
+
+    // 내가 얻은 배지. 얻은 순서대로
+    @Transactional(readOnly = true)
+    public GlobalResponse<List<BadgeResponseDto>> getMyBadges(String username) {
+        return GlobalResponse.ok(userBadgeRepository.findAllByUsername(username).stream()
+                .map(userBadge -> BadgeResponseDto.builder()
+                        .code(userBadge.getBadge().getCode())
+                        .name(userBadge.getBadge().getName())
+                        .description(userBadge.getBadge().getDescription())
+                        .acquiredAt(DateTimes.toOffset(userBadge.getAcquiredAt()))
+                        .build())
+                .toList());
+    }
 
     /**
      * 배지를 준다. 이미 가진 배지면 다시 주지 않는다. 호출한 서비스 메서드의 트랜잭션에 참여한다.

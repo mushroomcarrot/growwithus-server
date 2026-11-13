@@ -28,7 +28,7 @@ Java 21, Spring Boot 4.1, Gradle, MariaDB, Redis, JWT (jjwt 0.12.x), Swagger
 
 1. `./gradlew compileJava`: 컴파일 확인
 2. `./gradlew build`는 DB 없이 실패한다 (`contextLoads`가 실제 MariaDB 연결 필요). DB 없이 빌드하려면 `./gradlew build -x test`
-3. DB 없이 도는 단위 테스트: `./gradlew test --tests 'community.likelion.growwithusserver.common.*'` (`common` 자리에 `notification`, `harvest`, `weather`, `demo`도 가능)
+3. DB 없이 도는 단위 테스트: `./gradlew test --tests 'community.likelion.growwithusserver.common.*'` (`common` 자리에 `notification`, `harvest`, `weather`, `demo`, `farm`, `garden`, `diary`, `evolution`, `game`도 가능)
 
 ## 권한
 
@@ -49,6 +49,7 @@ Java 21, Spring Boot 4.1, Gradle, MariaDB, Redis, JWT (jjwt 0.12.x), Swagger
 5. API 경로는 `docs/api-spec.md` 그대로 쓴다. `/api/v1` 같은 접두어를 붙이지 않는다
 6. 페이지네이션, 파일 업로드, 외부 ID, 날짜 형식, 외부 API 호출, 배치는 `common`의 공통 모듈을 쓴다. 도메인마다 새로 만들지 않는다
 7. 알림은 `NotificationService.send(...)`로만 보내고, 날씨는 `WeatherService`로만 조회한다
+8. XP는 `XpService.grant(...)`, 배지는 `BadgeService.grant(...)`, 작물 단계 변경은 `EvolutionEventService.advanceStage(...)`로만 한다. XP나 스트릭처럼 값을 읽고 고칠 때는 텃밭을 먼저 잠근다 (`GardenService`의 `ForUpdate` 메서드)
 
 ## Git
 

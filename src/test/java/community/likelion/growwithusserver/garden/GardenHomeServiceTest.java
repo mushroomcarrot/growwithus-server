@@ -6,6 +6,10 @@ import community.likelion.growwithusserver.farm.data.repository.CropRepository;
 import community.likelion.growwithusserver.farm.data.repository.FarmRepository;
 import community.likelion.growwithusserver.farm.data.repository.PlotRepository;
 import community.likelion.growwithusserver.farm.service.FarmService;
+import community.likelion.growwithusserver.game.data.enums.BadgeCode;
+import community.likelion.growwithusserver.game.service.BadgeService;
+import community.likelion.growwithusserver.game.data.enums.QuestType;
+import community.likelion.growwithusserver.game.service.QuestService;
 import community.likelion.growwithusserver.garden.care.GardenCareLog;
 import community.likelion.growwithusserver.garden.care.GardenCareLogReader;
 import community.likelion.growwithusserver.garden.data.dto.CheerResponseDto;
@@ -70,6 +74,10 @@ class GardenHomeServiceTest {
     private CropRepository cropRepository;
     @Mock
     private EvolutionEventRepository evolutionEventRepository;
+    @Mock
+    private QuestService questService;
+    @Mock
+    private BadgeService badgeService;
 
     private GardenHomeService gardenHomeService;
     private Garden garden;
@@ -78,7 +86,7 @@ class GardenHomeServiceTest {
     void setUp() {
         gardenHomeService = new GardenHomeService(new GardenService(gardenRepository), new XpService(xpHistoryRepository),
                 weatherService, new FarmService(farmRepository, plotRepository, cropRepository, farmCaretakerReader),
-                gardenCareLogReader, careLogHeartRepository, evolutionEventRepository);
+                gardenCareLogReader, careLogHeartRepository, evolutionEventRepository, questService, badgeService);
         garden = GardenFixtures.garden();
 
         lenient().when(gardenRepository.findDetail(3L)).thenReturn(Optional.of(garden));
@@ -191,6 +199,20 @@ class GardenHomeServiceTest {
         verify(xpHistoryRepository).save(history.capture());
         assertThat(history.getValue().getReason()).isEqualTo(XpReason.CHEER);
         assertThat(history.getValue().getAmount()).isEqualTo(10);
+        verify(questService).record(garden.getOwner(), QuestType.CHEER);
+    }
+
+    @Test
+    void 칠일째_응원하면_배지를_받는다() {
+        garden.setStreakDays(5);
+        garden.setLastCheeredOn(LocalDate.now().minusDays(1));
+
+        gardenHomeService.cheer("minji", "gdn_3");
+        verify(badgeService, never()).grant(any(), any());
+
+        garden.setLastCheeredOn(LocalDate.now().minusDays(1));
+        gardenHomeService.cheer("minji", "gdn_3");
+        verify(badgeService).grant(garden.getOwner(), BadgeCode.STREAK_7);
     }
 
     @Test

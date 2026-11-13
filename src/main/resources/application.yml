@@ -8,6 +8,11 @@ spring:
     active: ${SPRING_PROFILES_ACTIVE:local}
   datasource:
     driver-class-name: org.mariadb.jdbc.Driver
+    hikari:
+      # MariaDB 11.6부터 기본인 innodb_snapshot_isolation에서는 REPEATABLE READ 트랜잭션이 먼저 읽은 뒤에 행을 잠그거나
+      # (select ... for update) 고칠 때, 그 사이 다른 요청이 그 행을 바꿨으면 "Record has changed since last read"로 실패한다.
+      # 텃밭을 잠그고 XP나 스트릭을 고치는 API가 동시에 들어와도 차례로 처리되도록 READ COMMITTED를 쓴다
+      transaction-isolation: TRANSACTION_READ_COMMITTED
   jpa:
     open-in-view: false
     database-platform: org.hibernate.dialect.MariaDBDialect

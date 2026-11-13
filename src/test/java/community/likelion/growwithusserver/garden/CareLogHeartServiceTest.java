@@ -1,5 +1,7 @@
 package community.likelion.growwithusserver.garden;
 
+import community.likelion.growwithusserver.game.data.enums.QuestType;
+import community.likelion.growwithusserver.game.service.QuestService;
 import community.likelion.growwithusserver.garden.care.GardenCareLog;
 import community.likelion.growwithusserver.garden.care.GardenCareLogReader;
 import community.likelion.growwithusserver.garden.data.dto.HeartResponseDto;
@@ -56,6 +58,8 @@ class CareLogHeartServiceTest {
     private UserRepository userRepository;
     @Mock
     private NotificationService notificationService;
+    @Mock
+    private QuestService questService;
 
     private CareLogHeartService careLogHeartService;
     private Garden garden;
@@ -64,11 +68,12 @@ class CareLogHeartServiceTest {
     void setUp() {
         careLogHeartService = new CareLogHeartService(gardenCareLogReader, new GardenService(gardenRepository),
                 new XpService(xpHistoryRepository), careLogHeartRepository, ownerProfileRepository, userRepository,
-                notificationService);
+                notificationService, questService);
         garden = GardenFixtures.garden();
 
         lenient().when(gardenCareLogReader.findCareLog(11L)).thenReturn(Optional.of(new GardenCareLog(11L, 3L, "soonja",
                 List.of("SUPPORT"), "지지대를 세웠어요", null, LocalDateTime.now())));
+        lenient().when(gardenRepository.findIdByOwnerUsername("minji")).thenReturn(Optional.of(3L));
         lenient().when(gardenRepository.findByIdForUpdate(3L)).thenReturn(Optional.of(garden));
         lenient().when(userRepository.findByUsername("soonja")).thenReturn(Optional.of(garden.getCaretaker()));
         lenient().when(ownerProfileRepository.findByUserId(1L))

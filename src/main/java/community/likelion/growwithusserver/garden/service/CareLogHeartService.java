@@ -2,6 +2,8 @@ package community.likelion.growwithusserver.garden.service;
 
 import community.likelion.growwithusserver.common.id.IdPrefix;
 import community.likelion.growwithusserver.common.response.GlobalResponse;
+import community.likelion.growwithusserver.game.data.enums.QuestType;
+import community.likelion.growwithusserver.game.service.QuestService;
 import community.likelion.growwithusserver.garden.care.GardenCareLog;
 import community.likelion.growwithusserver.garden.care.GardenCareLogReader;
 import community.likelion.growwithusserver.garden.data.dto.HeartResponseDto;
@@ -13,6 +15,7 @@ import community.likelion.growwithusserver.garden.data.exception.CareLogNotFound
 import community.likelion.growwithusserver.garden.data.exception.HeartAlreadySentException;
 import community.likelion.growwithusserver.garden.data.repository.CareLogHeartRepository;
 import community.likelion.growwithusserver.garden.data.repository.OwnerProfileRepository;
+import community.likelion.growwithusserver.harvest.data.exception.GardenAccessDeniedException;
 import community.likelion.growwithusserver.notification.data.dto.NotificationSendDto;
 import community.likelion.growwithusserver.notification.data.enums.NotificationType;
 import community.likelion.growwithusserver.notification.service.NotificationService;
@@ -38,19 +41,23 @@ public class CareLogHeartService {
     private final OwnerProfileRepository ownerProfileRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final QuestService questService;
 
     // 감사 하트. 돌봄 기록 하나에 한 번만 보낼 수 있고, 돌본 관리사에게 알림이 간다
     @Transactional
     public GlobalResponse<HeartResponseDto> sendHeart(String username, String careLogId) {
-        GardenCareLog careLog = gardenCareLogReader.findCareLog(IdPrefix.CARE_LOG.parse(careLogId))
+        Long id = IdPrefix.CARE_LOG.parse(careLogId);
+        // 내 텃밭을 먼저 잠가 같은 기록에 하트가 동시에 두 번 들어오지 않게 한다
+        Garden garden = gardenService.findMyGardenForUpdate(username).orElse(null);
+        GardenCareLog careLog = gardenCareLogReader.findCareLog(id)
                 .orElseThrow(() -> {
                     log.error("[sendHeart] 돌봄 기록 조회 실패: {}", careLogId);
                     return new CareLogNotFoundException();
                 });
-
-        // 텃밭을 잠가 같은 기록에 하트가 동시에 두 번 들어오지 않게 한다
-        Garden garden = gardenService.getGardenForUpdate(careLog.gardenId());
-        gardenService.requireOwner(username, garden);
+        if (garden == null || !garden.getId().equals(careLog.gardenId())) {
+            log.error("[sendHeart] 내 텃밭의 돌봄 기록이 아님: {} ({})", username, careLogId);
+            throw new GardenAccessDeniedException();
+        }
         if (careLogHeartRepository.existsByCareLogId(careLog.careLogId())) {
             log.error("[sendHeart] 이미 하트를 보낸 돌봄 기록: {}", careLogId);
             throw new HeartAlreadySentException();
@@ -64,6 +71,7 @@ public class CareLogHeartService {
                 .createdAt(LocalDateTime.now())
                 .build());
         xpService.grant(garden, XpReason.HEART, HEART_XP);
+        questService.record(garden.getOwner(), QuestType.HEART);
         notifyCaretaker(garden, careLog, careLogId);
 
         return GlobalResponse.ok(HeartResponseDto.builder()
