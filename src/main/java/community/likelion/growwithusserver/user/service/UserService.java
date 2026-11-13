@@ -12,7 +12,9 @@ import community.likelion.growwithusserver.user.data.enums.NextStep;
 import community.likelion.growwithusserver.user.data.enums.UserRole;
 import community.likelion.growwithusserver.user.data.exception.RoleNotAllowedException;
 import community.likelion.growwithusserver.user.data.exception.UserNotFoundException;
+import community.likelion.growwithusserver.common.id.IdPrefix;
 import community.likelion.growwithusserver.user.data.repository.UserRepository;
+import community.likelion.growwithusserver.user.profile.OwnerSummaryReader;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -29,6 +31,7 @@ import java.util.List;
 public class UserService {
     private final UserRepository userRepository;
     private final JwtTokenProvider tokenProvider;
+    private final OwnerSummaryReader ownerSummaryReader;
 
     @Transactional(readOnly = true)
     public User getUserEntity(String username) {
@@ -64,6 +67,16 @@ public class UserService {
     @Transactional(readOnly = true)
     public GlobalResponse<UserMeResponseDto> getMe(String username) {
         User user = getUserEntity(username);
+        UserMeResponseDto.OwnerSummary owner = null;
+        if (user.getRole() == UserRole.OWNER || user.getRole() == UserRole.ADMIN) {
+            owner = ownerSummaryReader.findByUsername(username)
+                    .map(summary -> UserMeResponseDto.OwnerSummary.builder()
+                            .nickname(summary.nickname())
+                            .district(summary.district())
+                            .gardenId(IdPrefix.GARDEN.format(summary.gardenId()))
+                            .build())
+                    .orElse(null);
+        }
 
         return GlobalResponse.ok(UserMeResponseDto.builder()
                 .userId(user.getPublicId())
@@ -71,7 +84,7 @@ public class UserService {
                 .username(user.getUsername())
                 .role(user.getRole())
                 .nextStep(resolveNextStep(user))
-                .owner(null)
+                .owner(owner)
                 .caretaker(null)
                 .build());
     }
@@ -94,8 +107,8 @@ public class UserService {
         if (user.getRole() != newRole) {
             log.info("[changeRole] 역할 변경: {} ({} > {})", username, user.getRole(), newRole);
             user.setRole(newRole);
-            // 프로필은 역할별로 따로 있으므로 역할이 바뀌면 새 역할의 프로필을 다시 등록해야 한다
-            user.setProfileRegistered(false);
+            // 프로필은 역할별로 따로 있다. 새 역할의 프로필을 이미 등록했으면 그대로 쓰고, 없으면 다시 등록해야 한다
+            user.setProfileRegistered(newRole == UserRole.OWNER && ownerSummaryReader.findByUsername(username).isPresent());
         }
 
         // 이전 역할이 담긴 토큰을 무효로 만들고 새 역할로 다시 발급한다
