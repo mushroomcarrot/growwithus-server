@@ -93,3 +93,13 @@ care:
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
+
+# 배포 헬스체크용. health만 공개하고 상세 정보는 내보내지 않는다
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
