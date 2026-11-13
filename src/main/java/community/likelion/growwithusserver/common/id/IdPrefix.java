@@ -12,6 +12,7 @@ public enum IdPrefix {
     FARM("farm"),
     CROP("crop"),
     CARETAKER("crt"),
+    AVATAR_JOB("avj"),
     TASK("tsk"),
     CARE_LOG("cl"),
     VOICE_MEMO("vm"),
