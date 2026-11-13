@@ -11,6 +11,7 @@ import community.likelion.growwithusserver.farm.data.enums.GrowthStage;
 import community.likelion.growwithusserver.game.data.entity.Badge;
 import community.likelion.growwithusserver.game.data.enums.BadgeCode;
 import community.likelion.growwithusserver.game.service.BadgeService;
+import community.likelion.growwithusserver.game.service.QuestService;
 import community.likelion.growwithusserver.garden.GardenFixtures;
 import community.likelion.growwithusserver.garden.data.entity.Garden;
 import community.likelion.growwithusserver.garden.data.repository.GardenRepository;
@@ -53,6 +54,8 @@ class EvolutionEventServiceTest {
     private BadgeService badgeService;
     @Mock
     private NotificationService notificationService;
+    @Mock
+    private QuestService questService;
 
     private EvolutionEventService evolutionEventService;
     private Garden garden;
@@ -60,7 +63,7 @@ class EvolutionEventServiceTest {
     @BeforeEach
     void setUp() {
         evolutionEventService = new EvolutionEventService(evolutionEventRepository, new GardenService(gardenRepository),
-                new XpService(xpHistoryRepository), badgeService, notificationService);
+                new XpService(xpHistoryRepository), badgeService, notificationService, questService);
         garden = GardenFixtures.garden();
 
         lenient().when(gardenRepository.findByIdForUpdate(3L)).thenReturn(Optional.of(garden));

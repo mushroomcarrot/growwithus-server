@@ -18,7 +18,10 @@ public enum IdPrefix {
     PHOTO("pht"),
     EVENT("evt"),
     VISIT("vst"),
-    NOTIFICATION("ntf");
+    NOTIFICATION("ntf"),
+    LEAGUE("lg"),
+    QUEST("qst"),
+    QUIZ("qz");
 
     private static final String SEPARATOR = "_";
 

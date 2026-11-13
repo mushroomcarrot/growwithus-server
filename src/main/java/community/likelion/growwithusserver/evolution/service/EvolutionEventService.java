@@ -10,7 +10,9 @@ import community.likelion.growwithusserver.evolution.data.exception.EvolutionEve
 import community.likelion.growwithusserver.evolution.data.repository.EvolutionEventRepository;
 import community.likelion.growwithusserver.farm.data.enums.GrowthStage;
 import community.likelion.growwithusserver.game.data.enums.BadgeCode;
+import community.likelion.growwithusserver.game.data.enums.QuestType;
 import community.likelion.growwithusserver.game.service.BadgeService;
+import community.likelion.growwithusserver.game.service.QuestService;
 import community.likelion.growwithusserver.garden.data.entity.Garden;
 import community.likelion.growwithusserver.garden.data.enums.XpReason;
 import community.likelion.growwithusserver.garden.service.GardenService;
@@ -36,6 +38,7 @@ public class EvolutionEventService {
     private final XpService xpService;
     private final BadgeService badgeService;
     private final NotificationService notificationService;
+    private final QuestService questService;
 
     /**
      * 텃밭의 단계를 올리고 진화 이벤트를 만든 뒤 주인에게 알린다. 성장 시뮬레이션, 관리사의 단계 확인,
@@ -101,6 +104,7 @@ public class EvolutionEventService {
         event.setAcked(true);
         event.setAckedAt(LocalDateTime.now());
         int totalXp = xpService.grant(garden, XpReason.EVENT, event.getRewardXp());
+        questService.record(garden.getOwner(), QuestType.EVENT);
         EventAckResponseDto.BadgeDto badge = event.getRewardBadgeCode() == null
                 ? null
                 : badgeService.grant(garden.getOwner(), BadgeCode.valueOf(event.getRewardBadgeCode()))

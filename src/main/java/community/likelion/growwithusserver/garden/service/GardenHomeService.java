@@ -6,6 +6,10 @@ import community.likelion.growwithusserver.common.time.DateTimes;
 import community.likelion.growwithusserver.evolution.data.repository.EvolutionEventRepository;
 import community.likelion.growwithusserver.farm.data.entity.Farm;
 import community.likelion.growwithusserver.farm.service.FarmService;
+import community.likelion.growwithusserver.game.data.enums.BadgeCode;
+import community.likelion.growwithusserver.game.data.enums.QuestType;
+import community.likelion.growwithusserver.game.service.BadgeService;
+import community.likelion.growwithusserver.game.service.QuestService;
 import community.likelion.growwithusserver.garden.care.GardenCareLog;
 import community.likelion.growwithusserver.garden.care.GardenCareLogReader;
 import community.likelion.growwithusserver.garden.data.dto.CheerResponseDto;
@@ -31,6 +35,8 @@ import java.time.temporal.ChronoUnit;
 @Slf4j
 public class GardenHomeService {
     public static final int CHEER_XP = 10;
+    // 이 일수만큼 이어서 응원하면 배지를 준다
+    public static final int STREAK_BADGE_DAYS = 7;
 
     private final GardenService gardenService;
     private final XpService xpService;
@@ -39,6 +45,8 @@ public class GardenHomeService {
     private final GardenCareLogReader gardenCareLogReader;
     private final CareLogHeartRepository careLogHeartRepository;
     private final EvolutionEventRepository evolutionEventRepository;
+    private final QuestService questService;
+    private final BadgeService badgeService;
 
     // 홈 화면을 한 번에 조회한다. 텃밭과 그 연관은 조회 한 번(fetch join)으로 가져온다
     @Transactional(readOnly = true)
@@ -86,6 +94,10 @@ public class GardenHomeService {
         garden.setLastCheeredOn(today);
         garden.setMood(CharacterMood.HAPPY);
         int totalXp = xpService.grant(garden, XpReason.CHEER, CHEER_XP);
+        questService.record(garden.getOwner(), QuestType.CHEER);
+        if (garden.getStreakDays() >= STREAK_BADGE_DAYS) {
+            badgeService.grant(garden.getOwner(), BadgeCode.STREAK_7);
+        }
 
         return GlobalResponse.ok(CheerResponseDto.builder()
                 .streakDays(garden.getStreakDays())

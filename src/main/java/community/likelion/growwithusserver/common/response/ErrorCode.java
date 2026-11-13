@@ -7,6 +7,7 @@ public enum ErrorCode {
     INVALID_REQUEST("C001", "잘못된 요청입니다.", 400),
     INVALID_PARAMETER("C002", "유효하지 않은 파라미터입니다.", 400),
     FILE_NOT_SUPPORTED("C4001", "지원하지 않는 파일입니다.", 400),
+    NOT_COMPLETED("C4004", "아직 완료되지 않았습니다.", 400),
     CANCEL_DEADLINE_PASSED("C4005", "취소 기한이 지났습니다.", 400),
     VERIFICATION_INVALID("C4011", "인증 정보가 유효하지 않습니다.", 401),
     PASSWORD_INVALID("C4012", "비밀번호가 일치하지 않습니다.", 401),

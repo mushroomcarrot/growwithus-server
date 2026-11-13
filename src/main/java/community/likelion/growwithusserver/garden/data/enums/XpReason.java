@@ -9,5 +9,7 @@ public enum XpReason {
     // 진화 이벤트 확인
     EVENT,
     // 주간 퀘스트 보상
-    QUEST
+    QUEST,
+    // 오늘의 텃밭 퀴즈 정답
+    QUIZ
 }

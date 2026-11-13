@@ -10,6 +10,7 @@ import community.likelion.growwithusserver.farm.data.enums.GrowthStage;
 import community.likelion.growwithusserver.farm.data.repository.FarmRepository;
 import community.likelion.growwithusserver.farm.data.repository.PlotRepository;
 import community.likelion.growwithusserver.farm.service.FarmSeeder;
+import community.likelion.growwithusserver.game.service.BadgeService;
 import community.likelion.growwithusserver.garden.data.entity.Garden;
 import community.likelion.growwithusserver.garden.data.entity.OwnerProfile;
 import community.likelion.growwithusserver.garden.data.enums.CharacterMood;
@@ -55,6 +56,7 @@ public class GardenDemoSeeder implements ApplicationRunner {
     private final OwnerProfileRepository ownerProfileRepository;
     private final GardenRepository gardenRepository;
     private final EvolutionEventRepository evolutionEventRepository;
+    private final BadgeService badgeService;
 
     @Value("${demo.enabled:false}")
     private boolean demoEnabled;
@@ -154,5 +156,7 @@ public class GardenDemoSeeder implements ApplicationRunner {
                 .acked(true)
                 .ackedAt(occurredAt)
                 .build());
+        // 확인한 이벤트이므로 그 보상 배지도 이미 가진 상태로 둔다
+        EvolutionEventService.rewardBadge(toStage).ifPresent(badge -> badgeService.grant(garden.getOwner(), badge));
     }
 }
