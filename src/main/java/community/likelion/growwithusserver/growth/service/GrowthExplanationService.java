@@ -22,7 +22,7 @@ public class GrowthExplanationService {
 
     // 성장 계산 트랜잭션과 잠금이 끝난 뒤에만 모델을 호출한다.
     public GrowthDtos.Detail explain(GrowthDtos.Detail detail) {
-        if (weather.simulated() || TransactionSynchronizationManager.isActualTransactionActive()) return detail;
+        if (detail.isSimulated() || weather.simulated() || TransactionSynchronizationManager.isActualTransactionActive()) return detail;
         try {
             String facts = mapper.writeValueAsString(Map.of(
                     "stage", detail.getStage().name(), "accumulatedGdd", detail.getAccumulatedGdd(),

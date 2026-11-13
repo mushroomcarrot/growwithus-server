@@ -43,7 +43,7 @@
 | character.mood | HAPPY, CALM, SAD |
 | character.animation | sunny_happy, rain_umbrella, hot_sweat, sad_droop |
 | task.type | WATER, SUPPORT, WEED, PRUNE, FERTILIZE, HARVEST_PREP, CHECK |
-| stage-check observed | FLOWER, FRUIT, NO_CHANGE |
+| stage-check observed | SPROUT, FLOWER, FRUIT, NO_CHANGE |
 | diary item type | CARE_LOG, STAGE_CHANGE (REST_DAY는 계획 항목, 현재 미생성) |
 | district | SUJI, GIHEUNG, CHEOIN |
 | nextStep | ROLE_SELECT, PROFILE_OWNER, PROFILE_CARE, OWNER_HOME, CARE_TODAY |
@@ -107,7 +107,7 @@
 
 | Method | Endpoint | 기능 | 권한 | 화면 |
 | --- | --- | --- | --- | --- |
-| GET | /gardens/{gardenId}/home | 홈 한 번에 조회 (캐릭터, 날씨, 스트릭, XP, D-day, 최근 돌봄) | OWNER | DT_HOME |
+| GET | /gardens/{gardenId}/home | 홈 한 번에 조회 (농장 이름, 칸, 별명, 캐릭터, 날씨, 스트릭, XP, D-day, 최근 돌봄) | OWNER | DT_HOME |
 | GET | /gardens/{gardenId}/growth | 성장 시뮬레이션 상세 (AI 핵심 2) | OWNER | DT_HOME, DT_HARVEST |
 | POST | /gardens/{gardenId}/cheers | 오늘의 응원 (스트릭, XP) | OWNER | DT_HOME |
 | POST | /care-logs/{careLogId}/hearts | 감사 하트 보내기 | OWNER | DT_HOME, DT_DIARY |
@@ -125,7 +125,7 @@
 
 | Method | Endpoint | 기능 | 권한 | 화면 |
 | --- | --- | --- | --- | --- |
-| GET | /gardens/{gardenId}/harvest | 수확 안내 (AI 예측 수확일, 함께 돌본 일수) | OWNER | DT_HARVEST |
+| GET | /gardens/{gardenId}/harvest | 수확 안내 (현재 단계, AI 예측 수확일, 함께 돌본 일수) | OWNER | DT_HARVEST |
 | GET | /gardens/{gardenId}/visit-slots | 방문 가능 시간 | OWNER | DT_HARVEST |
 | POST | /visits | 주말 방문 예약 (관리사 알림) | OWNER | DT_HARVEST |
 | DELETE | /visits/{visitId} | 방문 예약 취소 (하루 전까지) | OWNER | DT_HARVEST |
@@ -162,13 +162,14 @@
 | POST | /internal/leagues/settle | 매주 월 00:10 | 리그 정산, 새 리그와 퀘스트 생성 |
 | POST | /internal/farms/sync | 매주 월 03:00 | 공공데이터포털 주말농장 동기화 |
 
-### 4.8 시연 (4, DEMO)
+### 4.8 시연 (5, DEMO)
 
 | Method | Endpoint | 기능 | 화면 |
 | --- | --- | --- | --- |
 | GET | /demo/state | 데모 상태 (날씨, 꽃 3/4, 빨리 감기 18일) | DT_DEMO |
 | PUT | /demo/weather | 날씨 바꾸기, 작업 즉시 재생성 | DT_DEMO, DT_HOME, DT_CARE_TODAY |
 | POST | /demo/fast-forward | 시간 빨리 감기, 열매 진화 이벤트 발생 | DT_DEMO, DT_EVOLVE, DT_HARVEST |
+| PUT | /demo/stage | 성장 단계 선택 (씨앗부터 열매까지 단계별 시연) | DT_DEMO, DT_HOME, DT_EVOLVE |
 | POST | /demo/reset | 맑음, 꽃 단계, 할 일 3곳으로 초기화 | DT_DEMO |
 
 ## 5. 핵심 로직
@@ -232,5 +233,5 @@
 | 방문 슬롯 ID | `slot_1128_10` | `slot_20261128_10` (연도 포함) |
 | 나들이 추천 | 체험농장, 식당 | 공공데이터에서 고른 처인구의 실제 장소 7곳을 시드로 넣는다 ([public-data.md](public-data.md)) |
 | 푸시 | 알림과 함께 기기 푸시 발송 | 프론트가 웹이라 기기 푸시는 없다. 알림은 저장만 하고 화면이 `GET /notifications`를 다시 조회해 확인한다. `POST /users/me/push-tokens`는 삭제했다 |
-| 4.8 시연 | 날씨, 작업 재생성, 빨리 감기, 초기화 | 날씨 덮어쓰기와 초기화(날씨만) 동작. `POST /demo/fast-forward` 없음 |
-| 그 외 API | 4.2, 4.3, 음성 메모 2개를 제외한 4.5, `/internal/weather/sync`를 뺀 4.7, `/demo/fast-forward` | 미구현 (경로별 권한만 매핑됨) |
+| 4.8 시연 | 날씨, 작업 재생성, 빨리 감기, 초기화 | 날씨 연동, 누적 가상 일수, 18일 열매 진화, 기록을 보존하는 작업 회차 초기화 구현. 세 시연 텃밭 시드 지원 |
+| 후속 구현 상태 | 주인 프로필, 홈, 일기, 진화 이벤트, 게임, 관리사 작업 및 음성 | 구현되어 있으며 최신 세부 범위와 운영 조건은 architecture.md 상단 및 ai-completion.md 참고 |

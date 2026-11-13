@@ -23,6 +23,7 @@ public final class CaretakerDtos {
         private long gardenCount;
         private long workDays;
         private long heartsReceived;
+        private long heartsReceivedToday;
         private long expectedAllowance;
         private String allowanceNote;
     }

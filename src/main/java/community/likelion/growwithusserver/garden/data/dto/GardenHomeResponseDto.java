@@ -18,6 +18,9 @@ import java.time.OffsetDateTime;
 @AllArgsConstructor
 public class GardenHomeResponseDto {
     private String gardenId;
+    private String farmName;
+    private String plotCode;
+    private String nickname;
     private CharacterDto character;
     // 수집된 날씨가 없으면 null
     private CurrentWeatherDto weather;

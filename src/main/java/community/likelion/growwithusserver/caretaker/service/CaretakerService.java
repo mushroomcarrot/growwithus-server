@@ -59,11 +59,14 @@ public class CaretakerService {
         if (allowancePerTask < 0 || allowancePerTask > 1_000_000) throw new IllegalStateException("수당 가정 단가 설정이 유효하지 않습니다.");
         var records = logs.findAllByCaretakerUsernameAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(username,
                 selected.atDay(1).atStartOfDay(), selected.plusMonths(1).atDay(1).atStartOfDay());
+        LocalDate today = LocalDate.now();
         return GlobalResponse.ok(CaretakerDtos.Summary.builder().month(selected.toString()).completedTasks(records.size())
                 .gardenCount(records.stream().map(r -> r.getGardenId()).distinct().count())
                 .workDays(records.stream().map(r -> r.getCreatedAt().toLocalDate()).distinct().count())
                 .heartsReceived(hearts.countByCaretakerUsernameAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(username,
                         selected.atDay(1).atStartOfDay(), selected.plusMonths(1).atDay(1).atStartOfDay()))
+                .heartsReceivedToday(hearts.countByCaretakerUsernameAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(username,
+                        today.atStartOfDay(), today.plusDays(1).atStartOfDay()))
                 .expectedAllowance(Math.multiplyExact((long) records.size(), allowancePerTask))
                 .allowanceNote("가정치예요. 실제 수당과 다를 수 있어요.").build());
     }

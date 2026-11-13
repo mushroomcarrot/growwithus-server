@@ -57,3 +57,16 @@ tasks.register('evaluateLocalAi', JavaExec) {
     mainClass = 'community.likelion.growwithusserver.ai.evaluation.LocalAiEvaluation'
     args layout.buildDirectory.file('reports/local-ai-evaluation.json').get().asFile.absolutePath
 }
+
+// DB 연결을 사용하는 컨텍스트 및 영속성 검사는 기존 test 태스크에 남긴다.
+tasks.register('unitTest', Test) {
+    group = 'verification'
+    description = '외부 DB 없이 실행하는 서비스 및 로직 테스트'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform()
+    systemProperty 'user.timezone', 'Asia/Seoul'
+    exclude '**/GrowwithusServerApplicationTests.class'
+    exclude '**/AiDomainContextTest.class'
+    exclude '**/AiCompletionPersistenceTest.class'
+}

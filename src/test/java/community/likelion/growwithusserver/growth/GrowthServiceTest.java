@@ -72,4 +72,53 @@ class GrowthServiceTest {
                 new GrowthDtos.CheckRequest(GrowthDtos.Observed.FRUIT, null)));
         assertNull(state); assertTrue(events.isEmpty());
     }
+
+    @Test void demoSimulationUsesVirtualDaysWithoutRealWeather() {
+        state = GrowthState.builder().gardenId(1L).stage(Stage.FLOWER).demoDays(18).build();
+        weather = List.of();
+        var detail = service().get("owner", 1L);
+        assertEquals(Stage.FRUIT, detail.getStage());
+        assertEquals(LocalDate.now(), detail.getExpectedHarvestDate());
+        assertTrue(detail.getExplanation().contains("시연용"));
+        assertNull(state.getCalibrationStage());
+        assertEquals(Stage.FRUIT, service().get("owner", 1L).getStage());
+    }
+
+    @Test void demoSimulationRequiresCaretakerConfirmationForHarvest() {
+        state = GrowthState.builder().gardenId(1L).stage(Stage.FLOWER).demoDays(9).build();
+        var detail = service().get("owner", 1L);
+        assertEquals(Stage.FLOWER, detail.getStage());
+        assertEquals(LocalDate.now().plusDays(9), detail.getExpectedHarvestDate());
+        service().check("care", 1L, new GrowthDtos.CheckRequest(GrowthDtos.Observed.FRUIT, null));
+        assertEquals(Stage.FRUIT, state.getCalibrationStage());
+        assertEquals(Stage.FRUIT, service().get("owner", 1L).getStage());
+    }
+
+    @Test void 새싹_관찰을_저장하고_재조회해도_유지한다() {
+        var service = service();
+        var result = service.check("care", 1L, new GrowthDtos.CheckRequest(GrowthDtos.Observed.SPROUT, null));
+        assertEquals(Stage.SPROUT, result.getStage());
+        assertTrue(result.isCalibrated());
+        assertEquals("evt_1", result.getEventId());
+        assertEquals(Stage.SPROUT, state.getCalibrationStage());
+        assertEquals(Stage.SPROUT, service.get("owner", 1L).getStage());
+        assertEquals(1, events.size());
+    }
+
+    @Test void 시연_시작_단계별_조회와_빨리_감기를_유지한다() {
+        weather = List.of();
+        for (Stage start : Stage.values()) {
+            state = GrowthState.builder().gardenId(1L).stage(start).demoStartStage(start).demoDays(0).build();
+            var detail = service().get("owner", 1L);
+            assertEquals(start, detail.getStage());
+            assertTrue(detail.isSimulated());
+            assertEquals(start, service().get("owner", 1L).getStage());
+            assertNull(state.getCalibrationStage());
+            assertEquals(start == Stage.FRUIT ? null : Stage.values()[start.ordinal() + 1], detail.getNextStage());
+            assertEquals(LocalDate.now().plusDays((3 - start.ordinal()) * 18L), detail.getExpectedHarvestDate());
+            state.setDemoDays(54);
+            assertEquals(Stage.FRUIT, service().get("owner", 1L).getStage());
+        }
+    }
+
 }

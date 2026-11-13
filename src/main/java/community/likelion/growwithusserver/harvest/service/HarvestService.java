@@ -41,6 +41,7 @@ public class HarvestService {
                 : (int) Math.max(0, ChronoUnit.DAYS.between(garden.getStartedOn(), today) + 1);
 
         return GlobalResponse.ok(HarvestResponseDto.builder()
+                .stage(garden.getStage())
                 .expectedDate(expectedDate)
                 .dDay(dDay)
                 .harvestable(garden.isHarvestable())

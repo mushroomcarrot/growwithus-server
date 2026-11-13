@@ -13,6 +13,7 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 public class HarvestGarden {
+    private community.likelion.growwithusserver.farm.data.enums.GrowthStage stage;
     private Long gardenId;
     // 텃밭 주인의 로그인 아이디 (내 텃밭인지 확인)
     private String ownerUsername;

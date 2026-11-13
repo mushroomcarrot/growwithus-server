@@ -22,10 +22,10 @@ public class WeatherTaskContextFactory implements TaskContextFactory {
     public TaskRules.Context create(Garden garden, LocalDate date) {
         var since = new TaskRules().historyStart(date, garden.guidance());
         var completed = tasks.findCompletedHistory(garden.gardenId(), TaskStatus.DONE, since.atStartOfDay(), date.plusDays(1).atStartOfDay());
-        var history = completed.stream()
+        var history = completed.stream().filter(t -> t.getArchiveNumber() == 0)
                 .map(t -> new TaskRules.History(t.getType(), t.getCompletedAt().toLocalDate())).toList();
         var previous = tasks.findAllByGardenIdAndDateBetweenOrderByDateDesc(garden.gardenId(), date.minusDays(7), date.minusDays(1));
-        var ids = previous.stream().filter(t -> t.getDate().isBefore(date) && !t.getDate().isBefore(date.minusDays(7)))
+        var ids = previous.stream().filter(t -> t.getArchiveNumber() == 0).filter(t -> t.getDate().isBefore(date) && !t.getDate().isBefore(date.minusDays(7)))
                 .map(t -> t.getId()).toList();
         var current = weather.getCurrentWeather(garden.nx(), garden.ny());
         boolean known = current.isPresent() && current.get().getUpdatedAt() != null

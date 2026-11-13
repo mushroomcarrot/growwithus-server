@@ -332,12 +332,13 @@ Refresh Token도 새로 발급하고 이전 토큰은 무효가 된다. 에러: 
   "gardenCount": 3,
   "workDays": 9,
   "heartsReceived": 18,
+  "heartsReceivedToday": 3,
   "expectedAllowance": 240000,
   "allowanceNote": "가정치예요. 실제 수당과 다를 수 있어요."
 }
 ```
 
-`month`를 생략하면 이번 달이다.
+`month`를 생략하면 이번 달이다. `heartsReceived`는 조회한 달에 받은 하트 수, `heartsReceivedToday`는 `month`와 관계없이 오늘 받은 하트 수다.
 
 ### 3.10 읽어주기 음성
 
@@ -359,6 +360,9 @@ Refresh Token도 새로 발급하고 이전 토큰은 무효가 된다. 에러: 
 ```json
 {
   "gardenId": "gdn_b14",
+  "farmName": "처인 테마 주말농장",
+  "plotCode": "B-14",
+  "nickname": "민지네",
   "character": {
     "name": "토순이",
     "stage": "FLOWER",
@@ -588,6 +592,7 @@ Refresh Token도 새로 발급하고 이전 토큰은 무효가 된다. 에러: 
 
 ```json
 {
+  "stage": "FLOWER",
   "expectedDate": "2026-11-28",
   "dDay": 18,
   "harvestable": false,
@@ -775,7 +780,7 @@ STT로 받아 적고 LLM이 가족용 문장으로 정리한다. `issues`는 다
 { "stage": "FRUIT", "calibrated": true, "calibratedAt": "2026-11-10T10:30:00+09:00", "eventId": "evt_fruit_b14" }
 ```
 
-`observed`: `FLOWER`, `FRUIT`, `NO_CHANGE`. 단계가 오르면 `eventId`가 생기고, 그대로면 `null`이다.
+`observed`: `SPROUT`, `FLOWER`, `FRUIT`, `NO_CHANGE`. 단계가 오르면 `eventId`가 생기고, 그대로면 `null`이다. `SPROUT`은 씨앗 단계에서 새싹이 난 것을 확인했을 때 보낸다.
 
 ## 7. Notification
 
@@ -848,7 +853,7 @@ STT로 받아 적고 LLM이 가족용 문장으로 정리한다. `issues`는 다
 { "weather": "SUNNY", "stage": "FLOWER", "stageProgress": "3/4", "fastForwardDays": 18, "todayTaskGardens": 3 }
 ```
 
-현재 구현: `weather`만 채워진다 (날씨를 바꾼 적이 없으면 `null`). 나머지 넷은 텃밭, 성장 시뮬레이션, 작업 도메인이 붙기 전까지 `null`이다.
+현재 구현: weather와 시연 텃밭의 stage, stageProgress(단계 순서), todayTaskGardens를 반환한다. fastForwardDays는 저장된 누적 가상 일수다. 시연 텃밭이 없으면 텃밭 상태는 null이다.
 
 ### 9.2 날씨 바꾸기
 
@@ -864,7 +869,7 @@ STT로 받아 적고 LLM이 가족용 문장으로 정리한다. `issues`는 다
 
 `condition`: `SUNNY`, `RAIN`, `HOT` (그 외는 `C002`). 작업을 즉시 다시 만든다.
 
-현재 구현: 날씨 덮어쓰기와 `animation`까지 동작한다. 작업 생성이 붙기 전까지 `weatherNotice`는 `null`, `regeneratedTasks`는 0이다.
+현재 구현: 시연 농장의 minji/B-14, demo_owner_b13/B-13, demo_owner_b15/B-15에 기존 작업 생성과 날씨 검증을 연결한다. 완료 기록과 첨부는 보존한다. weatherNotice는 현재 작업 안내, regeneratedTasks는 작업이 새로 추가된 텃밭 수다. 이미 충분한 작업이 있으면 0이다.
 
 ### 9.3 시간 빨리 감기
 
@@ -878,9 +883,25 @@ STT로 받아 적고 LLM이 가족용 문장으로 정리한다. `issues`는 다
 { "stage": "FRUIT", "eventId": "evt_fruit_b14", "expectedHarvestDate": "2026-11-28" }
 ```
 
-현재 구현: 없다 (성장 시뮬레이션과 진화 이벤트가 먼저 필요하다).
+현재 구현: days는 1~365의 정수, 누적 최대 3650일이다. 시연 B-14만 합성 기온으로 계산하며 시작 단계 (기본 FLOWER, `PUT /demo/stage`로 변경)에서 단계마다 18일이면 다음 단계로 진행한다. eventId는 해당 단계의 미확인 진화 이벤트이고 없으면 null이다. expectedHarvestDate는 현재 날짜에 남은 시연 일수를 더한 날짜다. 실제 관측값과 수확 확인을 대신하지 않는다. 신규 시작은 FLOWER만 허용하고 다른 단계는 먼저 reset한다.
 
-### 9.4 초기화
+### 9.4 성장 단계 선택
+
+`PUT /demo/stage`
+
+```json
+// 요청
+{ "stage": "SPROUT" }
+
+// 응답
+{ "stage": "SPROUT", "eventId": "evt_12", "expectedHarvestDate": "2026-12-19" }
+```
+
+`stage`: `SEED`, `SPROUT`, `FLOWER`, `FRUIT` (없거나 그 외는 `C002`).
+
+현재 구현: 시연 B-14만 변경한다. 현재보다 높은 단계를 고르면 진화 이벤트가 생기고 eventId를 반환한다. 낮은 단계나 같은 단계면 eventId는 null이다. 단계가 바뀌면 이전의 미확인 연출은 닫는다. 선택한 단계를 시작 단계로 저장하고 가상 일수와 관찰 보정을 비우므로 이후 성장 조회와 빨리 감기에서도 유지된다. 단계 사이는 18일이며 expectedHarvestDate는 현재 날짜에 FRUIT까지 남은 일수를 더한 날짜다 (SEED 54일, SPROUT 36일, FLOWER 18일, FRUIT 0일). 이미 지급한 보상과 기록은 유지한다.
+
+### 9.5 초기화
 
 `POST /demo/reset`
 
@@ -890,7 +911,7 @@ STT로 받아 적고 LLM이 가족용 문장으로 정리한다. `issues`는 다
 { "weather": "SUNNY", "stage": "FLOWER", "todayTaskGardens": 3 }
 ```
 
-현재 구현: 날씨만 `SUNNY`로 되돌린다. 응답은 9.1과 같은 형태이고 `weather` 외에는 `null`이다.
+현재 구현: 주 시연 텃밭을 FLOWER와 가상 일수 0으로 되돌리고 날씨를 SUNNY로 바꾼다. 세 시연 텃밭의 오늘 작업은 보관한 뒤 새로 생성하며 이전 작업 ID로 완료하면 C4095다. 완료 기록, 사진과 음성 참조, 이미 지급한 보상은 유지한다. 세 시연 칸이 준비되어 있으면 todayTaskGardens는 3이다.
 
 ## 10. 에러 코드
 

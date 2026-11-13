@@ -56,4 +56,10 @@ class GrowthExplanationTest {
         assertTrue(List.of(mapping.value()).contains("/internal/ai/growth-simulation"));
         assertTrue(List.of(mapping.value()).contains("/internal/ai/simulate-growth"));
     }
+    @Test void explicitDemoSimulationKeepsDisclaimerAndDoesNotChangePublicResponseShape() {
+        var detail = detail(); detail.setSimulated(true);
+        assertSame(detail, service((s,u) -> { fail("demo called LLM"); return null; }).explain(detail));
+        var json = JsonMapper.builder().build().readTree(JsonMapper.builder().build().writeValueAsString(detail));
+        assertFalse(json.has("simulated")); assertEquals("fallback", detail.getExplanation());
+    }
 }

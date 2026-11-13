@@ -1,5 +1,43 @@
 # 현재 구조
 
+마지막 갱신: 2026-11-13, 시연 단계 선택, 새싹 관찰, 홈과 수확 안내 및 관리사 요약 응답 확장 (#36).
+
+## 화면 연동 응답 확장 (#36)
+
+1. PUT /demo/stage는 ADMIN 토큰과 X-Demo-Mode 헤더가 필요하다. 요청은 stage (SEED, SPROUT, FLOWER, FRUIT)이고 응답은 빨리 감기와 같은 DemoFastForwardResponseDto (stage, eventId, expectedHarvestDate)다. stage가 없거나 enum이 아니면 C002다. minji, 시연 농장 demo:theme, B-14가 모두 일치하는 텃밭만 변경한다.
+2. 현재 단계보다 높은 단계를 고르면 EvolutionEventService.advanceStage로 올리고 새 진화 이벤트의 eventId를 반환한다. 낮은 단계는 대상 검증을 하는 resetDemoStage(gardenId, target)로 내리며 eventId는 null이다. 같은 단계는 이벤트를 만들지 않는다. 단계가 바뀔 때는 이전의 미확인 연출을 먼저 닫는다. 이미 지급한 XP, 배지와 기록은 삭제하지 않는다.
+3. 선택한 단계는 garden_growth_state.demo_start_stage에 저장하고 demo_days를 0으로, 관찰 보정을 비운다. 시연 성장 계산은 이 시작 단계를 기준으로 하므로 성장 조회, 배치, 빨리 감기 후에도 선택한 단계 아래로 되돌아가지 않는다. demo_start_stage가 null인 기존 시연 상태는 FLOWER로 본다. 단계 사이는 18일이며 SEED에서 FRUIT까지는 54일이다. expectedHarvestDate는 현재 날짜에 FRUIT까지 남은 시연 일수를 더한 날짜다.
+4. POST /demo/reset은 demo_start_stage도 FLOWER로 되돌린다. 초기화 시점의 단계가 FLOWER보다 낮으면 advanceStage로 올린 뒤 그 연출을 닫는다.
+5. POST /gardens/{gardenId}/stage-checks의 observed에 SPROUT을 추가했다. GrowthCalculator는 SPROUT 관찰도 보정 기준으로 받는다. SEED는 관찰 값이 아니며 시연 시작 단계로만 쓴다. stageCheck.required의 조건은 그대로이며 FLOWER와 FRUIT 예상 단계에서만 true다. SPROUT은 관리사가 화면에서 직접 선택해 보낸다.
+6. GET /gardens/{gardenId}/harvest 응답에 stage를 추가했다. 텃밭의 현재 단계이며 harvestable (관리사의 FRUIT 확인)과는 별개다. HarvestGarden에도 stage를 추가했다.
+7. GET /gardens/{gardenId}/home 응답에 farmName, plotCode, nickname을 추가했다. nickname은 주인 프로필의 별명이고 프로필이 없으면 사용자 이름이다.
+8. GET /caretakers/me/summary 응답에 heartsReceivedToday를 추가했다. 조회한 month와 관계없이 서버 날짜의 오늘 00:00부터 내일 00:00 전까지 받은 하트 수다.
+9. prod는 db/manual/demo_simulation.sql의 demo_start_stage 열 추가를 먼저 적용한다. ADD COLUMN IF NOT EXISTS이므로 다시 실행해도 안전하다.
+10. 검증: ./gradlew compileJava unitTest와 build -x test가 통과했다. DB가 필요한 전체 test와 실제 HTTP 호출은 이번 작업에서 실행하지 않았다.
+
+## 담당 이슈 후속 구현과 검증
+
+1. dami6326 담당 #3, #4, #9, #10, #11은 기존 구현을 유지한다. 실제 HTTP에서 관리사 완료 기록의 주인 홈과 일기 연결, 감사 하트와 중복 방지, 퀘스트, 리그, 배지를 확인했다. 이벤트 보상은 텃밭을 먼저 잠근 뒤 이벤트를 잠그도록 순서를 통일했다.
+2. #16의 POST /demo/fast-forward는 days 1~365를 받아 누적 최대 3650일까지 저장한다. minji, 시연 농장 demo:theme, B-14가 모두 일치하는 텃밭만 변경한다. 최초 시작은 FLOWER만 허용하며 다른 단계는 먼저 reset한다.
+3. garden_growth_state.demo_days가 null이면 실제 기상 계산을 유지한다. 시연에서는 저장된 시작 단계 (기본 FLOWER)부터 단계마다 18일에 다음 단계에 도달하는 합성 일별 기온을 GrowthCalculator에 전달한다. 실제 기상 테이블은 변경하지 않는다. 성장 조회와 배치도 저장된 시연 일수를 사용하므로 다시 조회해도 단계가 되돌아가지 않는다. 응답 explanation에 시연 자료임을 명시한다.
+4. 단계 상승은 기존 GrowthProjection과 EvolutionEventService.advanceStage를 통해 주인 이벤트, 일기와 알림에 연결한다. 자동 FRUIT만으로 관리사의 수확 확인을 대신하지 않는다. 수확 예정일은 현재 날짜에 남은 시연 일수를 더해 반환한다.
+5. GET /demo/state는 실제 단계, 단계 순서(3/4), 누적 일수와 현재 미완료 작업이 보이는 시연 텃밭 수를 반환한다. 조회 자체는 작업을 생성하지 않는다.
+6. POST /demo/reset은 이전 시연 작업을 보관하고, 미확인 연출을 닫고, 주 시연 텃밭을 FLOWER 시작 단계와 0일로 되돌린 뒤 맑음 상태의 작업을 다시 생성한다. 시연 단계 하향은 대상 검증을 다시 하는 EvolutionEventService.resetDemoStage에만 허용한다. 이미 지급한 XP, 배지, 돌봄 기록과 사진, 음성 참조는 삭제하지 않는다.
+7. care_task.archive_number는 현재 작업이면 0, 보관된 작업이면 자신의 PK다. 유니크 키는 garden_id, task_date, task_type, archive_number다. 오늘 목록과 신규 생성의 존재 검사는 현재 작업만 조회한다. 작업 생성의 반복 제한 및 음성 입력에서는 이전 시연 회차를 제외하며 돌봄 이력과 통계는 유지한다. 보관된 작업의 사진 업로드와 완료는 C4095로 거부한다.
+8. 초기화는 관리사 날짜 행, 모든 작업 행, 텃밭 행 순서로 잠근다. DB 초기화와 재생성은 한 트랜잭션이다. 날씨 덮어쓰기는 기존 Redis 저장소이므로 DB와 분산 트랜잭션은 아니다.
+9. GardenDemoSeeder는 기존 minji/B-14 외에 demo_owner_b13/B-13, demo_owner_b15/B-15를 준비한다. demo.enabled와 8자 이상의 DEMO_SEED_PASSWORD 조건을 유지하며 이미 분양되었거나 다른 관리사가 맡은 칸은 덮어쓰지 않는다. 세 칸이 모두 준비되어야 할 일 3곳이 가능하다.
+10. PUT /demo/weather는 세 시연 텃밭의 기존 생성기와 날씨 검증을 재사용한다. regeneratedTasks는 새 작업이 추가된 텃밭 수이며 기존 작업이 충분하면 0이다. 날씨에 맞지 않는 기존 작업은 화면과 완료 처리에서 제외된다.
+11. #14의 DemoVisitSeeder는 DEMO_ENABLED=true와 DEMO_SEED_VISIT_ENABLED=true일 때만 실행한다. 18일 뒤 이후 첫 토요일의 빈 슬롯에 기존 VisitService로 예약하고, 향후 31일 이내 같은 시연 텃밭 예약이 있으면 추가하지 않는다. 실제 예약 ID는 기존 vst_숫자 규칙이며 과거 날짜나 고정 ID를 강제로 넣지 않는다.
+12. prod는 db/manual/demo_simulation.sql을 먼저 적용해야 한다. 성장 일수 열, 시연 시작 단계 열, 작업 보관 번호와 유니크 키 교체를 포함한다. 신규 환경의 ddl-auto=update는 스키마를 생성하지만 기존 유니크 키 삭제는 수동 SQL이 필요하다.
+13. ./gradlew unitTest는 외부 DB 없는 검사다. 전체 test에는 기존 DB 컨텍스트 및 영속성 검사도 포함된다. 격리된 로컬 MariaDB와 Redis로 전체 테스트 262개, DB 없는 단위 테스트 258개와 build가 통과했다. 실제 HTTP에서 권한, 잘못된 일수, 세 텃밭, 비 예보, 9일 두 번의 진화, 중복 보상 방지, 반복 초기화, 보관 작업 거부와 이력 보존을 확인했다. 방문 시드는 재시작 후에도 한 건이었다. 운영 배포와 프론트 브라우저, 실제 사람 음성 검증과는 별개다.
+
+### 남는 운영 조건
+
+1. 실제 농장의 칸, 관리사 방문 가능 시간과 실제 과거 기상 자료는 운영 데이터가 필요하다. 임의의 실농장 자료를 생성하지 않았다.
+2. 운영 스키마 적용, 인증키, HTTPS와 프론트 연동은 운영 환경에서 확인해야 한다.
+3. JungSeungYoon 담당의 실제 AI 공급자, 서버 TTS, AI 아바타 및 사람 음성 품질 검증은 이번 담당 이슈 범위에 포함하지 않았다.
+4. 초기화는 재시연을 위한 작업 회차와 성장 상태 초기화다. 사용자의 과거 기록과 보상까지 삭제하는 DB 전체 재적재는 수행하지 않는다.
+
 ## PR #32 이후 마무리 구현
 
 CropGuidanceService가 실제 작물별 작업 지침을 읽고 내부 키 전용 API로 교체한다. 토마토 기본 지침의 내용은 용인시 농업기술센터를 참고하며 시간과 간격은 편성 기본 정책으로 구분한다. 저장한 빈 지침은 기본값을 끈 상태로 유지한다. GardenCareReader가 이 지침을 기존 AI 작업 생성과 최종 검증에 전달한다.
@@ -169,7 +207,7 @@ community.likelion.growwithusserver/
 
 1. `care`는 `Task`, `TaskDay`, `TaskPhoto`, `CareLog`를 저장한다. 오늘 할 일 조회 시 미생성 작업을 만들며 담당자 전체의 하루 작업 시간을 120분으로 제한한다. 생성 저장 시 `TaskDay`와 텃밭 행을 잠그고 현재 날씨와 단계로 재검증한다. 작업 완료, 돌봄 기록과 알림은 한 트랜잭션이다.
 2. `caretaker`는 프로필과 월별 요약, TTS 캐시를 제공한다. 기본 SVG를 사용하며 AI 아바타 생성은 후순위다. 내 정보의 관리사 요약에는 누적 돌봄 횟수를 포함한다.
-3. `growth`는 `GrowthState`와 `GrowthEvent`를 저장한다. 관찰 보정과 완료된 날짜의 기온을 기준으로 재계산하고 단계 상승 알림을 보낸다. 물 주기 등의 단계 검증은 저장된 성장 상태를 우선한다. `GrowthStatusService`는 확인한 단계에서 같은 확인 요청을 반복하지 않으며 다음 주요 단계에서 다시 요청한다. NO_CHANGE는 보정하지 않아 요청이 유지된다.
+3. `growth`는 `GrowthState`와 `GrowthEvent`를 저장한다. 관찰 보정과 완료된 날짜의 기온을 기준으로 재계산하고 단계 상승 알림을 보낸다. 물 주기 등의 단계 검증은 저장된 성장 상태를 우선한다. `GrowthStatusService`는 확인한 단계에서 같은 확인 요청을 반복하지 않으며 다음 주요 단계에서 다시 요청한다. NO_CHANGE는 보정하지 않아 요청이 유지된다. 관찰 값은 SPROUT, FLOWER, FRUIT, NO_CHANGE다.
 4. `CareGardenReader`와 `CaretakerFarmReader`는 실제 팀 도메인 어댑터가 필요하다. 기본 구현은 빈 결과다. 실제 자료 없이 농장이나 작물 기준값을 생성하지 않는다. 일기 연결은 남아 있다. 기존 수확 API는 소유권 확인 후 저장된 성장 예측일을 우선 사용한다. 성장 예측일이 null이면 기존 날짜로 대신하지 않으며 수확 가능 여부는 실제 텃밭 데이터에서 가져온다.
 5. 수동 스키마는 `src/main/resources/db/manual/voice_memo.sql`, `care_growth.sql`이다. prod 배포 전 적용 및 검증이 필요하다. 전체 연결 상태와 제한은 [ai-integration.md](ai-integration.md)를 기준으로 확인한다.
 6. 예보나 단계 변경으로 기존 미완료 작업이 전부 숨겨지면, 기존 작업과 완료 기록을 유지한 채 남은 예산 안에서 관찰 작업을 하나 추가한다. 날짜별 담당자 잠금 안에서 재검사하며 같은 관찰 작업을 중복 생성하지 않는다. 모두 완료했거나 예산이 부족하면 추가하지 않는다.
@@ -207,19 +245,21 @@ community.likelion.growwithusserver/
 | PUT | `/users/me/role` | USER, OWNER, CARETAKER | `RoleChangeRequestDto` | `RoleChangeResponseDto` | 역할 선택 및 변경. 이전 토큰을 무효로 만들고 새 토큰 발급 |
 | GET | `/notifications?cursor=&limit=` | OWNER, CARETAKER | `CursorPageRequest` | `NotificationListResponseDto` | 내 알림 목록 (최신순)과 안 읽은 수 |
 | PATCH | `/notifications/{notificationId}/read` | OWNER, CARETAKER | 경로 `notificationId` (`ntf_3` 또는 `all`) | `NotificationReadResponseDto` | 읽음 처리. `all`이면 모두 읽음. 이미 읽은 알림은 `readCount` 0 |
-| GET | `/gardens/{gardenId}/harvest` | OWNER | 없음 | `HarvestResponseDto` | 수확 안내 (예측 수확일, D-day, 함께 돌본 일수) |
+| GET | `/gardens/{gardenId}/harvest` | OWNER | 없음 | `HarvestResponseDto` | 수확 안내 (현재 단계, 예측 수확일, D-day, 함께 돌본 일수) |
 | GET | `/gardens/{gardenId}/visit-slots?from=&to=` | OWNER | 쿼리 `from`, `to` (선택, `YYYY-MM-DD`) | `List<VisitSlotResponseDto>` | 주말 방문 슬롯과 예약 가능 여부. 생략하면 내일부터 2주 |
 | POST | `/visits` | OWNER | `VisitRequestDto` | `VisitResponseDto` | 주말 방문 예약, 담당 관리사에게 알림 |
 | DELETE | `/visits/{visitId}` | OWNER | 없음 | `null` | 방문 전날까지 취소, 담당 관리사에게 알림 |
 | GET | `/gardens/{gardenId}/outings` | OWNER | 없음 | `List<OutingResponseDto>` | 농장에서 가까운 순으로 나들이 장소 최대 6곳 |
 | GET | `/demo/state` | ADMIN + `X-Demo-Mode` | 없음 | `DemoStateResponseDto` | 시연 상태 (지금은 날씨만 채워짐) |
 | PUT | `/demo/weather` | ADMIN + `X-Demo-Mode` | `DemoWeatherRequestDto` | `DemoWeatherResponseDto` | 시연 날씨 덮어쓰기 (SUNNY, RAIN, HOT) |
-| POST | `/demo/reset` | ADMIN + `X-Demo-Mode` | 없음 | `DemoStateResponseDto` | 시연 날씨를 SUNNY로 되돌림 |
+| POST | `/demo/reset` | ADMIN + `X-Demo-Mode` | 없음 | `DemoStateResponseDto` | 맑음, FLOWER, 가상 일수 0으로 초기화 |
+| PUT | `/demo/stage` | ADMIN + `X-Demo-Mode` | `DemoStageRequestDto` (`stage`) | `DemoFastForwardResponseDto` | 시연 성장 단계 선택 (SEED, SPROUT, FLOWER, FRUIT) |
+| POST | `/demo/fast-forward` | ADMIN + `X-Demo-Mode` | `DemoFastForwardRequestDto` (`days`) | `DemoFastForwardResponseDto` | 시연 시간 빨리 감기 |
 | POST | `/internal/weather/sync` | SYSTEM (`X-Service-Key`) | `WeatherSyncRequestDto` (본문 생략 가능) | `WeatherSyncResponseDto` | 기상청 단기예보와 초단기실황 수집. 스케줄러가 매시 15분에 같은 로직을 돌린다 |
 | POST | `/caretaker/tasks/{taskId}/voice-memos` | CARETAKER | multipart `audio` | `VoiceMemoResponseDto` | 음성 원문과 요약을 DRAFT로 저장. 실제 작업 조회 구현체가 없으면 C404 |
 | POST | `/caretaker/voice-memos/{voiceMemoId}/confirm` | CARETAKER | `VoiceMemoConfirmRequestDto` 선택 | `VoiceMemoConfirmResponseDto` | 본인 초안 확정. 같은 확정 요청은 재시도 가능 |
 
-텃밭 경로(`/gardens/{gardenId}/...`)와 `POST /visits`는 텃밭 도메인이 붙기 전까지 항상 `C404`다 ([알려진 이슈](#알려진-이슈--결정-대기)). `POST /demo/fast-forward`는 아직 없다.
+텃밭 경로(`/gardens/{gardenId}/...`)와 `POST /visits`는 텃밭 도메인이 붙기 전까지 항상 `C404`다 ([알려진 이슈](#알려진-이슈--결정-대기)).
 
 ### 경로별 권한 (`SecurityConfiguration`)
 
@@ -274,7 +314,7 @@ ADMIN은 RoleHierarchy로 USER, OWNER, CARETAKER 권한을 갖는다. SYSTEM은 
 | `NotificationListResponseDto` | `items` (`NotificationItemDto` 목록), `unreadCount`, `nextCursor` |
 | `NotificationItemDto` | `notificationId` (`ntf_3`), `type`, `title`, `body`, `target` (`screen`, `id`. 이동 대상이 없으면 `null`), `read`, `createdAt` |
 | `NotificationReadResponseDto` | `readCount` (이번에 읽음 처리한 수), `unreadCount` (남은 수) |
-| `HarvestResponseDto` | `expectedDate`, `dDay` (지났으면 0, 수확일이 없으면 `null`), `harvestable`, `daysCaredTogether` (시작한 날을 1일로 셈), `careLogCount`, `caretakerName`, `message` |
+| `HarvestResponseDto` | `stage` (텃밭의 현재 단계), `expectedDate`, `dDay` (지났으면 0, 수확일이 없으면 `null`), `harvestable`, `daysCaredTogether` (시작한 날을 1일로 셈), `careLogCount`, `caretakerName`, `message` |
 | `VisitSlotResponseDto` | `slotId` (`slot_20261128_10`), `date`, `startTime`, `endTime` (`HH:mm`), `available` |
 | `VisitRequestDto` | `gardenId`, `slotId` (`@NotBlank`), `headcount` (선택, `@Min(1)`, 생략 시 1), `memo` (선택, `@Size(max=200)`) |
 | `VisitResponseDto` | `visitId` (`vst_5`), `date`, `startTime` (`HH:mm`), `status` (`RESERVED`, `CANCELED`) |
@@ -365,7 +405,7 @@ ADMIN은 RoleHierarchy로 USER, OWNER, CARETAKER 권한을 갖는다. SYSTEM은 
 
 ### 수확, 방문 예약
 
-**텃밭 접점 (`HarvestGardenReader`).** 텃밭, 농장, 관리사, 성장 시뮬레이션 도메인이 아직 없어서, 수확과 방문이 필요로 하는 값만 `HarvestGarden`으로 정의하고 `HarvestGardenReader.findGarden(gardenId)`로 받는다. 구현체는 아직 없고 기본 빈(`HarvestGardenConfiguration`)은 항상 비어 있는 결과를 주므로 관련 API는 `C404`다. 텃밭 도메인이 생기면 구현체를 `@Component`로 등록한다. `HarvestGarden`의 필드는 `gardenId`, `ownerUsername`, `ownerNickname`, `characterName`, `farmId`, `farmLatitude`, `farmLongitude`, `caretakerUsername`, `caretakerName`, `startedOn`, `expectedHarvestDate`, `harvestable`, `careLogCount`다.
+**텃밭 접점 (`HarvestGardenReader`).** 텃밭, 농장, 관리사, 성장 시뮬레이션 도메인이 아직 없어서, 수확과 방문이 필요로 하는 값만 `HarvestGarden`으로 정의하고 `HarvestGardenReader.findGarden(gardenId)`로 받는다. 구현체는 아직 없고 기본 빈(`HarvestGardenConfiguration`)은 항상 비어 있는 결과를 주므로 관련 API는 `C404`다. 텃밭 도메인이 생기면 구현체를 `@Component`로 등록한다. `HarvestGarden`의 필드는 `gardenId`, `stage`, `ownerUsername`, `ownerNickname`, `characterName`, `farmId`, `farmLatitude`, `farmLongitude`, `caretakerUsername`, `caretakerName`, `startedOn`, `expectedHarvestDate`, `harvestable`, `careLogCount`다.
 
 **방문 슬롯 규칙 (`VisitSlotPolicy`).** 슬롯은 테이블에 두지 않고 규칙으로 계산한다.
 
@@ -689,12 +729,12 @@ docker run -d -p 6379:6379 redis:7
 | 음성 메모 API | 작업 조회는 구현, 실제 텃밭 조회 어댑터가 없음 | 농장과 텃밭 도메인 연결 및 MariaDB 잠금 검사가 필요. STT 실패 시 파일 보존과 재시도 구현, 초안 롤백 파일 정리는 구현, 커밋 결과 불확실 시 보존. 실제 DB 검사 필요 |
 | 브라우저 녹음 길이 | 공통 업로드 모듈은 webm과 조각 mp4 길이를 읽지 못함 | 로컬 STT를 활성화하면 작업 서버에서 디코딩된 전체 길이를 60초 이하로 다시 검사한다. 실제 브라우저 파일 시험은 남아 있음 |
 | 텃밭 조회 구현체 | 기본 조회는 빈 결과, local-demo만 가상 텃밭 제공 | 실제 서비스에는 팀 텃밭 조회 어댑터가 필요하다. 시연 작물과 기온은 운영 자료가 아니다 |
-| 방문 슬롯 정원의 동시성 | 농장과 날짜 잠금 행, 현재 예약 ID 잠금 조회로 정원 확인 추가 | visit_booking_day 수동 스키마 적용과 실제 MariaDB 경쟁 요청 검사가 필요하다. 대역 검사는 DB 잠금 증거가 아니다 |
+| 방문 슬롯 정원의 동시성 | VisitCapacityGuard가 날짜 행을 잠근 뒤 정원을 검사한다 | 같은 텃밭의 같은 날 예약은 유니크 키로 보호한다 |
 | 관리사별 방문 가능 시간 | 데이터가 없어 주말 고정 시간(10, 11, 14, 15시)을 쓴다 | 관리사가 시간을 고르게 하려면 프로필에 가능 시간을 추가하고 `VisitSlotPolicy`를 고친다 |
 | 나들이 추천 데이터 | 실제 장소 7곳을 시드로 넣는다. 식당은 원본에 좌표가 없어 좌표를 확인한 4곳만 넣었고, 그중 2곳(국수59, 백암제일식당)은 가게가 있는 길의 좌표다 | 거리가 100m쯤 어긋날 수 있다. 예시 6곳이 이미 들어간 DB에는 시드가 다시 들어가지 않으므로 `outing` 테이블을 비우고 다시 띄운다. 식당을 더 넣으려면 주소를 좌표로 바꾸는 방법이 필요하다 |
 | 날씨 수집 격자 | 농장 도메인이 없어 `WeatherFarmReader` 구현체가 없음. 설정의 기본 격자(`64:119`)만 수집한다 | 농장마다 격자가 다르면 그 농장의 날씨가 비어 있다. 농장 도메인에서 농장 좌표로 격자를 구해 (변환식은 [public-data.md](public-data.md)) 구현체를 등록한다. 그 전에는 `WEATHER_DEFAULT_GRIDS`에 격자를 더한다 |
 | 날씨 수집 인증키 | `PUBLIC_DATA_SERVICE_KEY`가 비어 있으면 수집을 건너뜀 | `weather_forecast`가 비어 `getCurrentWeather`는 시연 날씨가 있을 때만 값을 준다. 로컬 `.env`와 배포 환경에 키를 넣어야 한다 |
-| 시연 API | 날씨 덮어쓰기만 동작 | `PUT /demo/weather`의 `weatherNotice`, `regeneratedTasks`와 `GET /demo/state`의 단계, 할 일 수는 비어 있다. `POST /demo/fast-forward`와 시드 재적재는 없다. 작업 생성, 성장 시뮬레이션, 진화 이벤트, 텃밭 도메인이 생기면 `DemoService`에 붙인다 |
+| 시연 API | 날씨, 누적 일수, 빨리 감기, 성장과 작업 회차 초기화 구현 | 운영 스키마 변경 필요. 상단 시연 도메인 설명 참고 |
 | 파일 저장소 | 로컬 디스크만 구현 | 서버를 여러 대 띄우거나 재배포로 디스크가 초기화되면 파일이 사라진다. 필요하면 S3 구현체를 추가한다 |
 
 ## 가족 일기와 로컬 시연 환경
@@ -959,7 +999,7 @@ community.likelion.growwithusserver/
 | POST | `/quizzes/{quizId}/answers` | OWNER | `QuizAnswerRequestDto` | `QuizAnswerResponseDto` | [확장] 퀴즈 답 제출. 한 번만, 맞히면 XP 10 |
 | GET | `/notifications?cursor=&limit=` | OWNER, CARETAKER | `CursorPageRequest` | `NotificationListResponseDto` | 내 알림 목록 (최신순)과 안 읽은 수 |
 | PATCH | `/notifications/{notificationId}/read` | OWNER, CARETAKER | 경로 `notificationId` (`ntf_3` 또는 `all`) | `NotificationReadResponseDto` | 읽음 처리. `all`이면 모두 읽음. 이미 읽은 알림은 `readCount` 0 |
-| GET | `/gardens/{gardenId}/harvest` | OWNER | 없음 | `HarvestResponseDto` | 수확 안내 (예측 수확일, D-day, 함께 돌본 일수) |
+| GET | `/gardens/{gardenId}/harvest` | OWNER | 없음 | `HarvestResponseDto` | 수확 안내 (현재 단계, 예측 수확일, D-day, 함께 돌본 일수) |
 | GET | `/gardens/{gardenId}/visit-slots?from=&to=` | OWNER | 쿼리 `from`, `to` (선택, `YYYY-MM-DD`) | `List<VisitSlotResponseDto>` | 주말 방문 슬롯과 예약 가능 여부. 생략하면 내일부터 2주 |
 | POST | `/visits` | OWNER | `VisitRequestDto` | `VisitResponseDto` | 주말 방문 예약, 담당 관리사에게 알림 |
 | DELETE | `/visits/{visitId}` | OWNER | 없음 | `null` | 방문 전날까지 취소, 담당 관리사에게 알림 |
@@ -973,7 +1013,7 @@ community.likelion.growwithusserver/
 | `OwnerProfileCreateResponseDto` | `gardenId`, `characterName`, `stage`, `nextStep` |
 | `OwnerProfileUpdateRequestDto` | `nickname` (선택, 20자 이하, 공백만은 안 됨), `district` (선택, `SUJI`와 `GIHEUNG`만 허용) |
 | `OwnerProfileResponseDto` | `nickname`, `district`, `gardenId` |
-| `GardenHomeResponseDto` | `gardenId`, `character` (`name`, `stage`, `level`, `mood`, `animation`, `message`), `weather` (`CurrentWeatherDto`, 수집된 날씨가 없으면 `null`), `streak` (`days`, `cheeredToday`), `xp` (`total`, `today`), `harvest` (`expectedDate`, `dDay`. 계산 전이면 둘 다 `null`), `caretaker` (배정 전이면 `null`), `recentCareLog` (`careLogId`, `summary`, `photoUrl`, `createdAt`, `hearted`. 없으면 `null`), `hasUnreadEvent` |
+| `GardenHomeResponseDto` | `gardenId`, `farmName`, `plotCode`, `nickname` (주인 프로필 별명, 없으면 사용자 이름), `character` (`name`, `stage`, `level`, `mood`, `animation`, `message`), `weather` (`CurrentWeatherDto`, 수집된 날씨가 없으면 `null`), `streak` (`days`, `cheeredToday`), `xp` (`total`, `today`), `harvest` (`expectedDate`, `dDay`. 계산 전이면 둘 다 `null`), `caretaker` (배정 전이면 `null`), `recentCareLog` (`careLogId`, `summary`, `photoUrl`, `createdAt`, `hearted`. 없으면 `null`), `hasUnreadEvent` |
 | `CheerResponseDto` | `streakDays`, `xpGained`, `totalXp`, `mood` |
 | `HeartResponseDto` | `careLogId`, `hearted`, `xpGained` |
 | `DiaryItemDto` | `type` (`CARE_LOG`, `STAGE_CHANGE`, `REST_DAY`), `date`. 종류에 따라 `careLogId`, `taskTypes`, `summary`, `photoUrl`, `caretakerName`, `hearted` (CARE_LOG), `eventId`, `fromStage`, `toStage` (STAGE_CHANGE), `message` (REST_DAY). 해당하지 않는 필드는 `null` |
@@ -991,13 +1031,15 @@ community.likelion.growwithusserver/
 | `LeagueSettleRequestDto` | `weekStart` (선택. 정산할 주에 속한 날, 생략 시 지난주. 월요일이 아니면 그 주의 월요일로 맞춘다) |
 | `LeagueSettleResponseDto` | `settledLeagues` (이번 실행으로 정산한 리그 수), `createdQuests` (새 주에 만든 퀘스트 수) |
 | `DemoWeatherRequestDto` | `DemoWeatherResponseDto` | 시연 날씨 덮어쓰기 (SUNNY, RAIN, HOT) |
-| POST | `/demo/reset` | ADMIN + `X-Demo-Mode` | 없음 | `DemoStateResponseDto` | 시연 날씨를 SUNNY로 되돌림 |
+| POST | `/demo/reset` | ADMIN + `X-Demo-Mode` | 없음 | `DemoStateResponseDto` | 맑음, FLOWER, 가상 일수 0으로 초기화 |
+| PUT | `/demo/stage` | ADMIN + `X-Demo-Mode` | `DemoStageRequestDto` (`stage`) | `DemoFastForwardResponseDto` | 시연 성장 단계 선택 (SEED, SPROUT, FLOWER, FRUIT) |
+| POST | `/demo/fast-forward` | ADMIN + `X-Demo-Mode` | `DemoFastForwardRequestDto` (`days`) | `DemoFastForwardResponseDto` | 시연 시간 빨리 감기 |
 | POST | `/internal/weather/sync` | SYSTEM (`X-Service-Key`) | `WeatherSyncRequestDto` (본문 생략 가능) | `WeatherSyncResponseDto` | 기상청 단기예보와 초단기실황 수집. 스케줄러가 매시 15분에 같은 로직을 돌린다 |
 | POST | `/internal/farms/sync` | SYSTEM (`X-Service-Key`) | 없음 | `FarmSyncResponseDto` | 공공데이터 주말농장 파일 동기화. 스케줄러는 매주 월 03:00 |
 | POST | `/internal/streaks/check` | SYSTEM (`X-Service-Key`) | `StreakCheckRequestDto` (본문 생략 가능) | `StreakCheckResponseDto` | 전날 응원이 없는 텃밭의 스트릭 끊김 처리. 스케줄러는 매일 00:05 |
 | POST | `/internal/leagues/settle` | SYSTEM (`X-Service-Key`) | `LeagueSettleRequestDto` (본문 생략 가능) | `LeagueSettleResponseDto` | 지난주 리그 정산, 새 주의 리그와 퀘스트 생성. 스케줄러는 매주 월 00:10 |
 
-아직 없는 API: 관리사 프로필과 작업 (`/caretakers/**`, `/caretaker/**`, `/tts`, `/gardens/*/stage-checks`), `POST /internal/ai/daily-tasks`, `POST /internal/ai/growth-simulation`, `POST /demo/fast-forward`. 돌봄 기록 도메인이 없어서 `POST /care-logs/{careLogId}/hearts`는 항상 `C404`다 ([알려진 이슈](#알려진-이슈--결정-대기)).
+아직 없는 API: 관리사 프로필과 작업 (`/caretakers/**`, `/caretaker/**`, `/tts`, `/gardens/*/stage-checks`), `POST /internal/ai/daily-tasks`, `POST /internal/ai/growth-simulation`. 돌봄 기록 도메인이 없어서 `POST /care-logs/{careLogId}/hearts`는 항상 `C404`다 ([알려진 이슈](#알려진-이슈--결정-대기)).
 
 ### 경로별 권한 (`SecurityConfiguration`)
 
@@ -1052,7 +1094,7 @@ ADMIN은 RoleHierarchy로 USER, OWNER, CARETAKER 권한을 갖는다. SYSTEM은 
 | `NotificationListResponseDto` | `items` (`NotificationItemDto` 목록), `unreadCount`, `nextCursor` |
 | `NotificationItemDto` | `notificationId` (`ntf_3`), `type`, `title`, `body`, `target` (`screen`, `id`. 이동 대상이 없으면 `null`), `read`, `createdAt` |
 | `NotificationReadResponseDto` | `readCount` (이번에 읽음 처리한 수), `unreadCount` (남은 수) |
-| `HarvestResponseDto` | `expectedDate`, `dDay` (지났으면 0, 수확일이 없으면 `null`), `harvestable`, `daysCaredTogether` (시작한 날을 1일로 셈), `careLogCount`, `caretakerName`, `message` |
+| `HarvestResponseDto` | `stage` (텃밭의 현재 단계), `expectedDate`, `dDay` (지났으면 0, 수확일이 없으면 `null`), `harvestable`, `daysCaredTogether` (시작한 날을 1일로 셈), `careLogCount`, `caretakerName`, `message` |
 | `VisitSlotResponseDto` | `slotId` (`slot_20261128_10`), `date`, `startTime`, `endTime` (`HH:mm`), `available` |
 | `VisitRequestDto` | `gardenId`, `slotId` (`@NotBlank`), `headcount` (선택, `@Min(1)`, 생략 시 1), `memo` (선택, `@Size(max=200)`) |
 | `VisitResponseDto` | `visitId` (`vst_5`), `date`, `startTime` (`HH:mm`), `status` (`RESERVED`, `CANCELED`) |
@@ -1147,7 +1189,7 @@ ADMIN은 RoleHierarchy로 USER, OWNER, CARETAKER 권한을 갖는다. SYSTEM은 
 
 ### 수확, 방문 예약
 
-**텃밭 접점 (`HarvestGardenReader`).** 수확과 방문이 필요로 하는 값만 `HarvestGarden`으로 정의하고 `HarvestGardenReader.findGarden(gardenId)`로 받는다. 구현체는 텃밭 도메인의 `GardenHarvestReader`다. `HarvestGarden`의 필드는 `gardenId`, `ownerUsername`, `ownerNickname`, `characterName`, `farmId`, `farmLatitude`, `farmLongitude`, `caretakerUsername`, `caretakerName`, `startedOn`, `expectedHarvestDate`, `harvestable`, `careLogCount`다. `careLogCount`는 돌봄 기록 도메인이 생기기 전까지 0이다.
+**텃밭 접점 (`HarvestGardenReader`).** 수확과 방문이 필요로 하는 값만 `HarvestGarden`으로 정의하고 `HarvestGardenReader.findGarden(gardenId)`로 받는다. 구현체는 텃밭 도메인의 `GardenHarvestReader`다. `HarvestGarden`의 필드는 `gardenId`, `stage`, `ownerUsername`, `ownerNickname`, `characterName`, `farmId`, `farmLatitude`, `farmLongitude`, `caretakerUsername`, `caretakerName`, `startedOn`, `expectedHarvestDate`, `harvestable`, `careLogCount`다. `careLogCount`는 돌봄 기록 도메인이 생기기 전까지 0이다.
 
 **방문 슬롯 규칙 (`VisitSlotPolicy`).** 슬롯은 테이블에 두지 않고 규칙으로 계산한다.
 
@@ -1611,16 +1653,16 @@ docker run -d -p 6379:6379 redis:7
 | AI 클라이언트 구현체 | 제공자 미정, 인터페이스와 기본 빈만 있음 | `LlmClient`, `SttClient`, `TtsClient` 호출은 항상 `C502`. 제공자가 정해지면 구현체를 추가한다 |
 | 시연 계정 | 가입 API로는 ADMIN을 만들 수 없음 | 시연 전에 DB에서 시연 계정의 `role`을 `ADMIN`으로 직접 바꾼다. 시연이 끝나면 prod `DEMO_ENABLED=false` |
 | 브라우저 녹음 길이 | webm과 사파리 조각 mp4는 서버가 길이를 읽지 못함 | 5MB 이하로만 확인한다. 60초 제한은 프론트 녹음 제한에 기대며, STT 제공자가 정해지면 STT 결과 길이로 다시 확인할 수 있다 |
-| 돌봄 기록, 관리사 프로필 접점 | `GardenCareLogReader`, `FarmCaretakerReader`의 구현체가 없음 (관리사 프로필 #5, 작업과 돌봄 기록 #7 미구현) | 홈의 `recentCareLog`는 `null`, 일기에는 단계 변화와 쉬는 날만 나오고, `POST /care-logs/{careLogId}/hearts`는 항상 `C404`, 수확의 `careLogCount`는 0이다. 관리사는 이름만 나가고 `caretakerId`, `avatarUrl`은 `null`이다. 해당 도메인에서 구현체를 등록한다 |
-| 단계를 올리는 곳 | `EvolutionEventService.advanceStage`를 부르는 곳이 없음 (성장 시뮬레이션 #8, 단계 확인 미구현) | 진화 이벤트가 생기지 않는다. 시연 텃밭에는 이미 확인한 이벤트 두 건만 시드로 들어 있다. `EVENT` 퀘스트도 이벤트가 생겨야 달성할 수 있다 |
+| 돌봄 기록, 관리사 프로필 접점 | 실제 도메인 구현체 연결 완료 | 홈, 일기, 감사 하트 연결을 격리 환경 실제 HTTP로 검증 |
+| 단계를 올리는 곳 | GrowthService와 GardenGrowthProjection에서 EvolutionEventService에 연결 | 시연도 같은 이벤트와 보상 경로 사용 |
 | 실제 농장의 칸 | 공공데이터에 칸 정보가 없어 시연 농장에만 칸이 있음 | 실제 농장 8곳은 목록에는 나오지만 분양받을 수 없다 (`C404`). 칸을 넣는 관리 기능이나 시드가 필요하다 |
 | 농장 좌표 | 원본에 좌표가 없어 읍면동 대표 좌표를 쓴다 | 같은 읍면동의 농장은 좌표와 거리가 같게 나온다 |
-| 방문 슬롯 정원의 동시성 | 정원은 조회 후 저장으로 확인 | 같은 슬롯에 동시에 예약이 들어오면 정원을 1건 넘길 수 있다. 같은 텃밭의 같은 날 중복은 유니크 제약으로 막힌다 |
+| 방문 슬롯 정원의 동시성 | VisitCapacityGuard가 날짜 행을 잠근 뒤 정원을 검사한다 | 같은 텃밭의 같은 날 예약은 유니크 키로 보호한다 |
 | 관리사별 방문 가능 시간 | 데이터가 없어 주말 고정 시간(10, 11, 14, 15시)을 쓴다 | 관리사가 시간을 고르게 하려면 프로필에 가능 시간을 추가하고 `VisitSlotPolicy`를 고친다 |
 | 나들이 추천 데이터 | 실제 장소 7곳을 시드로 넣는다. 식당은 원본에 좌표가 없어 좌표를 확인한 4곳만 넣었고, 그중 2곳(국수59, 백암제일식당)은 가게가 있는 길의 좌표다 | 거리가 100m쯤 어긋날 수 있다. 예시 6곳이 이미 들어간 DB에는 시드가 다시 들어가지 않으므로 `outing` 테이블을 비우고 다시 띄운다. 식당을 더 넣으려면 주소를 좌표로 바꾸는 방법이 필요하다 |
 | 날씨 수집 격자 | 등록된 농장의 격자를 수집한다 (`FarmWeatherFarmReader`) | 농장이 하나도 없으면 수집할 격자가 없다. `WEATHER_DEFAULT_GRIDS`는 구현체가 없을 때의 기본 빈만 쓰므로 지금은 쓰이지 않는다 |
 | 날씨 수집 인증키 | `PUBLIC_DATA_SERVICE_KEY`가 비어 있으면 수집을 건너뜀 | `weather_forecast`가 비어 `getCurrentWeather`는 시연 날씨가 있을 때만 값을 준다. 로컬 `.env`와 배포 환경에 키를 넣어야 한다 |
-| 시연 API | 날씨 덮어쓰기만 동작 | `PUT /demo/weather`의 `weatherNotice`, `regeneratedTasks`와 `GET /demo/state`의 단계, 할 일 수는 비어 있다. `POST /demo/fast-forward`와 시드 재적재는 없다. 작업 생성, 성장 시뮬레이션, 진화 이벤트, 텃밭 도메인이 생기면 `DemoService`에 붙인다 |
+| 시연 API | 날씨, 누적 일수, 빨리 감기, 성장과 작업 회차 초기화 구현 | 운영 스키마 변경 필요. 상단 시연 도메인 설명 참고 |
 | 파일 저장소 | 로컬 디스크만 구현 | 서버를 여러 대 띄우거나 재배포로 디스크가 초기화되면 파일이 사라진다. 필요하면 S3 구현체를 추가한다 |
 
 ### 이슈별 남은 작업
@@ -1629,8 +1671,8 @@ docker run -d -p 6379:6379 redis:7
 
 | 이슈 | 남은 항목 | 필요한 것 |
 | --- | --- | --- |
-| #14 | 시연용 방문 시드 | 수확, 방문 API는 텃밭 도메인이 붙어 동작한다. 방문 시드는 시연 시나리오가 정해지면 `GardenDemoSeeder`에 더한다 |
-| #16 | `POST /demo/fast-forward`, 날씨 변경 시 작업 재생성, 단계 진행 표시, 시드 재적재, 시연 리허설 | 작업 생성 (#7), 성장 시뮬레이션 (#8), 진화 이벤트 (#10). `DemoService`에 붙인다 |
+| #14 | 방문 시드 구현 완료 | DEMO_SEED_VISIT_ENABLED=true로 선택 실행. 실제 관리사 방문 가능 시간은 운영 자료가 필요하다 |
+| #16 | 코드 구현 및 격리 환경 HTTP 검증 완료 | 운영 스키마 적용과 실제 프론트 리허설 필요. 과거 기록을 삭제하는 전체 DB 재적재는 하지 않는다 |
 | #11 | 리그, 마이 화면 디자인 반영 | 디자인이 아직 없어 응답 구조를 명세 기준으로 만들었다. 디자인이 나오면 필드를 맞춘다 |
 # 2026-11-13 AI 후속 보완
 
@@ -1641,3 +1683,5 @@ docker run -d -p 6379:6379 redis:7
 TTS 구현체 LocalTtsClient는 선택적으로 127.0.0.1:8766의 로컬 작업자를 호출한다. 작업자는 eSpeak NG 한국어 합성과 FFmpeg MP3 변환을 사용하며 외부 음성 서비스에 텍스트를 보내지 않는다. 신경망 음성이 아닌 기본 읽어주기이므로 실제 청취 품질 확인이 필요하다. Docker 이미지 빌드에서 실제 합성과 MP3 디코딩 검사를 실행한다. 작업자가 꺼져 있거나 미설정이면 기존 오류와 프론트 읽어주기 대체 동작을 유지한다.
 
 운영 활성화는 AI_LOCAL_TTS_ENABLED=true와 AI_LOCAL_TTS_BASE_URL 설정이 필요하다. compose.ai-workers.json에 독립 tts 작업자를 추가했고 compose.local-demo.json은 같은 네트워크 공간에서 연결한다. 새 DB 스키마는 없다. 사진 비전은 출력 토큰을 제한하고 미설정, 모델 오류와 잘못된 결과를 판정 불가로 처리한다. 실제 비전 모델 설치와 운영 사양 검증은 별도다.
+
+최신 시연 가상 성장 상태도 내부 simulated 표시로 구분하여 LLM 설명에서 제외한다. 이 표시는 JSON 응답에 노출하지 않으며 기존 시연 안내 문구를 유지한다.

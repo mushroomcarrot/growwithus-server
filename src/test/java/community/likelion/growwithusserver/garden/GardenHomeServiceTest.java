@@ -79,12 +79,15 @@ class GardenHomeServiceTest {
     @Mock
     private BadgeService badgeService;
 
+    @Mock
+    private community.likelion.growwithusserver.garden.data.repository.OwnerProfileRepository ownerProfiles;
+
     private GardenHomeService gardenHomeService;
     private Garden garden;
 
     @BeforeEach
     void setUp() {
-        gardenHomeService = new GardenHomeService(new GardenService(gardenRepository), new XpService(xpHistoryRepository),
+        gardenHomeService = new GardenHomeService(ownerProfiles, new GardenService(gardenRepository), new XpService(xpHistoryRepository),
                 weatherService, new FarmService(farmRepository, plotRepository, cropRepository, farmCaretakerReader),
                 gardenCareLogReader, careLogHeartRepository, evolutionEventRepository, questService, badgeService);
         garden = GardenFixtures.garden();
@@ -235,4 +238,18 @@ class GardenHomeServiceTest {
         verify(xpHistoryRepository, never()).save(any());
         assertThat(garden.getTotalXp()).isEqualTo(1240);
     }
+
+    @Test void 홈은_농장과_칸_및_프로필_닉네임을_반환한다() {
+        when(ownerProfiles.findByUserId(1L)).thenReturn(Optional.of(
+                community.likelion.growwithusserver.garden.data.entity.OwnerProfile.builder().nickname("민지네").build()));
+        var home = gardenHomeService.getHome("minji", "gdn_3").getData();
+        assertThat(home.getFarmName()).isEqualTo("처인 테마 주말농장");
+        assertThat(home.getPlotCode()).isEqualTo("B-14");
+        assertThat(home.getNickname()).isEqualTo("민지네");
+    }
+
+    @Test void 프로필이_없으면_홈_닉네임은_사용자_이름이다() {
+        assertThat(gardenHomeService.getHome("minji", "gdn_3").getData().getNickname()).isEqualTo("김민지");
+    }
+
 }
