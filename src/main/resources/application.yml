@@ -69,7 +69,8 @@ ai:
     enabled: ${AI_ELEVENLABS_ENABLED:false}
     api-key: ${ELEVENLABS_API_KEY:}
     voice-id: ${ELEVENLABS_VOICE_ID:}
-    model: ${ELEVENLABS_MODEL:eleven_flash_v2_5}
+    model: ${ELEVENLABS_MODEL:eleven_multilingual_v2}
+    speed-scale: ${ELEVENLABS_SPEED_SCALE:1.2}
   gemini:
     enabled: ${AI_GEMINI_ENABLED:false}
     api-key: ${GEMINI_API_KEY:}
