@@ -14,12 +14,18 @@
 AI_ELEVENLABS_ENABLED=true
 ELEVENLABS_API_KEY=서버에서만_입력
 ELEVENLABS_VOICE_ID=계정에서_사용_가능한_한국어_목소리_ID
-ELEVENLABS_MODEL=eleven_flash_v2_5
+ELEVENLABS_MODEL=eleven_multilingual_v2
+# 선택. 요청 속도에 곱하는 배율 (기본 1.2)
+ELEVENLABS_SPEED_SCALE=1.2
 ```
 
 현재 계정에서 사용할 수 있는 한국어 전문 목소리 `Anna Kim - Tender, Calm and Clear`의 ID는 `uyVNoMrnUku1dZyVEXwD`다. 이 ID는 인증 키가 아니다. 기존 크레딧을 사용하며 코드가 결제나 초과 사용 설정을 변경하지 않는다. 계정에서 초과 사용 과금을 꺼 둔다. 장애 또는 잔액 부족은 C502이며 자동 재시도하지 않는다. 다시 eSpeak를 쓰려면 `AI_ELEVENLABS_ENABLED=false`로 바꾸고 앱을 재생성한다.
 
-앱은 2초 연결 제한, 8초 읽기 제한, 최대 2건 동시 합성과 텍스트 및 속도별 캐시를 사용한다. 기본 속도 0.9를 포함한 0.7부터 1.2까지는 ElevenLabs, 그 밖의 기존 허용 속도는 eSpeak를 사용한다. 로그인 권한과 `audio/mpeg` 응답 형식은 동일하다.
+앱은 2초 연결 제한, 8초 읽기 제한, 최대 2건 동시 합성과 텍스트 및 속도별 캐시를 사용한다. 기본 속도 0.9를 포함한 0.7부터 1.2까지는 ElevenLabs, 그 밖의 기존 허용 속도는 eSpeak를 사용한다. ElevenLabs에는 요청 속도에 `ELEVENLABS_SPEED_SCALE` (기본 1.2)을 곱하고 0.7부터 1.2로 맞춘 값을 보낸다. 프론트가 보내는 0.9는 1.08로 읽는다.
+
+보내는 문장은 `KoreanSpeechText`가 한국어 발음으로 풀어 쓴다. `B-13`은 "비 십삼 구역", `2번`은 "두 번", `20~25℃`는 "이십 에서 이십오 도", `AI`는 "에이아이"가 된다. 화면 문장과 캐시 키는 바뀌지 않는다.
+
+기본 모델 `eleven_multilingual_v2`는 `eleven_flash_v2_5`보다 발음이 자연스럽지만 응답이 느리고 글자당 크레딧을 두 배 쓴다. 크레딧이나 응답 시간이 문제면 `ELEVENLABS_MODEL`을 `eleven_flash_v2_5`나 `eleven_turbo_v2_5`로 되돌린다. 이 두 모델에는 `language_code=ko`를 함께 보낸다. 로그인 권한과 `audio/mpeg` 응답 형식은 동일하다.
 
 실제 호출 검사는 환경변수를 설정하고 `./gradlew verifyElevenLabs`로 실행한다. `./gradlew verifyElevenLabs --args="build/reports --family"`는 공개 문장 1건 합성과 Gemini 문장 6건을 검사한다. `build/reports/elevenlabs-review.mp3`와 `elevenlabs-predeploy.json`이 생긴다. 일반 테스트에는 실제 요청이 없다. 이 검사는 DB를 수정하지 않으며 실제 사람의 녹음도 전송하지 않는다. 통과해도 음질 청취와 배포 프론트에서의 재생은 따로 확인한다.
 
@@ -27,7 +33,7 @@ ELEVENLABS_MODEL=eleven_flash_v2_5
 
 ### 자동 배포로 적용
 
-저장소 Actions secret `ELEVENLABS_API_KEY`에 서버용 키를 저장한 뒤 기능 PR을 develop에 병합하고 develop에서 main으로 PR을 병합한다. main의 기존 Deploy 작업이 서버의 기존 `.env`를 보존하면서 ElevenLabs 네 항목을 반영하고 앱을 재생성한다. 목소리는 위 Anna Kim, 모델은 `eleven_flash_v2_5`를 쓴다. 별도로 PEM 파일을 전달하거나 SSH로 접속할 필요가 없다.
+저장소 Actions secret `ELEVENLABS_API_KEY`에 서버용 키를 저장한 뒤 기능 PR을 develop에 병합하고 develop에서 main으로 PR을 병합한다. main의 기존 Deploy 작업이 서버의 기존 `.env`를 보존하면서 ElevenLabs 네 항목을 반영하고 앱을 재생성한다. 목소리는 위 Anna Kim, 모델은 `eleven_multilingual_v2`를 쓴다. 별도로 PEM 파일을 전달하거나 SSH로 접속할 필요가 없다.
 
 `deploy/configure_elevenlabs.py`는 키, 목소리 ID와 모델을 먼저 검증하고 임시 파일을 비공개 권한으로 만든 뒤 `.env`를 교체한다. DB, JWT와 Gemini 항목은 유지한다. Actions secret이 없으면 서버의 기존 설정을 그대로 둔다. 설정 반영 실패는 `.env.bak` 복구 후 중단하며, 앱의 건강 검사 실패도 기존 배포의 복구 절차로 이전 이미지와 `.env`를 복구한다. 키 값은 배포 로그에 출력하지 않는다.
 
