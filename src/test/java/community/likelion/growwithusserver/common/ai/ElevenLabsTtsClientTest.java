@@ -42,7 +42,7 @@ class ElevenLabsTtsClientTest {
         server.expect(anything()).andExpect(request -> {
             var json = new tools.jackson.databind.ObjectMapper().readTree(
                     ((org.springframework.mock.http.client.MockClientHttpRequest) request).getBodyAsString(java.nio.charset.StandardCharsets.UTF_8));
-            assertEquals("비 십삼 구역 밭, 토마토.", json.path("text").asText());
+            assertEquals("비 십삼 구역, 토마토.", json.path("text").asText());
             assertEquals("ko", json.path("language_code").asText());
             assertEquals(1.2, json.path("voice_settings").path("speed").asDouble());
         }).andRespond(withSuccess(AUDIO, MediaType.valueOf("audio/mpeg")));

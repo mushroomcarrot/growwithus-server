@@ -18,8 +18,8 @@ public final class KoreanSpeechText {
             Map.entry("kg", "킬로그램"), Map.entry("g", "그램"), Map.entry("ml", "밀리리터"), Map.entry("mL", "밀리리터"),
             Map.entry("L", "리터"), Map.entry("l", "리터"));
 
-    // B-13은 "비 십삼 구역"으로 읽는다. 뒤에 구역, 칸, 번이 이미 있으면 덧붙이지 않는다.
-    private static final Pattern PLOT = Pattern.compile("(?<![A-Za-z0-9])([A-Z])-(\\d{1,3})(?!\\d)(\\s*(?:구역|칸|번))?");
+    // B-13은 "비 십삼 구역"으로 읽는다. 뒤에 구역, 칸, 번이 이미 있으면 덧붙이지 않고, "B-13 밭"도 "비 십삼 구역"으로 읽는다.
+    private static final Pattern PLOT = Pattern.compile("(?<![A-Za-z0-9])([A-Z])-(\\d{1,3})(?!\\d)(\\s*(?:구역|칸|번|밭(?![가-힣])))?");
     private static final Pattern CLOCK = Pattern.compile("(?<![\\d:])(\\d{1,2}):(\\d{2})(?![\\d:])");
     private static final Pattern RANGE = Pattern.compile("(\\d)\\s*~\\s*(?=\\d)");
     private static final Pattern BELOW_ZERO = Pattern.compile("(?<![\\dA-Za-z가-힣])-(?=\\d+(?:\\.\\d+)?\\s*(?:도|℃|°))");
@@ -36,7 +36,7 @@ public final class KoreanSpeechText {
     public static String normalize(String text) {
         if (text == null || text.isEmpty()) return text;
         String out = replace(PLOT, text, m -> letter(m.group(1).charAt(0)) + " " + sino(Long.parseLong(m.group(2)))
-                + (m.group(3) == null ? " 구역" : " " + m.group(3).strip()));
+                + (m.group(3) == null || m.group(3).strip().equals("밭") ? " 구역" : " " + m.group(3).strip()));
         out = replace(CLOCK, out, m -> {
             int hour = Integer.parseInt(m.group(1)), minute = Integer.parseInt(m.group(2));
             if (hour > 24 || minute > 59) return m.group();

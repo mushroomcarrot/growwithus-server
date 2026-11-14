@@ -7,7 +7,7 @@ class KoreanSpeechTextTest {
     private static void reads(String expected, String text) { assertEquals(expected, KoreanSpeechText.normalize(text)); }
 
     @Test void readsPlotCodesAsLetterNumberAndZone() {
-        reads("비 십삼 구역 밭, 토마토.", "B-13 밭, 토마토.");
+        reads("비 십삼 구역, 토마토.", "B-13 밭, 토마토.");
         reads("오늘은 비 십사 구역 텃밭에 지지대를 세워 주세요.", "오늘은 B-14 텃밭에 지지대를 세워 주세요.");
         reads("에이 일 구역, 씨 백오 구역", "A-1, C-105");
         reads("비 십삼 구역에 물 주기", "B-13 구역에 물 주기");
