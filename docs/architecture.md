@@ -1,6 +1,24 @@
 # 현재 구조
 
-마지막 갱신: 2026-11-13, 관리사 AI 아바타 API, 시연 관리사 프로필 시드, 실제 농장의 칸과 담당 관리사를 넣는 내부 관리 API 추가.
+마지막 갱신: 2026-11-14, ElevenLabs 한국어 TTS와 가족 전달 문장, 자동 배포의 비공개 AI 환경변수 반영 및 단위 검사 보완.
+
+## 한국어 읽어주기와 가족 전달 문장
+
+`AI_ELEVENLABS_ENABLED=true`이면 Gemini 사용 여부와 관계없이 `ElevenLabsTtsClient`를 TTS 구현체로 선택한다. `POST /tts`의 요청, MP3 응답과 `TtsService`의 텍스트 및 속도별 32건 캐시는 유지한다. 기본값 false이면 기존 음성 생성기를 유지한다.
+
+| 환경변수 | 기본값 | 용도 |
+| --- | --- | --- |
+| `AI_ELEVENLABS_ENABLED` | `false` | ElevenLabs TTS 선택 |
+| `ELEVENLABS_API_KEY` | 빈 값 | 서버 전용 키, 로그와 저장소에 넣지 않음 |
+| `ELEVENLABS_VOICE_ID` | 빈 값 | 계정에서 이용 가능한 한국어 목소리 20자리 ID |
+| `ELEVENLABS_MODEL` | `eleven_flash_v2_5` | 한국어 음성 생성 모델 |
+
+1. `POST https://api.elevenlabs.io/v1/text-to-speech/{voiceId}`에 텍스트와 속도만 보내고 MP3를 받는다. API 키는 `xi-api-key` 헤더에만 넣는다. 연결 제한 2초, 읽기 제한 8초이며 HTTP 리다이렉트를 따르지 않는다. 동시 생성은 2건이며 자동 재시도, 목소리 복제, 결제 설정 변경은 하지 않는다.
+2. 응답 MIME, MP3 헤더와 1 MB 제한을 검사한다. 인증, 잔액, 한도 또는 제공자 장애 시 C502를 반환한다. 배포 프론트의 기존 브라우저 읽어주기 대체 처리가 이어받는다. 실패 응답은 MP3 캐시에 저장하지 않는다.
+3. 기존 API가 허용하는 속도 0.5부터 1.5까지는 유지한다. ElevenLabs 지원 범위 0.7부터 1.2까지는 외부 음성을 쓰고 그 밖의 속도는 기존 eSpeak NG 및 FFmpeg 생성기로 처리한다. 기본 속도는 0.9다.
+4. `VoiceMemoAnalysisService`는 발화자를 텃밭 관리사, 수신자를 가족, 돌봄 대상을 작물로 명시한다. 원문의 작업 주체, 부정과 시제를 보존하고 해요체로 정리한다. 임의의 가족 관계나 사람의 건강 상태는 추가하지 않는다. 이상 징후의 원문 근거 검사와 실패 시 원문 보존은 유지한다.
+5. `verifyElevenLabs`는 명시적으로 실행할 때만 공개 문장 1건을 실제 합성한다. `--args="build/reports --family"`는 공개 문장 6건의 Gemini 정리도 검사한다. 일반 `test`에는 외부 요청이 없으며 DB와 실제 사람의 녹음을 사용하지 않는다. 생성 MP3 청취와 배포 서버의 키 적용 및 실제 프론트 재생 확인은 별도다.
+6. GitHub Actions secret `ELEVENLABS_API_KEY`가 있으면 main 배포가 서버 `.env`의 ElevenLabs 네 항목만 반영한다. `deploy/configure_elevenlabs.py`가 검증 후 파일을 교체하며 기존 DB, JWT와 Gemini 설정은 유지한다. 키가 없으면 기존 설정을 유지한다. 설정 적용 실패 또는 앱 건강 검사 실패는 `.env.bak`을 복구한다. 기존 CI는 Java 21 단위 테스트와 실제 음성 도구 검사, Python 환경변수 보존 검사까지 실행한다.
 
 ## 빠진 기능 보완 (#5, #3)
 
