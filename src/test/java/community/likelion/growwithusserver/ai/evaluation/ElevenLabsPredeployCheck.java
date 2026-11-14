@@ -29,12 +29,12 @@ public class ElevenLabsPredeployCheck {
                 }).build();
         var properties = new ElevenLabsProperties(); properties.setEnabled(true);
         properties.setApiKey(required("ELEVENLABS_API_KEY")); properties.setVoiceId(required("ELEVENLABS_VOICE_ID"));
-        properties.setModel(System.getenv().getOrDefault("ELEVENLABS_MODEL", "eleven_flash_v2_5"));
+        properties.setModel(System.getenv().getOrDefault("ELEVENLABS_MODEL", "eleven_multilingual_v2"));
         var checks = new ArrayList<Map<String, Object>>();
         long started = System.nanoTime();
         try {
             byte[] audio = ElevenLabsTtsClient.select(external, properties, new OfflineTtsClient()).synthesize(
-                    "오늘 텃밭에 물을 줬어요. 토마토 잎도 확인했어요. 잎에 작은 점이 보여 기록해 두었어요.");
+                    "B-13 밭, 토마토. 오늘 텃밭에 물을 2번 줬어요. 잎에 작은 점이 보여 기록해 두었어요.");
             Files.write(reportDir.resolve("elevenlabs-review.mp3"), audio);
             checks.add(Map.of("name", "elevenlabs_mp3", "passed", true, "bytes", audio.length,
                     "elapsedMs", (System.nanoTime() - started) / 1_000_000));

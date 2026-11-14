@@ -358,7 +358,7 @@ Refresh Token도 새로 발급하고 이전 토큰은 무효가 된다. 에러: 
 { "text": "오늘은 B-14 텃밭에 지지대를 세워 주세요.", "speed": 0.9 }
 ```
 
-응답은 `GlobalResponse`가 아니라 `audio/mpeg` 바이너리다. `text`는 300자 이하, `speed`는 0.5~1.5 (기본 0.9). 같은 문장은 캐시한다.
+응답은 `GlobalResponse`가 아니라 `audio/mpeg` 바이너리다. `text`는 300자 이하, `speed`는 0.5~1.5 (기본 0.9). 같은 문장은 캐시한다. ElevenLabs를 쓰면 서버가 구역 번호와 숫자를 한국어 발음으로 풀어 읽으므로 (`B-14`는 "비 십사 구역") 프론트는 화면 문장을 그대로 보낸다.
 
 ## 4. Home, Diary, Game
 
