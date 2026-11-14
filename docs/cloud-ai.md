@@ -4,7 +4,36 @@
 
 `AI_GEMINI_ENABLED=true`이면 음성 인식, 음성 메모 정리, 작업 생성, 성장 설명과 사진 확인을 Gemini API로 처리한다. 기존 프론트 API와 응답 형식은 바뀌지 않는다. Ollama, Whisper 모델과 별도 TTS 컨테이너는 실행하지 않는다. 이 구성은 기존 로컬 AI 안내보다 운영 배포에서 우선한다.
 
-서버는 FFmpeg로 WAV, WEBM, MP4와 M4A를 16 kHz 모노 WAV로 변환한다. 실제 변환 길이가 60초를 넘으면 거부한다. 읽어주기는 앱 이미지에 설치한 eSpeak NG와 FFmpeg로 MP3를 생성한다. 한국어 발음의 자연스러움은 신경망 TTS보다 제한적이므로 시연 문장을 직접 들어본다.
+서버는 FFmpeg로 WAV, WEBM, MP4와 M4A를 16 kHz 모노 WAV로 변환한다. 실제 변환 길이가 60초를 넘으면 거부한다. 읽어주기는 기본적으로 앱 이미지의 eSpeak NG와 FFmpeg로 MP3를 생성한다. `AI_ELEVENLABS_ENABLED=true`이면 ElevenLabs 한국어 음성으로 교체한다. 프론트는 같은 `POST /tts` MP3를 재생하며, 외부 생성 실패 시 기존 브라우저 읽어주기로 대체한다.
+
+## ElevenLabs 한국어 음성
+
+운영 서버의 비공개 `.env`에 아래 네 항목만 추가한다. 기존 DB, JWT와 Gemini 설정을 교체하지 않는다. 키는 GitHub, Vercel 또는 브라우저에 넣지 않는다.
+
+```dotenv
+AI_ELEVENLABS_ENABLED=true
+ELEVENLABS_API_KEY=서버에서만_입력
+ELEVENLABS_VOICE_ID=계정에서_사용_가능한_한국어_목소리_ID
+ELEVENLABS_MODEL=eleven_flash_v2_5
+```
+
+현재 계정에서 사용할 수 있는 한국어 전문 목소리 `Anna Kim - Tender, Calm and Clear`의 ID는 `uyVNoMrnUku1dZyVEXwD`다. 이 ID는 인증 키가 아니다. 기존 크레딧을 사용하며 코드가 결제나 초과 사용 설정을 변경하지 않는다. 계정에서 초과 사용 과금을 꺼 둔다. 장애 또는 잔액 부족은 C502이며 자동 재시도하지 않는다. 다시 eSpeak를 쓰려면 `AI_ELEVENLABS_ENABLED=false`로 바꾸고 앱을 재생성한다.
+
+앱은 2초 연결 제한, 8초 읽기 제한, 최대 2건 동시 합성과 텍스트 및 속도별 캐시를 사용한다. 기본 속도 0.9를 포함한 0.7부터 1.2까지는 ElevenLabs, 그 밖의 기존 허용 속도는 eSpeak를 사용한다. 로그인 권한과 `audio/mpeg` 응답 형식은 동일하다.
+
+실제 호출 검사는 환경변수를 설정하고 `./gradlew verifyElevenLabs`로 실행한다. `./gradlew verifyElevenLabs --args="build/reports --family"`는 공개 문장 1건 합성과 Gemini 문장 6건을 검사한다. `build/reports/elevenlabs-review.mp3`와 `elevenlabs-predeploy.json`이 생긴다. 일반 테스트에는 실제 요청이 없다. 이 검사는 DB를 수정하지 않으며 실제 사람의 녹음도 전송하지 않는다. 통과해도 음질 청취와 배포 프론트에서의 재생은 따로 확인한다.
+
+공식 API: https://elevenlabs.io/docs/api-reference/text-to-speech/convert
+
+### 자동 배포로 적용
+
+저장소 Actions secret `ELEVENLABS_API_KEY`에 서버용 키를 저장한 뒤 기능 PR을 develop에 병합하고 develop에서 main으로 PR을 병합한다. main의 기존 Deploy 작업이 서버의 기존 `.env`를 보존하면서 ElevenLabs 네 항목을 반영하고 앱을 재생성한다. 목소리는 위 Anna Kim, 모델은 `eleven_flash_v2_5`를 쓴다. 별도로 PEM 파일을 전달하거나 SSH로 접속할 필요가 없다.
+
+`deploy/configure_elevenlabs.py`는 키, 목소리 ID와 모델을 먼저 검증하고 임시 파일을 비공개 권한으로 만든 뒤 `.env`를 교체한다. DB, JWT와 Gemini 항목은 유지한다. Actions secret이 없으면 서버의 기존 설정을 그대로 둔다. 설정 반영 실패는 `.env.bak` 복구 후 중단하며, 앱의 건강 검사 실패도 기존 배포의 복구 절차로 이전 이미지와 `.env`를 복구한다. 키 값은 배포 로그에 출력하지 않는다.
+
+CI는 Java 21에서 단위 테스트를 실제로 실행하며 FFmpeg 및 eSpeak 검사와 배포 환경변수 보존 검사를 포함한다. 실제 운영 DB를 요구하는 컨텍스트 검사는 별도 로컬 통합 검증 대상이다. GitHub 인증 계정에는 이 저장소의 workflow 수정과 Actions secrets 관리 권한이 필요하다.
+
+## Gemini 동시 요청과 실패 처리
 
 동시에 진행하는 Gemini 요청은 최대 2개, 로컬 음성 변환 프로세스는 최대 1개다. 여유가 없으면 기존 오류와 재시도 흐름으로 반환한다. 사진은 축소한 JPEG를 보낸다. 원본 업로드는 유지하며 모델 실패를 사진 일치 판정으로 위장하지 않는다. 성장 설명 실패는 기존 템플릿으로 대체한다. 음성 정리 실패는 이미 얻은 원문을 보존하고 재시도한다. 실패 후 다른 유료 모델이나 로컬 대형 모델로 자동 전환하지 않는다.
 

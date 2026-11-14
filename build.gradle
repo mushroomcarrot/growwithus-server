@@ -92,3 +92,12 @@ tasks.register('verifyCloudAi', JavaExec) {
     args layout.buildDirectory.dir('reports/ai-fixtures').get().asFile.absolutePath,
             layout.buildDirectory.file('reports/cloud-ai-predeploy.json').get().asFile.absolutePath, '--cloud'
 }
+
+// 기존 ElevenLabs 크레딧을 사용하는 공개 문장 1건. --args에 --family를 넣으면 Gemini 6건도 검사한다.
+tasks.register('verifyElevenLabs', JavaExec) {
+    group = 'verification'
+    description = '실제 ElevenLabs MP3 생성과 선택적 가족 전달 문장 검사'
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'community.likelion.growwithusserver.ai.evaluation.ElevenLabsPredeployCheck'
+}
