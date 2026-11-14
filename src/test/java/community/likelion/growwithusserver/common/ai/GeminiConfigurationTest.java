@@ -55,4 +55,23 @@ class GeminiConfigurationTest {
             assertThrows(AiClientException.class, () -> context.getBean(LlmClient.class).complete("system", "text"));
         }
     }
+
+    @Test void elevenLabsOverridesOnlyTtsWithOrWithoutGemini() {
+        for (String gemini : new String[]{"true", "false"}) {
+            try (var context = context(Map.of("ai.gemini.enabled", gemini, "ai.gemini.api-key", "fake",
+                    "ai.elevenlabs.enabled", "true", "ai.elevenlabs.api-key", "fake",
+                    "ai.elevenlabs.voice-id", "0123456789abcdefghij"))) {
+                context.refresh();
+                assertEquals(1, context.getBeansOfType(TtsClient.class).size());
+                assertInstanceOf(ElevenLabsTtsClient.class, context.getBean(TtsClient.class));
+                assertEquals(gemini.equals("true"), context.getBean(LlmClient.class) instanceof GeminiClient);
+            }
+        }
+    }
+
+    @Test void enabledElevenLabsRequiresAKeyAndVoiceAtStartup() {
+        try (var context = context(Map.of("ai.gemini.enabled", "true", "ai.gemini.api-key", "fake", "ai.elevenlabs.enabled", "true"))) {
+            assertThrows(org.springframework.beans.BeansException.class, context::refresh);
+        }
+    }
 }

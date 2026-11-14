@@ -65,6 +65,11 @@ weather:
 
 # LLM, STT, TTS. 제공자와 구현체가 정해질 때까지는 비워 두어도 부팅된다
 ai:
+  elevenlabs:
+    enabled: ${AI_ELEVENLABS_ENABLED:false}
+    api-key: ${ELEVENLABS_API_KEY:}
+    voice-id: ${ELEVENLABS_VOICE_ID:}
+    model: ${ELEVENLABS_MODEL:eleven_flash_v2_5}
   gemini:
     enabled: ${AI_GEMINI_ENABLED:false}
     api-key: ${GEMINI_API_KEY:}
