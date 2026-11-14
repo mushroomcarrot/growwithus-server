@@ -25,6 +25,14 @@ ELEVENLABS_MODEL=eleven_flash_v2_5
 
 공식 API: https://elevenlabs.io/docs/api-reference/text-to-speech/convert
 
+### 자동 배포로 적용
+
+저장소 Actions secret `ELEVENLABS_API_KEY`에 서버용 키를 저장한 뒤 기능 PR을 develop에 병합하고 develop에서 main으로 PR을 병합한다. main의 기존 Deploy 작업이 서버의 기존 `.env`를 보존하면서 ElevenLabs 네 항목을 반영하고 앱을 재생성한다. 목소리는 위 Anna Kim, 모델은 `eleven_flash_v2_5`를 쓴다. 별도로 PEM 파일을 전달하거나 SSH로 접속할 필요가 없다.
+
+`deploy/configure_elevenlabs.py`는 키, 목소리 ID와 모델을 먼저 검증하고 임시 파일을 비공개 권한으로 만든 뒤 `.env`를 교체한다. DB, JWT와 Gemini 항목은 유지한다. Actions secret이 없으면 서버의 기존 설정을 그대로 둔다. 설정 반영 실패는 `.env.bak` 복구 후 중단하며, 앱의 건강 검사 실패도 기존 배포의 복구 절차로 이전 이미지와 `.env`를 복구한다. 키 값은 배포 로그에 출력하지 않는다.
+
+CI는 Java 21에서 단위 테스트를 실제로 실행하며 FFmpeg 및 eSpeak 검사와 배포 환경변수 보존 검사를 포함한다. 실제 운영 DB를 요구하는 컨텍스트 검사는 별도 로컬 통합 검증 대상이다. GitHub 인증 계정에는 이 저장소의 workflow 수정과 Actions secrets 관리 권한이 필요하다.
+
 ## Gemini 동시 요청과 실패 처리
 
 동시에 진행하는 Gemini 요청은 최대 2개, 로컬 음성 변환 프로세스는 최대 1개다. 여유가 없으면 기존 오류와 재시도 흐름으로 반환한다. 사진은 축소한 JPEG를 보낸다. 원본 업로드는 유지하며 모델 실패를 사진 일치 판정으로 위장하지 않는다. 성장 설명 실패는 기존 템플릿으로 대체한다. 음성 정리 실패는 이미 얻은 원문을 보존하고 재시도한다. 실패 후 다른 유료 모델이나 로컬 대형 모델로 자동 전환하지 않는다.
