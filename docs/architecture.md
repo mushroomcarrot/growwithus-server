@@ -1831,12 +1831,29 @@ prod는 `ddl-auto`가 `validate`이므로 `src/main/resources/db/manual/`의 SQL
 | `EXTERNAL_HTTP_CONNECT_TIMEOUT`, `EXTERNAL_HTTP_READ_TIMEOUT` | `3s`, `30s` | 외부 API 호출 타임아웃 (prod에도 같은 기본값) |
 | `PUBLIC_DATA_SERVICE_KEY` | (없음) | 공공데이터포털 인증키 (기상청 단기예보). 포털의 "일반 인증키"를 그대로 넣는다. 비워 두면 부팅은 되고 날씨 수집을 건너뛴다 (prod에도 같은 기본값) |
 | `KMA_MAX_ATTEMPTS`, `KMA_RETRY_DELAY` | `3`, `1s` | 기상청 호출 전체 시도 횟수와 다시 시도하기 전 대기 시간 (prod에도 같은 기본값) |
-| `WEATHER_DEFAULT_GRIDS` | `64:119` | 농장 도메인이 붙기 전까지 수집할 기상청 격자. `nx:ny`를 콤마로 잇는다. 기본값은 처인구 대표 격자 (prod에도 같은 기본값) |
-| `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL` | (없음) | LLM 연결 설정. 비워 두어도 부팅된다 |
-| `STT_API_KEY`, `STT_BASE_URL`, `STT_MODEL` | (없음) | STT 연결 설정 |
-| `TTS_API_KEY`, `TTS_BASE_URL`, `TTS_MODEL`, `TTS_VOICE` | (없음) | TTS 연결 설정 |
+| `WEATHER_DEFAULT_GRIDS` | `64:119` | 농장 구현체가 없을 때의 기본 빈만 쓰는 기상청 격자. 지금은 등록된 농장의 격자를 수집하므로 쓰이지 않는다 |
+| `DEMO_SEED_VISIT_ENABLED` | `false` | true면 시연 텃밭의 방문 예약 한 건을 시드로 넣는다 |
+| `CARE_ALLOWANCE_PER_TASK` | `0` | 관리사 예상 수당의 작업당 단가 (가정치) |
+| `AI_GEMINI_ENABLED`, `GEMINI_API_KEY`, `GEMINI_MODEL` | `false`, (없음), `gemini-3.5-flash-lite` | Gemini로 STT, LLM, 사진 확인을 처리하고 읽어주기는 앱 이미지의 eSpeak NG를 쓴다 ([cloud-ai.md](cloud-ai.md)). 켰는데 키가 없으면 부팅이 실패한다 |
+| `GEMINI_IMAGE_MODEL` | (없음) | 관리사 AI 아바타를 그리는 Gemini 이미지 모델. 비워 두면 생성하지 않고 기본 아바타를 쓴다. `AI_GEMINI_ENABLED=true`일 때만 쓰인다 |
+| `AI_LOCAL_ENABLED`, `AI_LOCAL_BASE_URL`, `AI_LOCAL_MODEL`, `AI_LOCAL_VISION_MODEL` | `false`, `http://127.0.0.1:11434`, (없음), (없음) | 로컬 Ollama. loopback HTTP 주소만 허용하고 미리 받은 모델만 쓴다 |
+| `AI_LOCAL_STT_ENABLED`, `AI_LOCAL_STT_BASE_URL` | `false`, `http://127.0.0.1:8765` | 로컬 음성 인식 작업 서버 |
+| `AI_ELEVENLABS_ENABLED`, `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`, `ELEVENLABS_MODEL`, `ELEVENLABS_SPEED_SCALE` | `false`, (없음), (없음), `eleven_multilingual_v2`, `1.2` | ElevenLabs 한국어 읽어주기. 구역 번호와 숫자를 한국어 발음으로 풀어 보낸다 ([cloud-ai.md](cloud-ai.md)) |
+| `AI_LOCAL_TTS_ENABLED`, `AI_LOCAL_TTS_BASE_URL` | `false`, `http://127.0.0.1:8766` | 로컬 읽어주기 작업 서버 |
+| `LLM_*`, `STT_*`, `TTS_*` | (없음) | 예전 연결 설정. 지금 쓰는 구현체는 없다 |
 
 prod에서 기본값이 없어 반드시 넣어야 하는 값: DB, Redis, `JWT_SECRET_KEY`, `CORS_ALLOWED_ORIGINS`, `INTERNAL_SERVICE_KEY`, `DEMO_ENABLED`, `FILE_UPLOAD_DIR`, `FILE_BASE_URL`.
+
+## 배포 (Docker, GitHub Actions)
+
+1. `Dockerfile`: 멀티 스테이지 빌드. 실행 이미지는 비루트 사용자(appuser), 헬스체크용 curl, `/app/uploads` 폴더, `-Duser.timezone=Asia/Seoul`을 쓴다.
+2. `docker-compose.yml`: app, mariadb(11.4), redis(7.4), nginx, certbot. app은 mariadb와 redis가 healthy가 된 뒤 뜨고, 업로드 파일은 uploads 볼륨(`/app/uploads`)에 남는다. 8080은 외부에 열지 않고 nginx가 `grow-api.yuns.kr`의 443을 app:8080으로 넘긴다.
+3. `.github/workflows/ci.yml`: develop push와 develop, main으로 향하는 PR에서 `./gradlew bootJar testClasses`와 Docker 이미지 빌드(push 없음)를 확인한다. DB가 필요한 테스트는 돌리지 않는다.
+4. `.github/workflows/deploy.yml`: main push에서 GHCR에 `<sha>` 태그 이미지를 올리고, SSH로 서버 `~/growwithus-server`에 compose 파일과 `deploy/nginx`를 복사한 뒤 app을 교체한다. `/actuator/health`가 healthy가 아니면 로그 100줄을 출력하고 직전 이미지로 되돌린다. 성공하면 `deploy/nginx/init-letsencrypt.sh`가 인증서가 없을 때만 Let's Encrypt 인증서를 발급한다.
+5. 헬스체크: `spring-boot-starter-actuator`를 추가했고 `management.endpoints.web.exposure.include=health`, `show-details=never`로 health만 공개한다. `SecurityConfiguration`에서 GET `/actuator/health`를 공개한다.
+6. 서버 `.env`는 `.env.prod.example`을 복사해 채운다. 새 DB에 처음 배포할 때만 `JPA_DDL_AUTO=update`로 테이블을 만들고 이후 `validate`로 되돌린다.
+7. 로컬 AI 클라이언트는 loopback 주소만 허용하므로 compose의 app 컨테이너는 호스트의 `compose.ai-workers.json` 작업자에 닿지 않는다. 이 구성에서는 `AI_LOCAL_ENABLED`, `AI_LOCAL_STT_ENABLED`를 false로 둔다.
+8. GitHub Secrets: `SERVER_HOST`, `SERVER_USER`, `SSH_PRIVATE_KEY`. 서버 사용자는 비밀번호 없이 `sudo docker`를 쓸 수 있어야 한다. `main`에는 아직 PR #31까지만 반영되어 있어 배포 워크플로가 실행된 적이 없다 (2026-11-13 기준).
 
 ## 로컬 실행
 
