@@ -1,31 +1,5 @@
 # 현재 구조
 
-## develop 6d8f52b 통합
-
-팀의 농장, 주인, 일기, 진화, 게임 코드를 보존해 작업 브랜치에 통합했다. GardenCareReader가 실제 텃밭과 소유권, 관리사, 작물 GDD 기준을 연결하고 변경 조회는 기존 트랜잭션의 실제 텃밭 행을 잠근다. 작업 지침 자료는 아직 연결하지 않아 안전한 CHECK 대체를 사용한다.
-
-StoredGardenCareLogReader가 관리사 돌봄 기록을 팀의 홈, 일기, 감사 하트에 연결한다. GardenCareLog와 운영 일기 DTO에 transcript를 추가해 정리문과 구분한다. 관리사 요약은 팀의 감사 하트 테이블을 읽는다. 농장과 관리사 프로필 조회도 실제 저장소에 연결했다.
-
-성장 계산은 GrowthProjection을 통해 실제 Garden의 단계, GDD와 예상 수확일을 갱신한다. 단계 상승은 팀의 EvolutionEventService를 호출하며 관리사 확인 응답에는 실제 주인 진화 이벤트 ID를 반환한다. 운영 알림도 그 서비스가 담당해 중복 전송하지 않는다. local-demo는 기존 격리 자료와 알림을 유지한다.
-
-운영 일기는 팀의 날짜 커서, REST_DAY, 감사 하트 기능을 유지한다. local-demo에서만 LocalSnapshotDiaryService와 별도 컨트롤러가 기존 dry_ 커서를 사용한다. 두 컨트롤러는 프로필로 분리해 같은 경로가 중복 등록되지 않는다. 역할 변경 시 주인과 관리사 모두 기존 프로필 등록 여부를 복구한다.
-
-통합 검사 결과는 build/reports/merge-verification.log와 JUnit XML에 기록한다. Docker Java 21의 전체 컴파일과 테스트, 로컬 시연 DB를 사용하는 contextLoads가 통과해야 머지 절차를 진행한다. 이전 핵심 78개 통과 결과와 새 통합 검사 결과를 구분한다.
-
-배포 우선순위와 실제 도메인 연결 조건은 ai-release.md에 정리했다. .env.prod.example은 기존 서버에서 Spring과 같은 네트워크 공간의 AI 작업자를 사용하는 설정 초안이다. 외부 제공자 API 키만으로 연결되는 구현은 없으며 서버 배치와 실제 텃밭 연결을 확정해야 배포할 수 있다. 운영용 Compose나 실제 서버 반영은 아직 수행하지 않았다.
-
-RUN-AI-EVALUATION.cmd는 evaluation 프로필의 일회성 컨테이너에서 기존 evaluateLocalAi Gradle 태스크를 실행한다. Java 실제 HTTP 클라이언트와 정리 서비스를 사용하며 DB 작업은 하지 않는다. 합성 입력별 원본 모델 응답을 local-ai-evaluation.json의 modelReplies에 함께 기록한다. 원본 응답이 없는 경우는 통신 단계 실패와 구분해 살펴본다. 일반 빌드나 테스트에서 이 모델 평가는 자동 실행하지 않는다.
-
-CHECK-LOCAL-LLM.cmd는 기존 진단 스크립트의 CheckLlm 모드로 Ollama 통신과 응답을 확인한다. 실제 Java 정리 프롬프트를 읽고 공개 합성 문장만 전송한다. 내부 AI 포트를 외부에 공개하지 않고 STT 컨테이너의 공유 네트워크를 이용한다. 진단 결과는 로컬 보고서에 기록하고 DB나 작업은 변경하지 않는다.
-
-STT 이미지는 faster-whisper 1.2.1과 PyAV 18 계열을 사용한다. PyAV 19에서 삭제된 metadata_errors 인자로 음성 해독이 실패하는 조합을 제외한다. 이미지 빌드 때 check_audio_decoder.py가 모델 다운로드 없이 생성한 PCM WAV를 실제 faster-whisper 해독기로 읽고 샘플 수를 확인한다. 실패하면 이미지 빌드도 중단한다. FIX-LOCAL-STT.cmd는 STT만 재빌드하고 교체한 뒤 상태와 한국어 합성 음성을 검사한다. 모델 볼륨과 DB는 보존하며 나머지 서비스는 재시작하지 않는다.
-
-로컬 STT 진단에는 `CHECK-LOCAL-STT.cmd`와 `scripts/diagnose-local-stt.ps1`을 사용한다. 기존 STT 컨테이너에서 공개 합성 음성으로 모델을 직접 실행하고 비밀번호나 사용자 녹음 없이 진단 보고서를 기록한다. 일반 Windows 계정의 Docker 접근 권한을 사용하며 작업 기록을 변경하지 않는다. 기본 서버 HTTP 검사와 실제 음성 처리 성공 여부는 별도로 기록한다. 합성 WAV는 `src/test/resources/ai-evaluation/`에 정답 문장과 생성 정보를 함께 보관한다.
-
-> 코드의 현재 상태를 그대로 기록한 문서다. 기능을 추가하거나 바꾸면 이 문서도 함께 갱신한다 ([development-guide.md](development-guide.md#문서-갱신-규칙)).
->
-> 마지막 갱신: 2026-11-13, 원격 작업 브랜치 업로드 확인, Windows 사용자 실행용 설치와 시연 시작 도구 추가. 실제 모델과 DB 부팅, 전체 빌드는 미검증
-
 ## 한눈에 보기
 
 | 항목 | 내용 |
