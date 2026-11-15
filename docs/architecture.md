@@ -1437,7 +1437,7 @@ ADMIN은 RoleHierarchy로 USER, OWNER, CARETAKER 권한을 갖는다. SYSTEM은 
 
 ### 진화 이벤트
 
-1. 작물 단계를 올리는 곳(성장 시뮬레이션, 관리사의 단계 확인, 시연의 빨리 감기)은 `EvolutionEventService.advanceStage(gardenId, newStage)`를 부른다. 텃밭의 단계를 바꾸고 `EvolutionEvent`를 만들고 주인에게 `STAGE_UP` 알림을 보낸다. 새 단계가 지금보다 높지 않으면 아무것도 하지 않는다. 부르는 쪽은 아직 없다.
+1. 작물 단계를 올리는 곳(성장 시뮬레이션, 관리사의 단계 확인, 시연의 빨리 감기)은 `EvolutionEventService.advanceStage(gardenId, newStage)`를 부른다. 텃밭의 단계를 바꾸고 `EvolutionEvent`를 만들고 주인에게 `STAGE_UP` 알림을 보낸다. 새 단계가 지금보다 높지 않으면 아무것도 하지 않는다. 성장 계산은 `GardenGrowthProjection`을 거쳐 이 메서드를 부른다.
 2. 보상은 단계에 따라 `SPROUT` 30 XP와 `FIRST_SPROUT`, `FLOWER` 50 XP와 `FIRST_FLOWER`, `FRUIT` 100 XP와 `FIRST_FRUIT`다.
 3. 주인이 `POST /events/{eventId}/ack`로 확인할 때 보상이 나간다. 이벤트 행과 텃밭을 잠그므로 동시에 눌러도 한 번만 나간다 (`C4095`).
 
