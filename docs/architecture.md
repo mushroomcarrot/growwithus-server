@@ -1,18 +1,5 @@
 # 현재 구조
 
-## 가족 일기와 로컬 시연 환경
-
-1. `diary` 패키지의 `DiaryListener`는 `CareCompleted`, `GrowthChanged` 이벤트를 원래 트랜잭션 안에서 수신한다. `DiaryEntry`에 원문, 확정 정리문, 사진, 단계와 원본 ID를 저장한다. 일기 저장 실패는 원래 완료 처리까지 롤백한다. `entry_type, source_id` 유니크 제약으로 원본을 한 번만 기록한다.
-2. `DiaryService`는 실제 텃밭 소유권 확인 후 `GET /gardens/{gardenId}/diary`를 반환한다. ALL, PHOTO, STAGE 필터, ID 내림차순 dry_ 커서, 1~50개 제한을 사용한다. 현재 페이지 돌봄의 하트 상태는 CareLog를 묶어서 조회한다. REST_DAY, 하트 보내기, 기존 기록의 이관은 미구현이다.
-3. 새 테이블은 `src/main/resources/db/manual/diary.sql`에 있다. 운영 DB에는 사전 검토와 적용이 필요하다. local-demo는 전용 MariaDB에서 ddl-auto=update로 준비한다.
-4. `demo/local`은 local-demo 프로필에만 등록된다. 가상 B14 텃밭, 농장, 주인 요약, 합성 기온을 제공한다. 사용자와 돌봄 기록은 실제 저장소를 쓴다. 단일 시연 텃밭의 변경 잠금은 전용 주인 사용자 행으로 직렬화한다. 운영용 텃밭 행 잠금의 대체 구현이 아니다.
-5. `LocalDemoSeeder`는 환경변수의 비밀번호로 전용 사용자 세 명과 관리사 프로필을 생성한다. 기존 계정의 역할이나 비밀번호가 다르면 덮어쓰지 않고 중단한다. 초기 성장 상승은 가족 일기도 만든다. 주인 등록 API의 첫 일기 자동 연결을 대신하지 않는다.
-6. `compose.local-demo.json`은 MariaDB, Redis, Ollama, faster-whisper, Spring을 구성한다. 모델 설치 작업이 완료된 뒤 서비스를 시작하며 backend와 stt는 ollama의 네트워크 공간을 사용한다. 기존 loopback 주소 검증을 완화하지 않는다. 호스트에는 127.0.0.1:8080만 공개하고 모델, DB, Redis 포트는 공개하지 않는다.
-7. `scripts/start-local-demo.ps1`은 무작위 설정을 한 번만 만들고 기존 설정과 볼륨을 유지한다. `scripts/smoke_local_demo.py`는 실행된 서버를 검사한다. 기본 검사는 음성과 완료를 not_tested로 표시하며, 실제 음성을 지정했을 때만 해당 흐름을 검사한다.
-8. `/local-demo`와 스크립트만 로그인 없이 볼 수 있다. 실제 API와 `/local-demo/status`는 토큰이 필요하다. 전용 HTML과 JS는 static 폴더 밖에 있어 프로필을 끄면 제공되지 않는다. 이 콘솔은 기능 검사 화면이며 팀 프론트를 대체하지 않는다.
-9. STT 모델의 필수 파일은 model.bin, config.json, tokenizer.json이다. 공식 base 모델에 없는 preprocessor_config.json은 선택 파일로 처리한다. 추론 시 자동 다운로드와 유료 API 전환은 없다. Qwen2.5 3B는 텍스트 전용이므로 기본 구성의 사진 검증은 null이다. TTS 공급자는 여전히 준비되지 않았다.
-10. Java 핵심 JUnit 77개, STT Python 23개, 시연 도구 Python 9개를 통과했다. 실제 Docker, 전체 Gradle 빌드, DB 쿼리와 잠금, 브라우저 녹음, 모델 추론은 작성 환경에서 검증하지 못했다. 상세 실행 절차는 [local-demo.md](local-demo.md)를 따른다.
-
 ## 모델 평가와 시연 화면 보완
 
 1. evaluateLocalAi는 명시적으로 실행하는 JavaExec 작업이다. testClasses의 합성 원문 12개로 운영과 같은 VoiceMemoAnalysisService를 호출한다. 기본 test와 build에서는 모델을 호출하지 않는다. 모델과 주소는 기존 AI_LOCAL_MODEL, AI_LOCAL_BASE_URL을 사용하며 loopback과 cloud 이름 거부 정책도 같다.
