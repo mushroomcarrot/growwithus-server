@@ -1,17 +1,5 @@
 # 현재 구조
 
-## 방문 예약 동시 요청 보완
-
-1. VisitBookingDay는 farm_id와 visit_date의 유니크 행이다. 예약이 없는 날에도 직렬화할 대상을 만들며, 기존 예약 자료를 이관하거나 정원 수를 복사하지 않는다. 수동 스키마는 db/manual/visit_booking_day.sql이다.
-2. VisitService.reserve는 기존 소유권, 슬롯, 중복 검증 후 VisitCapacityGuard를 호출한다. 같은 트랜잭션 안에서 날짜 행을 upsert하고 잠근 뒤, 현재 RESERVED 방문 ID를 FOR UPDATE로 조회해 두 가족 정원을 확인한다. 실제 예약과 알림 저장이 끝날 때까지 잠금을 유지한다. 이전 스냅샷의 일반 count 결과에 의존하지 않는다.
-3. 취소는 VisitRepository.findByIdForUpdate로 예약 행을 잠근 후 소유권, 취소 상태, 기한을 확인한다. 두 취소가 같은 예약을 읽고 알림을 각각 보내는 경로를 막는다. 이미 취소된 예약은 기존 C4095 응답을 유지한다.
-4. 관련 DB는 InnoDB와 실제 트랜잭션을 사용해야 한다. 정원 보장을 검증하려면 같은 농장의 서로 다른 텃밭으로 마지막 자리의 경쟁 요청, 새 날짜 동시 생성, 취소와 예약 경쟁을 실행해야 한다. 실제 DB 검사는 아직 수행하지 않았다. 기존 날짜 유니크 제약은 그대로 유지한다.
-5. 로컬 시연 화면에서 가족 토큰으로 방문 시간 조회, 1명 예약, 이번 화면의 예약 취소를 호출한다. 성공 응답의 예약 ID를 메모리에 보관하며 새로고침 후 예약 이력 조회는 제공하지 않는다. 취소 응답을 놓친 뒤 재시도해 C4095를 받으면 이미 취소된 화면으로 복구한다. 예약 생성 응답 유실의 멱등 처리는 별도 남은 항목이다.
-6. 시연 수확 조회의 돌봄 수는 CareLogRepository.countByGardenId로 실제 완료 수를 반환한다. 시연용 고정 0을 쓰지 않는다.
-7. 핵심 JUnit 77개, Python 32개, Node 화면 로직 10개가 통과했다. 예약 정원 경계 검사 3개는 저장소 대역을 사용한다. UserService와 보안 의존성까지 필요한 VisitServiceTest는 이 환경의 부분 클래스패스 검사에 포함되지 않았다. 전체 Gradle 빌드와 실제 DB 검증이 필요하다.
-
-MariaDB 잠금 참고: https://mariadb.com/docs/server/reference/sql-statements/data-manipulation/selecting-data/for-update
-
 ## 음성 초안 롤백과 파일 보존
 
 1. FileStorage에 deleteAudio를 추가하고 LocalFileStorage가 자신의 base URL과 voice-memos 아래의 UUID 음성 파일만 처리한다. 다른 디렉터리, 외부 URL, 경로 이동, 심볼릭 링크와 디렉터리 삭제를 거부한다. 재시도 읽기에도 같은 경로 검증을 사용한다.
