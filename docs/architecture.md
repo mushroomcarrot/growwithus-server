@@ -1,19 +1,5 @@
 # 현재 구조
 
-## AI 핵심 로직
-
-`ai/logic`은 DB와 모델 없이 실행할 수 있는 계산 코드다. `ai/service`는 기존 `LlmClient`, `SttClient`와 Jackson으로 입출력을 연결한다. 음성 정리는 위 음성 메모 API에 연결했고 작업 추천 및 성장 계산의 컨트롤러와 저장 서비스 연결은 남아 있다. 상세 연결 규칙은 [ai-integration.md](ai-integration.md)를 본다.
-
-| 클래스 | 역할 |
-| --- | --- |
-| `TaskRules` | 단계별 재배 기준, 작업 이력, 비 예보와 관리사 잔여 시간에 따라 후보 검증. 근거가 없으면 관찰만 안내 |
-| `TaskPlanningService` | LLM이 작업 종류를 선택하고 규칙을 적용. 오류 또는 모델 미연결 시 같은 규칙의 대체 결과 반환 |
-| `GrowthCalculator` | 완료된 날짜의 기온으로 적산온도 재계산. 단계 확인을 기준으로 보정하고 누락 일수 표시. 단계 기준 수치는 호출자가 전달 |
-| `VoiceMemoAnalysisService` | STT 후 JSON 요약과 이상 징후 코드 검증. LLM 실패 시 원문 유지, STT 실패는 C502로 전달 |
-| `VoiceAnalysis.Issue` | 프론트에서 사용할 코드와 한글 문구 5개. 병명 진단이 아닌 관찰 분류 |
-
-음성 메모 외의 작업 저장, 중복 생성 방지, 관리사 프로필, 사진 확인과 TTS 구현은 남아 있다. `local-ai/stt_server.py`는 같은 호스트에서만 쓰는 별도 작업 서버이며 공개 API가 아니다. 재배 자료 수집 및 검증, 실제 모델 설치와 녹음 시험도 필요하다.
-
 ## API
 
 모든 응답은 `GlobalResponse<T>`로 감싸진다. 경로는 명세(`api-spec.md`)대로 접두어 없이 쓴다 (`/api/v1` 없음, 2026-11-11 결정).
