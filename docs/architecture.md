@@ -1277,7 +1277,17 @@ ADMIN은 RoleHierarchy로 USER, OWNER, CARETAKER 권한을 갖는다. SYSTEM은 
 ### 외부 API, AI 클라이언트
 
 - `externalRestClient` (`RestClient`): 연결 타임아웃 `external.http.connect-timeout`(3초), 읽기 타임아웃 `external.http.read-timeout`(30초). 도메인 클라이언트는 `externalRestClient.mutate().baseUrl(...).build()`로 파생해서 쓴다.
-- `LlmClient.complete(systemPrompt, userPrompt)`, `SttClient.transcribe(audio, filename)`, `TtsClient.synthesize(text)`: 인터페이스만 있다. 제공자가 정해지지 않아 구현체는 아직 없고, 기본 빈은 호출 즉시 `AiClientException`(`C502`)을 던진다. 구현체를 `@Component`로 등록하면 기본 빈은 자동으로 빠진다.
+- AI는 `common/ai`의 인터페이스로만 호출한다: `LlmClient.complete(systemPrompt, userPrompt)`, `SttClient.transcribe(audio, filename)`, `TtsClient.synthesize(text, speed)`, `VisionClient.check(image, taskDescription)`, `AvatarImageClient.generate(photo)`.
+- 구현체는 설정으로 고른다. 다른 제공자나 유료 모델로 자동 전환하지 않는다.
+
+| 설정 | LLM | STT | 사진 확인 | TTS | 아바타 |
+| --- | --- | --- | --- | --- | --- |
+| `AI_GEMINI_ENABLED=true` ([cloud-ai.md](cloud-ai.md)) | `GeminiClient` | `GeminiClient` (FFmpeg로 16 kHz WAV 변환 후 전송) | `GeminiClient` | `AI_ELEVENLABS_ENABLED=true`면 `ElevenLabsTtsClient`, 아니면 `OfflineTtsClient` (앱 이미지의 eSpeak NG와 FFmpeg) | `GEMINI_IMAGE_MODEL`이 있으면 `GeminiAvatarClient` |
+| `AI_LOCAL_*` ([local-demo.md](local-demo.md)) | `OllamaLlmClient` | `LocalWhisperSttClient` | `AI_LOCAL_VISION_MODEL`이 있으면 `OllamaVisionClient` | `AI_LOCAL_TTS_ENABLED`면 `LocalTtsClient` | 없음 |
+| 둘 다 끔 (기본 빈) | `AiClientException` (`C502`) | `C502` | 판정 없음 | `C502` | 없음 |
+
+- 실패했을 때의 동작: 작업 생성은 규칙 기반으로 대체, 성장 설명은 템플릿 문구, 음성 메모는 원본을 보존하고 재시도 상태로 저장, 사진 확인은 `aiCheck=null`, 읽어주기는 `C502` (프론트가 브라우저 읽어주기로 대체), 아바타는 FAILED와 기본 아바타다.
+- 로컬 클라이언트는 loopback HTTP 주소만 허용한다. Gemini 클라이언트는 원문, 사진, 키를 로그에 남기지 않는다.
 
 ### 스케줄러
 
