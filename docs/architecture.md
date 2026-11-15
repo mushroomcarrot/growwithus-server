@@ -1,46 +1,5 @@
 # 현재 구조
 
-## 인증 흐름
-
-```
-[signup / login / 역할 변경]
-  1. UserService.issueToken(user)
-  2. JwtTokenProvider.generateToken()
-    ├─ AT: subject=username, claim "authorities"="ROLE_XXX", 만료 1시간
-    ├─ RT: subject=username, claim 없음, 만료 7일
-    └─ Redis SET refresh:{username} = RT (TTL = RT 만료)
-
-[인증된 요청]
-  JwtAuthenticationFilter
-    1. Authorization: Bearer <AT> 헤더에서 AT 추출
-    2. validateToken (서명, 만료, 블랙리스트 검사)
-    3. getAuthentication: claim "authorities" 사용, 없으면 DB에서 role 조회, 사용자도 없으면 권한 없음
-    4. SecurityContext 등록 (principal username = 로그인 아이디)
-
-[refresh]
-  1. RT 검증
-  2. Redis의 refresh:{username}과 일치 확인
-  3. AT, RT 새로 발급 (이전 RT는 덮어써져 즉시 무효)
-
-[logout]
-  1. AT 검증
-  2. Redis refresh:{username}의 RT를 블랙리스트 등록 후 삭제
-  3. AT 블랙리스트 등록
-
-[역할 변경 (PUT /users/me/role)]
-  1. 역할 저장, 역할이 바뀌었으면 profileRegistered=false
-  2. logout과 같은 방식으로 이전 AT, RT 무효화
-  3. 새 역할로 AT, RT 발급
-```
-
-### Redis 키
-
-| 키 | 값 | TTL |
-| --- | --- | --- |
-| `refresh:{username}` | Refresh Token | RT 만료 시간 |
-| `blacklist:{token}` | `"logout"` | 해당 토큰의 남은 만료 시간 |
-| `demo:weather` | `{condition}\|{설정 시각}` (예: `RAIN\|2026-11-10T09:30:00+09:00`) | 없음 (`POST /demo/reset`이 SUNNY로 덮어씀) |
-
 ## 엔티티
 
 ### `User` (`user` 테이블)
