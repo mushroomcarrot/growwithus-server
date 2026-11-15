@@ -1,18 +1,5 @@
 # 현재 구조
 
-## 화면 연동 응답 확장 (#36)
-
-1. PUT /demo/stage는 ADMIN 토큰과 X-Demo-Mode 헤더가 필요하다. 요청은 stage (SEED, SPROUT, FLOWER, FRUIT)이고 응답은 빨리 감기와 같은 DemoFastForwardResponseDto (stage, eventId, expectedHarvestDate)다. stage가 없거나 enum이 아니면 C002다. minji, 시연 농장 demo:theme, B-14가 모두 일치하는 텃밭만 변경한다.
-2. 현재 단계보다 높은 단계를 고르면 EvolutionEventService.advanceStage로 올리고 새 진화 이벤트의 eventId를 반환한다. 낮은 단계는 대상 검증을 하는 resetDemoStage(gardenId, target)로 내리며 eventId는 null이다. 같은 단계는 이벤트를 만들지 않는다. 단계가 바뀔 때는 이전의 미확인 연출을 먼저 닫는다. 이미 지급한 XP, 배지와 기록은 삭제하지 않는다.
-3. 선택한 단계는 garden_growth_state.demo_start_stage에 저장하고 demo_days를 0으로, 관찰 보정을 비운다. 시연 성장 계산은 이 시작 단계를 기준으로 하므로 성장 조회, 배치, 빨리 감기 후에도 선택한 단계 아래로 되돌아가지 않는다. demo_start_stage가 null인 기존 시연 상태는 FLOWER로 본다. 단계 사이는 18일이며 SEED에서 FRUIT까지는 54일이다. expectedHarvestDate는 현재 날짜에 FRUIT까지 남은 시연 일수를 더한 날짜다.
-4. POST /demo/reset은 demo_start_stage도 FLOWER로 되돌린다. 초기화 시점의 단계가 FLOWER보다 낮으면 advanceStage로 올린 뒤 그 연출을 닫는다.
-5. POST /gardens/{gardenId}/stage-checks의 observed에 SPROUT을 추가했다. GrowthCalculator는 SPROUT 관찰도 보정 기준으로 받는다. SEED는 관찰 값이 아니며 시연 시작 단계로만 쓴다. stageCheck.required의 조건은 그대로이며 FLOWER와 FRUIT 예상 단계에서만 true다. SPROUT은 관리사가 화면에서 직접 선택해 보낸다.
-6. GET /gardens/{gardenId}/harvest 응답에 stage를 추가했다. 텃밭의 현재 단계이며 harvestable (관리사의 FRUIT 확인)과는 별개다. HarvestGarden에도 stage를 추가했다.
-7. GET /gardens/{gardenId}/home 응답에 farmName, plotCode, nickname을 추가했다. nickname은 주인 프로필의 별명이고 프로필이 없으면 사용자 이름이다.
-8. GET /caretakers/me/summary 응답에 heartsReceivedToday를 추가했다. 조회한 month와 관계없이 서버 날짜의 오늘 00:00부터 내일 00:00 전까지 받은 하트 수다.
-9. prod는 db/manual/demo_simulation.sql의 demo_start_stage 열 추가를 먼저 적용한다. ADD COLUMN IF NOT EXISTS이므로 다시 실행해도 안전하다.
-10. 검증: ./gradlew compileJava unitTest와 build -x test가 통과했다. DB가 필요한 전체 test와 실제 HTTP 호출은 이번 작업에서 실행하지 않았다.
-
 ## 담당 이슈 후속 구현과 검증
 
 1. dami6326 담당 #3, #4, #9, #10, #11은 기존 구현을 유지한다. 실제 HTTP에서 관리사 완료 기록의 주인 홈과 일기 연결, 감사 하트와 중복 방지, 퀘스트, 리그, 배지를 확인했다. 이벤트 보상은 텃밭을 먼저 잠근 뒤 이벤트를 잠그도록 순서를 통일했다.
