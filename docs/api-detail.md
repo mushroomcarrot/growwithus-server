@@ -845,11 +845,13 @@ STT로 받아 적고 LLM이 가족용 문장으로 정리한다. `issues`는 다
 | `POST /internal/streaks/check` | 매일 00:05 | `{ "date": "2026-11-09" }` | `{ "broken": 2 }` |
 | `POST /internal/leagues/settle` | 매주 월 00:10 | `{ "weekStart": "2026-11-02" }` | `{ "settledLeagues": 4, "createdQuests": 12 }` |
 | `POST /internal/farms/sync` | 매주 월 03:00 | 없음 | `{ "totalFarms": 8, "addedFarms": 2, "updatedFarms": 1, "skippedFarms": [] }` |
+| `POST /internal/streaks/remind` | 매일 20:00 | 없음 | `{ "reminded": 2 }` |
 
 1. `daily-tasks`의 `fallback`은 LLM 실패로 규칙 기반 작업을 쓴 텃밭 수다.
 2. 대상을 비워 두면 전체를 처리한다.
 3. 에러: `C4014` 서비스 키 불일치
 4. 성장 시뮬레이션의 실제 스케줄은 매일 04:00이다. 05:00의 작업 생성이 갱신된 성장 단계를 쓰도록 앞에 둔다. 실제 응답은 `{ "updated": 3, "failed": 0 }`이다.
+5. `streaks/remind`는 스트릭이 이어지는 중인데 오늘 응원하지 않은 주인에게 `STREAK_RISK` 알림을 하루 한 번 보낸다. `reminded`는 이번 실행으로 알림을 받은 주인 수다.
 
 ### 8.1 칸 관리 (운영자용)
 
