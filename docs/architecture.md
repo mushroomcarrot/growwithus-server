@@ -1313,12 +1313,12 @@ ADMIN은 RoleHierarchy로 USER, OWNER, CARETAKER 권한을 갖는다. SYSTEM은 
 
 | `NotificationType` | 받는 사람 | 의미 | 보내는 곳 |
 | --- | --- | --- | --- |
-| `CARE_DONE` | 주인 | 관리사가 작업을 끝냄 | 아직 없음 (작업 완료) |
+| `CARE_DONE` | 주인 | 관리사가 작업을 끝냄 | `CareNotificationListener` (작업 완료 이벤트 `CareCompleted`) |
 | `HEART` | 관리사 | 주인이 감사 하트를 보냄 | `CareLogHeartService.sendHeart` |
-| `STAGE_UP` | 주인 | 작물 단계가 오름 | `EvolutionEventService.advanceStage` (부르는 쪽인 성장 시뮬레이션, 단계 확인은 아직 없음) |
+| `STAGE_UP` | 주인 | 작물 단계가 오름 | `EvolutionEventService.advanceStage` (성장 시뮬레이션, 단계 확인, 시연 빨리 감기가 부른다). local-demo는 `GrowthNotificationListener` |
 | `VISIT_RESERVED` | 관리사 | 주말 방문 예약 | `VisitService.reserve` |
 | `VISIT_CANCELED` | 관리사 | 방문 예약 취소 | `VisitService.cancel` |
-| `STREAK_RISK` | 주인 | 스트릭이 끊길 위험 | 아직 없음 (스트릭 배치) |
+| `STREAK_RISK` | 주인 | 스트릭이 끊길 위험 | `StreakService.remind` (매일 20:00, 오늘 응원하지 않은 주인에게 하루 한 번) |
 | `QUEST_DONE` | 주인 | 주간 퀘스트 달성 | `QuestService.record` (목표를 채우는 순간) |
 
 ### 수확, 방문 예약
