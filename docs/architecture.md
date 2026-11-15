@@ -1,18 +1,5 @@
 # 현재 구조
 
-## 빠진 기능 보완 (#5, #3)
-
-1. `POST /caretakers/me/avatar` (multipart `photo`, `portraitConsent`)는 초상권 동의와 사진을 확인하고 PENDING 작업만 만든 뒤 바로 돌아온다. 동의가 없으면 C4003, 사진이 jpg, png 10MB 이하가 아니거나 읽을 수 없으면 C4001, 프로필이 없으면 C404, 진행 중인 작업이 있으면 C4095다. 응답은 `CaretakerDtos.Avatar` (`avatarJobId` 예: `avj_3`, `status`, `avatarUrl`)다.
-2. `GET /caretakers/me/avatar`는 가장 최근 작업을 준다. 요청한 적이 없으면 C404다. `avatarUrl`은 PENDING이면 null, DONE이면 만든 그림, FAILED면 지금 쓰는 아바타 (처음이면 기본 아바타 `/images/caretaker-default.svg`)다. 클라이언트는 PENDING인 동안 2초 간격으로 폴링한다.
-3. 그림은 `AvatarService`가 가진 실행기 (스레드 1개, 대기 8개)에서 트랜잭션 밖으로 만든다. 대기열이 가득 차면 바로 FAILED로 돌려준다. 5분이 지나도 PENDING인 작업 (서버 재시작 등)은 조회하거나 새로 요청할 때 FAILED로 정리한다 (`AvatarJobStore.STALE_AFTER`).
-4. 올린 사진 원본은 저장하지 않는다. `FileUploadService.readImage`로 검증만 하고 768픽셀 이하 JPEG로 줄여 메모리에 들고 있다가 버린다. 만든 그림만 `FileUploadService.storeGeneratedPng`로 `avatars/` 아래에 저장하고 프로필의 `avatarUrl`을 바꾼다. 동의 여부와 시각은 `caretaker_profile.portrait_consent`, `portrait_consented_at`에 남긴다.
-5. 그림 생성은 `common/ai`의 `AvatarImageClient`로만 호출한다. `AI_GEMINI_ENABLED=true`이고 `GEMINI_IMAGE_MODEL`을 넣었을 때만 `GeminiAvatarClient`가 Gemini Interactions API (`POST /v1beta/interactions`)를 부른다. 받은 그림은 그대로 쓰지 않고 가운데를 잘라 512픽셀 PNG로 다시 만든다. 모델을 넣지 않았거나 호출이 실패하면 비어 있는 값을 주고 작업은 FAILED가 된다. 다른 모델로 자동 전환하지 않는다. 실제 키로 이미지 모델을 호출하는 검증은 하지 않았다 (모의 HTTP 응답으로만 검사).
-6. `CaretakerDemoSeeder` (순서 `FarmSeeder.ORDER + 15`)가 `demo.enabled=true`일 때 `GardenDemoSeeder`가 만든 soonja 계정에 시연 농장 소속 프로필 (성함 박순자, 기본 아바타)을 붙이고 `profileRegistered`를 true로 바꾼다. 명세의 `crt_soonja`에 해당하며, soonja로 로그인하면 `nextStep`이 바로 `CARE_TODAY`다. 이미 프로필이 있으면 건드리지 않는다.
-7. `GET /internal/farms/{farmId}/plots`와 `PUT /internal/farms/{farmId}/plots/{plotCode}` (`X-Service-Key`)로 운영자가 농장의 칸을 넣고 고친다 (`FarmPlotAdminService`). 요청은 `PlotAdminRequestDto` (`cropId`, `caretakerUsername`, 둘 다 선택)이고 응답은 `PlotAdminResponseDto` (`farmId`, `plotCode`, `cropId`, `cropName`, `caretakerUsername`, `assigned`)다. 없는 칸은 만들고 (이때 `cropId` 필수), 있는 칸은 보낸 값만 고친다. 칸 번호는 한글, 영문, 숫자로 시작하고 하이픈을 쓸 수 있는 20자 이하다.
-8. 칸 관리의 오류: 농장이나 작물이 없으면 C404, 회원이 없으면 C4041, 관리사 (`CARETAKER`)가 아닌 회원이거나 칸 번호가 틀리거나 새 칸에 작물이 없으면 C002다. 이미 분양된 칸은 작물을 바꿀 수 없고 담당 관리사는 비어 있을 때만 채울 수 있다 (C4093). 분양된 칸에 관리사를 채우면 `PlotGardenLink` (구현체 `GardenPlotLink`)가 그 칸의 텃밭을 잠그고 담당 관리사를 함께 채운다. 관리사의 오늘 할 일은 다음 조회 때 만들어진다.
-9. prod는 `db/manual/avatar_job.sql`의 `caretaker_avatar_job` 테이블을 먼저 적용한다.
-10. 검증: `./gradlew unitTest` 312개가 통과했다 (실패 0, 건너뜀 3). 격리한 로컬 MariaDB와 Redis에 서버를 띄워 실제 HTTP로 아바타 요청과 폴링, C4003, C4001, C404, 권한 (주인 토큰은 C403), 시연 관리사의 `CARE_TODAY`와 `/users/me`의 `caretaker`, 칸 등록, 신규 주인의 실제 농장 칸 분양, 분양 후 관리사 배정과 오늘 할 일 반영을 확인했다. 운영 배포와 프론트 연동, 실제 이미지 모델 호출은 확인하지 않았다.
-
 ## 배포 (Docker, GitHub Actions)
 
 1. `Dockerfile`: 멀티 스테이지 빌드. 실행 이미지는 비루트 사용자(appuser), 헬스체크용 curl, `/app/uploads` 폴더, `-Duser.timezone=Asia/Seoul`을 쓴다.
