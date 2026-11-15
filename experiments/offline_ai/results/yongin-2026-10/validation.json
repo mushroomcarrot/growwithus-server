@@ -1,0 +1,1659 @@
+{
+  "provenance": {
+    "data_kind": "public-aggregate",
+    "reference_date": "2026-10-31",
+    "source_urls": [
+      "https://www.yongin.go.kr/component/file/ND_fileDownload.do?q_fileId=693c5488-9c9f-4974-82c1-d306e3b0561a&q_fileSn=525802",
+      "https://www.yongin.go.kr/component/file/ND_fileDownload.do?q_fileId=211a4a72-b3b9-4c58-8425-19c954b05174&q_fileSn=525802"
+    ],
+    "input_sha256": "5f8cf4adb8fe6fadf39d2a472ab376b07c0f062c9f1299cada7f56572edc472a",
+    "source_files": [
+      {
+        "kind": "population",
+        "url": "https://www.yongin.go.kr/component/file/ND_fileDownload.do?q_fileId=693c5488-9c9f-4974-82c1-d306e3b0561a&q_fileSn=525802",
+        "sha256": "37f802c3282833afe45a7743441ef8a9703012342b7cb0c63195f2685a6d3d93"
+      },
+      {
+        "kind": "ages",
+        "url": "https://www.yongin.go.kr/component/file/ND_fileDownload.do?q_fileId=211a4a72-b3b9-4c58-8425-19c954b05174&q_fileSn=525802",
+        "sha256": "24252c2ff1415096e538bc777fd2578978dfbeb6731c2e96d2f1b9f3a2908442"
+      }
+    ]
+  },
+  "sample_count": 39,
+  "features": [
+    "children_share",
+    "seniors_share",
+    "residents_per_household"
+  ],
+  "pca": {
+    "method": "centered-covariance-jacobi",
+    "means": [
+      -2.799132008800525e-16,
+      6.13825229961024e-18,
+      5.923858270015158e-16
+    ],
+    "covariance": [
+      [
+        1.0263157894736843,
+        -0.8034896312414721,
+        0.7701566439213668
+      ],
+      [
+        -0.8034896312414721,
+        1.0263157894736843,
+        -0.5669307558168958
+      ],
+      [
+        0.7701566439213668,
+        -0.5669307558168958,
+        1.0263157894736843
+      ]
+    ],
+    "eigenvalues": [
+      2.4581601623840013,
+      0.46043891085483973,
+      0.16034829518221275
+    ],
+    "components": [
+      [
+        0.613682384010424,
+        -0.5633919264189495,
+        0.5531577250669356
+      ],
+      [
+        -0.04462512397108075,
+        0.6747263961499531,
+        0.7367176451321514
+      ],
+      [
+        0.7882908916547546,
+        0.47679537286391727,
+        -0.38892626878331343
+      ]
+    ],
+    "explained_variance_ratio": [
+      0.7983768048768549,
+      0.14954426164516157,
+      0.05207893347798361
+    ],
+    "coordinates": [
+      [
+        0.0017931853505178535,
+        -1.0253948502475216
+      ],
+      [
+        -0.5120672269933016,
+        0.7810008760123969
+      ],
+      [
+        -1.0552672287434646,
+        0.1274049859599653
+      ],
+      [
+        1.2826463293303725,
+        0.07139308705921683
+      ],
+      [
+        1.1923207907802587,
+        0.43647477952758373
+      ],
+      [
+        1.4064852186765742,
+        0.38489062143452074
+      ],
+      [
+        -0.18965735001788908,
+        0.765577484813671
+      ],
+      [
+        0.2404831837515684,
+        0.505655557716216
+      ],
+      [
+        0.8497263942024327,
+        0.538705699686586
+      ],
+      [
+        -1.5087761852459503,
+        -0.8020794929628609
+      ],
+      [
+        -0.5949952865464139,
+        0.6230685566865153
+      ],
+      [
+        0.9060885374886654,
+        -1.2733491703399797
+      ],
+      [
+        -0.5432062299453848,
+        -0.33964562392480385
+      ],
+      [
+        1.0658024241362019,
+        -0.45230769130287163
+      ],
+      [
+        0.6762251173105819,
+        -0.3136058668522126
+      ],
+      [
+        1.3528015440343881,
+        0.032600766744574766
+      ],
+      [
+        2.3295726312435794,
+        1.1479440098491136
+      ],
+      [
+        1.6375138804030676,
+        0.9096726517989435
+      ],
+      [
+        1.0032470428826505,
+        -0.4533420410866189
+      ],
+      [
+        1.6030478558659278,
+        1.3006023637302773
+      ],
+      [
+        1.3776860264631599,
+        0.7251843286066585
+      ],
+      [
+        0.41075574397341974,
+        0.5055799252815742
+      ],
+      [
+        -0.10519431723529454,
+        -0.1379648198849417
+      ],
+      [
+        0.18995491400468112,
+        -0.3455850202282854
+      ],
+      [
+        -0.2589771622676459,
+        -0.6048841902577583
+      ],
+      [
+        2.497162020513196,
+        -0.337658066992184
+      ],
+      [
+        0.8129053737245516,
+        0.0064597359011011185
+      ],
+      [
+        -2.428826750668397,
+        0.021276892175322665
+      ],
+      [
+        -0.45675322002391955,
+        -0.4791415879314384
+      ],
+      [
+        -4.686686921964835,
+        1.1599682593712553
+      ],
+      [
+        -0.02054346599408563,
+        -0.033684853496722775
+      ],
+      [
+        -1.2916445826836067,
+        -0.549576743199235
+      ],
+      [
+        0.6043688553644888,
+        -1.2255858179182482
+      ],
+      [
+        -4.004105282484041,
+        0.7098007527679245
+      ],
+      [
+        -1.2268790576584663,
+        -0.8720523429148742
+      ],
+      [
+        1.9149590529992835,
+        -0.4311693333945863
+      ],
+      [
+        -1.8779356672380798,
+        0.19617619202938388
+      ],
+      [
+        -1.4353061918350707,
+        -0.9098189767376756
+      ],
+      [
+        -1.1587239949537207,
+        -0.36259103747998195
+      ]
+    ]
+  },
+  "stability": {
+    "seed_runs": [
+      {
+        "seed": 0,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 1,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 2,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 3,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 4,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 5,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 6,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 7,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 8,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 9,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 10,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 11,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 12,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 13,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 14,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 15,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 16,
+        "ari": 0.8512180974477959,
+        "inertia": 35.33520741003606
+      },
+      {
+        "seed": 17,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 18,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 19,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 20,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 21,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 22,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 23,
+        "ari": 0.8512180974477959,
+        "inertia": 35.33520741003606
+      },
+      {
+        "seed": 24,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 25,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 26,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 27,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 28,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 29,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 30,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 31,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 32,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 33,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 34,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 35,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 36,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 37,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 38,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 39,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 40,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 41,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 42,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 43,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 44,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 45,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 46,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 47,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 48,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      },
+      {
+        "seed": 49,
+        "ari": 1.0,
+        "inertia": 35.03528241618757
+      }
+    ],
+    "seed_ari": {
+      "count": 50,
+      "mean": 0.9940487238979118,
+      "minimum": 0.8512180974477959,
+      "maximum": 1.0,
+      "p025": 0.8846940255220418,
+      "median": 1.0,
+      "p975": 1.0
+    },
+    "bootstrap_seed": 20261115,
+    "bootstrap_requested": 100,
+    "bootstrap_runs": [
+      {
+        "run": 0,
+        "unique_training_samples": 27,
+        "omitted_baseline_clusters": [],
+        "ari": 0.8512180974477959,
+        "matched_agreement": 0.9487179487179487
+      },
+      {
+        "run": 1,
+        "unique_training_samples": 26,
+        "omitted_baseline_clusters": [],
+        "ari": 0.7210440456769983,
+        "matched_agreement": 0.9230769230769231
+      },
+      {
+        "run": 2,
+        "unique_training_samples": 25,
+        "omitted_baseline_clusters": [
+          0
+        ],
+        "ari": 0.5778611632270169,
+        "matched_agreement": 0.7435897435897436
+      },
+      {
+        "run": 3,
+        "unique_training_samples": 24,
+        "omitted_baseline_clusters": [],
+        "ari": 0.7176299174356483,
+        "matched_agreement": 0.8974358974358975
+      },
+      {
+        "run": 4,
+        "unique_training_samples": 27,
+        "omitted_baseline_clusters": [],
+        "ari": 0.9014125108100317,
+        "matched_agreement": 0.9743589743589743
+      },
+      {
+        "run": 5,
+        "unique_training_samples": 23,
+        "omitted_baseline_clusters": [],
+        "ari": 0.9013461538461539,
+        "matched_agreement": 0.9743589743589743
+      },
+      {
+        "run": 6,
+        "unique_training_samples": 28,
+        "omitted_baseline_clusters": [],
+        "ari": 0.9476685189659338,
+        "matched_agreement": 0.9743589743589743
+      },
+      {
+        "run": 7,
+        "unique_training_samples": 22,
+        "omitted_baseline_clusters": [],
+        "ari": 0.9013461538461539,
+        "matched_agreement": 0.9743589743589743
+      },
+      {
+        "run": 8,
+        "unique_training_samples": 28,
+        "omitted_baseline_clusters": [],
+        "ari": 0.43516421291053226,
+        "matched_agreement": 0.8205128205128205
+      },
+      {
+        "run": 9,
+        "unique_training_samples": 24,
+        "omitted_baseline_clusters": [],
+        "ari": 0.9014125108100317,
+        "matched_agreement": 0.9743589743589743
+      },
+      {
+        "run": 10,
+        "unique_training_samples": 23,
+        "omitted_baseline_clusters": [],
+        "ari": 0.8083021043528394,
+        "matched_agreement": 0.9487179487179487
+      },
+      {
+        "run": 11,
+        "unique_training_samples": 23,
+        "omitted_baseline_clusters": [
+          0
+        ],
+        "ari": 0.40654437283093703,
+        "matched_agreement": 0.6153846153846154
+      },
+      {
+        "run": 12,
+        "unique_training_samples": 25,
+        "omitted_baseline_clusters": [],
+        "ari": 0.5659209900047597,
+        "matched_agreement": 0.8717948717948718
+      },
+      {
+        "run": 13,
+        "unique_training_samples": 26,
+        "omitted_baseline_clusters": [],
+        "ari": 1.0,
+        "matched_agreement": 1.0
+      },
+      {
+        "run": 14,
+        "unique_training_samples": 25,
+        "omitted_baseline_clusters": [],
+        "ari": 0.9014125108100317,
+        "matched_agreement": 0.9743589743589743
+      },
+      {
+        "run": 15,
+        "unique_training_samples": 23,
+        "omitted_baseline_clusters": [],
+        "ari": 0.5867324290998767,
+        "matched_agreement": 0.7692307692307693
+      },
+      {
+        "run": 16,
+        "unique_training_samples": 26,
+        "omitted_baseline_clusters": [
+          0
+        ],
+        "ari": 0.5778611632270169,
+        "matched_agreement": 0.6923076923076923
+      },
+      {
+        "run": 17,
+        "unique_training_samples": 26,
+        "omitted_baseline_clusters": [],
+        "ari": 1.0,
+        "matched_agreement": 1.0
+      },
+      {
+        "run": 18,
+        "unique_training_samples": 28,
+        "omitted_baseline_clusters": [],
+        "ari": 0.8062166100048567,
+        "matched_agreement": 0.9230769230769231
+      },
+      {
+        "run": 19,
+        "unique_training_samples": 23,
+        "omitted_baseline_clusters": [],
+        "ari": 0.8083021043528394,
+        "matched_agreement": 0.9487179487179487
+      },
+      {
+        "run": 20,
+        "unique_training_samples": 23,
+        "omitted_baseline_clusters": [],
+        "ari": 0.8062166100048567,
+        "matched_agreement": 0.9230769230769231
+      },
+      {
+        "run": 21,
+        "unique_training_samples": 22,
+        "omitted_baseline_clusters": [],
+        "ari": 0.5659209900047597,
+        "matched_agreement": 0.8717948717948718
+      },
+      {
+        "run": 22,
+        "unique_training_samples": 26,
+        "omitted_baseline_clusters": [
+          0
+        ],
+        "ari": 0.2893330694636849,
+        "matched_agreement": 0.5384615384615384
+      },
+      {
+        "run": 23,
+        "unique_training_samples": 25,
+        "omitted_baseline_clusters": [],
+        "ari": 0.9014125108100317,
+        "matched_agreement": 0.9743589743589743
+      },
+      {
+        "run": 24,
+        "unique_training_samples": 23,
+        "omitted_baseline_clusters": [],
+        "ari": 0.9004076878276063,
+        "matched_agreement": 0.9487179487179487
+      },
+      {
+        "run": 25,
+        "unique_training_samples": 27,
+        "omitted_baseline_clusters": [],
+        "ari": 0.8083021043528394,
+        "matched_agreement": 0.9487179487179487
+      },
+      {
+        "run": 26,
+        "unique_training_samples": 22,
+        "omitted_baseline_clusters": [],
+        "ari": 1.0,
+        "matched_agreement": 1.0
+      },
+      {
+        "run": 27,
+        "unique_training_samples": 26,
+        "omitted_baseline_clusters": [
+          0
+        ],
+        "ari": 0.5778611632270169,
+        "matched_agreement": 0.7435897435897436
+      },
+      {
+        "run": 28,
+        "unique_training_samples": 22,
+        "omitted_baseline_clusters": [
+          0
+        ],
+        "ari": 0.5035231943628891,
+        "matched_agreement": 0.6923076923076923
+      },
+      {
+        "run": 29,
+        "unique_training_samples": 23,
+        "omitted_baseline_clusters": [],
+        "ari": 1.0,
+        "matched_agreement": 1.0
+      },
+      {
+        "run": 30,
+        "unique_training_samples": 21,
+        "omitted_baseline_clusters": [],
+        "ari": 0.24937114673242905,
+        "matched_agreement": 0.6153846153846154
+      },
+      {
+        "run": 31,
+        "unique_training_samples": 23,
+        "omitted_baseline_clusters": [],
+        "ari": 0.3792714983101765,
+        "matched_agreement": 0.7948717948717948
+      },
+      {
+        "run": 32,
+        "unique_training_samples": 23,
+        "omitted_baseline_clusters": [],
+        "ari": 0.9013461538461539,
+        "matched_agreement": 0.9743589743589743
+      },
+      {
+        "run": 33,
+        "unique_training_samples": 25,
+        "omitted_baseline_clusters": [],
+        "ari": 0.9013461538461539,
+        "matched_agreement": 0.9743589743589743
+      },
+      {
+        "run": 34,
+        "unique_training_samples": 25,
+        "omitted_baseline_clusters": [],
+        "ari": 0.20174321809812948,
+        "matched_agreement": 0.5384615384615384
+      },
+      {
+        "run": 35,
+        "unique_training_samples": 28,
+        "omitted_baseline_clusters": [],
+        "ari": 1.0,
+        "matched_agreement": 1.0
+      },
+      {
+        "run": 36,
+        "unique_training_samples": 21,
+        "omitted_baseline_clusters": [],
+        "ari": 0.9013461538461539,
+        "matched_agreement": 0.9743589743589743
+      },
+      {
+        "run": 37,
+        "unique_training_samples": 26,
+        "omitted_baseline_clusters": [],
+        "ari": 1.0,
+        "matched_agreement": 1.0
+      },
+      {
+        "run": 38,
+        "unique_training_samples": 24,
+        "omitted_baseline_clusters": [],
+        "ari": 1.0,
+        "matched_agreement": 1.0
+      },
+      {
+        "run": 39,
+        "unique_training_samples": 28,
+        "omitted_baseline_clusters": [],
+        "ari": 0.9014125108100317,
+        "matched_agreement": 0.9743589743589743
+      },
+      {
+        "run": 40,
+        "unique_training_samples": 24,
+        "omitted_baseline_clusters": [
+          0
+        ],
+        "ari": 0.5778611632270169,
+        "matched_agreement": 0.7435897435897436
+      },
+      {
+        "run": 41,
+        "unique_training_samples": 28,
+        "omitted_baseline_clusters": [],
+        "ari": 0.7176299174356483,
+        "matched_agreement": 0.8974358974358975
+      },
+      {
+        "run": 42,
+        "unique_training_samples": 22,
+        "omitted_baseline_clusters": [],
+        "ari": 0.7603769026334863,
+        "matched_agreement": 0.9230769230769231
+      },
+      {
+        "run": 43,
+        "unique_training_samples": 26,
+        "omitted_baseline_clusters": [],
+        "ari": 0.8085596391900969,
+        "matched_agreement": 0.9487179487179487
+      },
+      {
+        "run": 44,
+        "unique_training_samples": 25,
+        "omitted_baseline_clusters": [],
+        "ari": 0.8083021043528394,
+        "matched_agreement": 0.9487179487179487
+      },
+      {
+        "run": 45,
+        "unique_training_samples": 27,
+        "omitted_baseline_clusters": [],
+        "ari": 0.3792714983101765,
+        "matched_agreement": 0.7948717948717948
+      },
+      {
+        "run": 46,
+        "unique_training_samples": 23,
+        "omitted_baseline_clusters": [
+          0
+        ],
+        "ari": 0.3231743518701761,
+        "matched_agreement": 0.5641025641025641
+      },
+      {
+        "run": 47,
+        "unique_training_samples": 27,
+        "omitted_baseline_clusters": [],
+        "ari": 0.9014125108100317,
+        "matched_agreement": 0.9743589743589743
+      },
+      {
+        "run": 48,
+        "unique_training_samples": 26,
+        "omitted_baseline_clusters": [
+          0
+        ],
+        "ari": 0.6155936150599195,
+        "matched_agreement": 0.7948717948717948
+      },
+      {
+        "run": 49,
+        "unique_training_samples": 20,
+        "omitted_baseline_clusters": [],
+        "ari": 0.6406876790830945,
+        "matched_agreement": 0.8974358974358975
+      },
+      {
+        "run": 50,
+        "unique_training_samples": 24,
+        "omitted_baseline_clusters": [],
+        "ari": 0.9004076878276063,
+        "matched_agreement": 0.9487179487179487
+      },
+      {
+        "run": 51,
+        "unique_training_samples": 24,
+        "omitted_baseline_clusters": [],
+        "ari": 0.9014125108100317,
+        "matched_agreement": 0.9743589743589743
+      },
+      {
+        "run": 52,
+        "unique_training_samples": 27,
+        "omitted_baseline_clusters": [],
+        "ari": 1.0,
+        "matched_agreement": 1.0
+      },
+      {
+        "run": 53,
+        "unique_training_samples": 25,
+        "omitted_baseline_clusters": [],
+        "ari": 1.0,
+        "matched_agreement": 1.0
+      },
+      {
+        "run": 54,
+        "unique_training_samples": 23,
+        "omitted_baseline_clusters": [
+          0
+        ],
+        "ari": 0.3613287059990084,
+        "matched_agreement": 0.5897435897435898
+      },
+      {
+        "run": 55,
+        "unique_training_samples": 25,
+        "omitted_baseline_clusters": [],
+        "ari": 0.7176299174356483,
+        "matched_agreement": 0.8974358974358975
+      },
+      {
+        "run": 56,
+        "unique_training_samples": 26,
+        "omitted_baseline_clusters": [],
+        "ari": 0.675323421509944,
+        "matched_agreement": 0.8974358974358975
+      },
+      {
+        "run": 57,
+        "unique_training_samples": 25,
+        "omitted_baseline_clusters": [],
+        "ari": 0.7176299174356483,
+        "matched_agreement": 0.8974358974358975
+      },
+      {
+        "run": 58,
+        "unique_training_samples": 25,
+        "omitted_baseline_clusters": [],
+        "ari": 0.7176299174356483,
+        "matched_agreement": 0.8974358974358975
+      },
+      {
+        "run": 59,
+        "unique_training_samples": 29,
+        "omitted_baseline_clusters": [],
+        "ari": 0.7210440456769983,
+        "matched_agreement": 0.9230769230769231
+      },
+      {
+        "run": 60,
+        "unique_training_samples": 25,
+        "omitted_baseline_clusters": [],
+        "ari": 1.0,
+        "matched_agreement": 1.0
+      },
+      {
+        "run": 61,
+        "unique_training_samples": 24,
+        "omitted_baseline_clusters": [
+          0
+        ],
+        "ari": 0.5116691285081241,
+        "matched_agreement": 0.6666666666666666
+      },
+      {
+        "run": 62,
+        "unique_training_samples": 26,
+        "omitted_baseline_clusters": [],
+        "ari": 0.7210440456769983,
+        "matched_agreement": 0.9230769230769231
+      },
+      {
+        "run": 63,
+        "unique_training_samples": 27,
+        "omitted_baseline_clusters": [],
+        "ari": 1.0,
+        "matched_agreement": 1.0
+      },
+      {
+        "run": 64,
+        "unique_training_samples": 25,
+        "omitted_baseline_clusters": [],
+        "ari": 1.0,
+        "matched_agreement": 1.0
+      },
+      {
+        "run": 65,
+        "unique_training_samples": 25,
+        "omitted_baseline_clusters": [],
+        "ari": 0.7603769026334863,
+        "matched_agreement": 0.9230769230769231
+      },
+      {
+        "run": 66,
+        "unique_training_samples": 22,
+        "omitted_baseline_clusters": [],
+        "ari": 0.7210440456769983,
+        "matched_agreement": 0.9230769230769231
+      },
+      {
+        "run": 67,
+        "unique_training_samples": 24,
+        "omitted_baseline_clusters": [],
+        "ari": 0.3642307692307693,
+        "matched_agreement": 0.7692307692307693
+      },
+      {
+        "run": 68,
+        "unique_training_samples": 27,
+        "omitted_baseline_clusters": [],
+        "ari": 0.9013461538461539,
+        "matched_agreement": 0.9743589743589743
+      },
+      {
+        "run": 69,
+        "unique_training_samples": 22,
+        "omitted_baseline_clusters": [],
+        "ari": 0.5231730769230769,
+        "matched_agreement": 0.8461538461538461
+      },
+      {
+        "run": 70,
+        "unique_training_samples": 24,
+        "omitted_baseline_clusters": [],
+        "ari": 1.0,
+        "matched_agreement": 1.0
+      },
+      {
+        "run": 71,
+        "unique_training_samples": 30,
+        "omitted_baseline_clusters": [
+          0
+        ],
+        "ari": 0.5778611632270169,
+        "matched_agreement": 0.6923076923076923
+      },
+      {
+        "run": 72,
+        "unique_training_samples": 23,
+        "omitted_baseline_clusters": [
+          0
+        ],
+        "ari": 0.4709976798143852,
+        "matched_agreement": 0.7435897435897436
+      },
+      {
+        "run": 73,
+        "unique_training_samples": 26,
+        "omitted_baseline_clusters": [],
+        "ari": 0.5962122307358682,
+        "matched_agreement": 0.8717948717948718
+      },
+      {
+        "run": 74,
+        "unique_training_samples": 29,
+        "omitted_baseline_clusters": [],
+        "ari": 1.0,
+        "matched_agreement": 1.0
+      },
+      {
+        "run": 75,
+        "unique_training_samples": 26,
+        "omitted_baseline_clusters": [
+          0
+        ],
+        "ari": 0.3902845927379784,
+        "matched_agreement": 0.6923076923076923
+      },
+      {
+        "run": 76,
+        "unique_training_samples": 26,
+        "omitted_baseline_clusters": [],
+        "ari": 1.0,
+        "matched_agreement": 1.0
+      },
+      {
+        "run": 77,
+        "unique_training_samples": 28,
+        "omitted_baseline_clusters": [],
+        "ari": 1.0,
+        "matched_agreement": 1.0
+      },
+      {
+        "run": 78,
+        "unique_training_samples": 23,
+        "omitted_baseline_clusters": [],
+        "ari": 0.9013461538461539,
+        "matched_agreement": 0.9743589743589743
+      },
+      {
+        "run": 79,
+        "unique_training_samples": 23,
+        "omitted_baseline_clusters": [],
+        "ari": 0.22806673209028455,
+        "matched_agreement": 0.5384615384615384
+      },
+      {
+        "run": 80,
+        "unique_training_samples": 24,
+        "omitted_baseline_clusters": [],
+        "ari": 0.4871819676888846,
+        "matched_agreement": 0.8205128205128205
+      },
+      {
+        "run": 81,
+        "unique_training_samples": 25,
+        "omitted_baseline_clusters": [],
+        "ari": 0.9013461538461539,
+        "matched_agreement": 0.9743589743589743
+      },
+      {
+        "run": 82,
+        "unique_training_samples": 27,
+        "omitted_baseline_clusters": [],
+        "ari": 0.7176299174356483,
+        "matched_agreement": 0.8974358974358975
+      },
+      {
+        "run": 83,
+        "unique_training_samples": 25,
+        "omitted_baseline_clusters": [],
+        "ari": 1.0,
+        "matched_agreement": 1.0
+      },
+      {
+        "run": 84,
+        "unique_training_samples": 23,
+        "omitted_baseline_clusters": [
+          0
+        ],
+        "ari": 0.38175424694170673,
+        "matched_agreement": 0.6153846153846154
+      },
+      {
+        "run": 85,
+        "unique_training_samples": 25,
+        "omitted_baseline_clusters": [],
+        "ari": 0.8062166100048567,
+        "matched_agreement": 0.9230769230769231
+      },
+      {
+        "run": 86,
+        "unique_training_samples": 27,
+        "omitted_baseline_clusters": [],
+        "ari": 0.9013461538461539,
+        "matched_agreement": 0.9743589743589743
+      },
+      {
+        "run": 87,
+        "unique_training_samples": 23,
+        "omitted_baseline_clusters": [
+          0
+        ],
+        "ari": 0.5202583675866119,
+        "matched_agreement": 0.717948717948718
+      },
+      {
+        "run": 88,
+        "unique_training_samples": 24,
+        "omitted_baseline_clusters": [],
+        "ari": 0.6483204387425325,
+        "matched_agreement": 0.717948717948718
+      },
+      {
+        "run": 89,
+        "unique_training_samples": 26,
+        "omitted_baseline_clusters": [],
+        "ari": 0.8512180974477959,
+        "matched_agreement": 0.9487179487179487
+      },
+      {
+        "run": 90,
+        "unique_training_samples": 24,
+        "omitted_baseline_clusters": [],
+        "ari": 0.8062166100048567,
+        "matched_agreement": 0.9230769230769231
+      },
+      {
+        "run": 91,
+        "unique_training_samples": 26,
+        "omitted_baseline_clusters": [],
+        "ari": 0.675323421509944,
+        "matched_agreement": 0.8974358974358975
+      },
+      {
+        "run": 92,
+        "unique_training_samples": 29,
+        "omitted_baseline_clusters": [
+          0
+        ],
+        "ari": 0.5778611632270169,
+        "matched_agreement": 0.7435897435897436
+      },
+      {
+        "run": 93,
+        "unique_training_samples": 24,
+        "omitted_baseline_clusters": [],
+        "ari": 0.1919423198713889,
+        "matched_agreement": 0.5384615384615384
+      },
+      {
+        "run": 94,
+        "unique_training_samples": 22,
+        "omitted_baseline_clusters": [],
+        "ari": 0.9476685189659338,
+        "matched_agreement": 0.9743589743589743
+      },
+      {
+        "run": 95,
+        "unique_training_samples": 24,
+        "omitted_baseline_clusters": [],
+        "ari": 0.8062166100048567,
+        "matched_agreement": 0.9230769230769231
+      },
+      {
+        "run": 96,
+        "unique_training_samples": 25,
+        "omitted_baseline_clusters": [],
+        "ari": 1.0,
+        "matched_agreement": 1.0
+      },
+      {
+        "run": 97,
+        "unique_training_samples": 22,
+        "omitted_baseline_clusters": [],
+        "ari": 0.5778611632270169,
+        "matched_agreement": 0.7435897435897436
+      },
+      {
+        "run": 98,
+        "unique_training_samples": 24,
+        "omitted_baseline_clusters": [],
+        "ari": 0.5659209900047597,
+        "matched_agreement": 0.8717948717948718
+      },
+      {
+        "run": 99,
+        "unique_training_samples": 23,
+        "omitted_baseline_clusters": [
+          0
+        ],
+        "ari": 0.3231743518701761,
+        "matched_agreement": 0.5641025641025641
+      }
+    ],
+    "bootstrap_failures": [],
+    "bootstrap_ari": {
+      "count": 100,
+      "mean": 0.7270659501847898,
+      "minimum": 0.1919423198713889,
+      "maximum": 1.0,
+      "p025": 0.23818632904530318,
+      "median": 0.7832967563191715,
+      "p975": 1.0
+    },
+    "per_sample_agreement": [
+      0.85,
+      0.89,
+      0.87,
+      0.99,
+      0.97,
+      0.96,
+      0.87,
+      0.45,
+      0.95,
+      0.87,
+      0.9,
+      0.83,
+      0.97,
+      0.9,
+      0.85,
+      0.98,
+      0.96,
+      0.95,
+      0.91,
+      0.95,
+      0.95,
+      0.68,
+      0.87,
+      0.77,
+      0.93,
+      0.95,
+      0.92,
+      0.61,
+      0.96,
+      0.89,
+      0.87,
+      0.87,
+      0.72,
+      0.89,
+      0.88,
+      0.95,
+      0.71,
+      0.87,
+      0.87
+    ],
+    "bootstrap_omission_counts": {
+      "0": 18,
+      "1": 0,
+      "2": 0
+    }
+  },
+  "limitations": [
+    "PCA is a projection of demographic features, not a geographic map or demand score.",
+    "Seed checks use the existing ten-restart configuration.",
+    "Bootstrap resamples regions with replacement, refits scaling and clustering, then assigns all original regions.",
+    "ARI is invariant to label permutations. Per-region agreement uses the best global permutation for each run.",
+    "Bootstrap percentiles are descriptive simulation ranges, not confidence intervals for service performance.",
+    "One date, 39 regions and a two-region cluster limit conclusions. No temporal or customer behavior validation."
+  ],
+  "regions": [
+    {
+      "region": "기흥구/구갈동",
+      "cluster": 1,
+      "pca": [
+        0.0017931853505178535,
+        -1.0253948502475216
+      ],
+      "bootstrap_agreement": 0.85
+    },
+    {
+      "region": "기흥구/구성동",
+      "cluster": 1,
+      "pca": [
+        -0.5120672269933016,
+        0.7810008760123969
+      ],
+      "bootstrap_agreement": 0.89
+    },
+    {
+      "region": "기흥구/기흥동",
+      "cluster": 1,
+      "pca": [
+        -1.0552672287434646,
+        0.1274049859599653
+      ],
+      "bootstrap_agreement": 0.87
+    },
+    {
+      "region": "기흥구/동백1동",
+      "cluster": 2,
+      "pca": [
+        1.2826463293303725,
+        0.07139308705921683
+      ],
+      "bootstrap_agreement": 0.99
+    },
+    {
+      "region": "기흥구/동백2동",
+      "cluster": 2,
+      "pca": [
+        1.1923207907802587,
+        0.43647477952758373
+      ],
+      "bootstrap_agreement": 0.97
+    },
+    {
+      "region": "기흥구/동백3동",
+      "cluster": 2,
+      "pca": [
+        1.4064852186765742,
+        0.38489062143452074
+      ],
+      "bootstrap_agreement": 0.96
+    },
+    {
+      "region": "기흥구/마북동",
+      "cluster": 1,
+      "pca": [
+        -0.18965735001788908,
+        0.765577484813671
+      ],
+      "bootstrap_agreement": 0.87
+    },
+    {
+      "region": "기흥구/보라동",
+      "cluster": 2,
+      "pca": [
+        0.2404831837515684,
+        0.505655557716216
+      ],
+      "bootstrap_agreement": 0.45
+    },
+    {
+      "region": "기흥구/보정동",
+      "cluster": 2,
+      "pca": [
+        0.8497263942024327,
+        0.538705699686586
+      ],
+      "bootstrap_agreement": 0.95
+    },
+    {
+      "region": "기흥구/상갈동",
+      "cluster": 1,
+      "pca": [
+        -1.5087761852459503,
+        -0.8020794929628609
+      ],
+      "bootstrap_agreement": 0.87
+    },
+    {
+      "region": "기흥구/상하동",
+      "cluster": 1,
+      "pca": [
+        -0.5949952865464139,
+        0.6230685566865153
+      ],
+      "bootstrap_agreement": 0.9
+    },
+    {
+      "region": "기흥구/서농동",
+      "cluster": 2,
+      "pca": [
+        0.9060885374886654,
+        -1.2733491703399797
+      ],
+      "bootstrap_agreement": 0.83
+    },
+    {
+      "region": "기흥구/신갈동",
+      "cluster": 1,
+      "pca": [
+        -0.5432062299453848,
+        -0.33964562392480385
+      ],
+      "bootstrap_agreement": 0.97
+    },
+    {
+      "region": "기흥구/영덕1동",
+      "cluster": 2,
+      "pca": [
+        1.0658024241362019,
+        -0.45230769130287163
+      ],
+      "bootstrap_agreement": 0.9
+    },
+    {
+      "region": "기흥구/영덕2동",
+      "cluster": 2,
+      "pca": [
+        0.6762251173105819,
+        -0.3136058668522126
+      ],
+      "bootstrap_agreement": 0.85
+    },
+    {
+      "region": "수지구/동천동",
+      "cluster": 2,
+      "pca": [
+        1.3528015440343881,
+        0.032600766744574766
+      ],
+      "bootstrap_agreement": 0.98
+    },
+    {
+      "region": "수지구/상현1동",
+      "cluster": 2,
+      "pca": [
+        2.3295726312435794,
+        1.1479440098491136
+      ],
+      "bootstrap_agreement": 0.96
+    },
+    {
+      "region": "수지구/상현2동",
+      "cluster": 2,
+      "pca": [
+        1.6375138804030676,
+        0.9096726517989435
+      ],
+      "bootstrap_agreement": 0.95
+    },
+    {
+      "region": "수지구/상현3동",
+      "cluster": 2,
+      "pca": [
+        1.0032470428826505,
+        -0.4533420410866189
+      ],
+      "bootstrap_agreement": 0.91
+    },
+    {
+      "region": "수지구/성복동",
+      "cluster": 2,
+      "pca": [
+        1.6030478558659278,
+        1.3006023637302773
+      ],
+      "bootstrap_agreement": 0.95
+    },
+    {
+      "region": "수지구/신봉동",
+      "cluster": 2,
+      "pca": [
+        1.3776860264631599,
+        0.7251843286066585
+      ],
+      "bootstrap_agreement": 0.95
+    },
+    {
+      "region": "수지구/죽전1동",
+      "cluster": 2,
+      "pca": [
+        0.41075574397341974,
+        0.5055799252815742
+      ],
+      "bootstrap_agreement": 0.68
+    },
+    {
+      "region": "수지구/죽전2동",
+      "cluster": 1,
+      "pca": [
+        -0.10519431723529454,
+        -0.1379648198849417
+      ],
+      "bootstrap_agreement": 0.87
+    },
+    {
+      "region": "수지구/죽전3동",
+      "cluster": 1,
+      "pca": [
+        0.18995491400468112,
+        -0.3455850202282854
+      ],
+      "bootstrap_agreement": 0.77
+    },
+    {
+      "region": "수지구/풍덕천1동",
+      "cluster": 1,
+      "pca": [
+        -0.2589771622676459,
+        -0.6048841902577583
+      ],
+      "bootstrap_agreement": 0.93
+    },
+    {
+      "region": "수지구/풍덕천2동",
+      "cluster": 2,
+      "pca": [
+        2.497162020513196,
+        -0.337658066992184
+      ],
+      "bootstrap_agreement": 0.95
+    },
+    {
+      "region": "처인구/남사읍",
+      "cluster": 2,
+      "pca": [
+        0.8129053737245516,
+        0.0064597359011011185
+      ],
+      "bootstrap_agreement": 0.92
+    },
+    {
+      "region": "처인구/동부동",
+      "cluster": 1,
+      "pca": [
+        -2.428826750668397,
+        0.021276892175322665
+      ],
+      "bootstrap_agreement": 0.61
+    },
+    {
+      "region": "처인구/모현읍",
+      "cluster": 1,
+      "pca": [
+        -0.45675322002391955,
+        -0.4791415879314384
+      ],
+      "bootstrap_agreement": 0.96
+    },
+    {
+      "region": "처인구/백암면",
+      "cluster": 0,
+      "pca": [
+        -4.686686921964835,
+        1.1599682593712553
+      ],
+      "bootstrap_agreement": 0.89
+    },
+    {
+      "region": "처인구/삼가동",
+      "cluster": 1,
+      "pca": [
+        -0.02054346599408563,
+        -0.033684853496722775
+      ],
+      "bootstrap_agreement": 0.87
+    },
+    {
+      "region": "처인구/양지읍",
+      "cluster": 1,
+      "pca": [
+        -1.2916445826836067,
+        -0.549576743199235
+      ],
+      "bootstrap_agreement": 0.87
+    },
+    {
+      "region": "처인구/역북동",
+      "cluster": 2,
+      "pca": [
+        0.6043688553644888,
+        -1.2255858179182482
+      ],
+      "bootstrap_agreement": 0.72
+    },
+    {
+      "region": "처인구/원삼면",
+      "cluster": 0,
+      "pca": [
+        -4.004105282484041,
+        0.7098007527679245
+      ],
+      "bootstrap_agreement": 0.89
+    },
+    {
+      "region": "처인구/유림1동",
+      "cluster": 1,
+      "pca": [
+        -1.2268790576584663,
+        -0.8720523429148742
+      ],
+      "bootstrap_agreement": 0.88
+    },
+    {
+      "region": "처인구/유림2동",
+      "cluster": 2,
+      "pca": [
+        1.9149590529992835,
+        -0.4311693333945863
+      ],
+      "bootstrap_agreement": 0.95
+    },
+    {
+      "region": "처인구/이동읍",
+      "cluster": 1,
+      "pca": [
+        -1.8779356672380798,
+        0.19617619202938388
+      ],
+      "bootstrap_agreement": 0.71
+    },
+    {
+      "region": "처인구/중앙동",
+      "cluster": 1,
+      "pca": [
+        -1.4353061918350707,
+        -0.9098189767376756
+      ],
+      "bootstrap_agreement": 0.87
+    },
+    {
+      "region": "처인구/포곡읍",
+      "cluster": 1,
+      "pca": [
+        -1.1587239949537207,
+        -0.36259103747998195
+      ],
+      "bootstrap_agreement": 0.87
+    }
+  ]
+}
