@@ -46,7 +46,7 @@
 | character.animation | sunny_happy, rain_umbrella, hot_sweat, sad_droop |
 | task.type | WATER, SUPPORT, WEED, PRUNE, FERTILIZE, HARVEST_PREP, CHECK |
 | stage-check observed | SPROUT, FLOWER, FRUIT, NO_CHANGE |
-| diary item type | CARE_LOG, STAGE_CHANGE (REST_DAY는 계획 항목, 현재 미생성) |
+| diary item type | CARE_LOG, STAGE_CHANGE, REST_DAY (기록이 없던 날, ALL 필터에서만) |
 | district | SUJI, GIHEUNG, CHEOIN |
 | nextStep | ROLE_SELECT, PROFILE_OWNER, PROFILE_CARE, OWNER_HOME, CARE_TODAY |
 
