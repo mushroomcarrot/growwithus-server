@@ -1,55 +1,5 @@
 # 현재 구조
 
-## 설정
-
-| 파일 | 내용 |
-| --- | --- |
-| `application.yml` | 공통: `.env` import(`optional:file:.env[.properties]`), 활성 프로필(`SPRING_PROFILES_ACTIVE`, 기본 `local`), JPA open-in-view off, multipart 상한, Jackson 시간대, JWT 만료 시간, 파일 저장소 종류, 외부 호출 타임아웃, 스케줄러, 기상청 연결과 수집 격자, AI 설정, Swagger 경로 |
-| `application-local.yml` | 모든 값에 개발용 기본값, `ddl-auto: update`, SQL 로그 on |
-| `application-prod.yml` | 기본값 없음 (누락 시 부팅 실패), `ddl-auto`는 `JPA_DDL_AUTO` (기본 `validate`), SQL 로그 off |
-| `.env.example` | 환경변수 목록과 로컬 기본값. `.env`로 복사해서 쓰고, `.env`는 `.gitignore`에 포함 |
-| `.env.prod.example` | 배포 서버 `~/growwithus-server/.env`용 초안. compose의 mariadb, redis 주소와 `APP_IMAGE`, `DB_ROOT_PASSWORD`, `JPA_DDL_AUTO` 포함 |
-| `application.properties` | `spring.application.name`만 있음. `application.yml`과 중복, 삭제해도 무방 |
-
-### 환경변수
-
-값은 OS 환경변수, 로컬 `.env` 파일, yml 기본값 순으로 우선한다. `.env`에 `KEY=`처럼 빈 값을 두면 yml 기본값이 무시되니 쓰지 않을 값은 줄을 지우거나 주석으로 둔다.
-
-| 변수 | local 기본값 | 설명 |
-| --- | --- | --- |
-| `SPRING_PROFILES_ACTIVE` | `local` | `local` / `prod` |
-| `JPA_DDL_AUTO` | (prod 전용, 기본 `validate`) | 새 DB 첫 배포에서만 `update` |
-| `APP_IMAGE`, `DB_ROOT_PASSWORD`, `TZ` | (compose 전용) | 배포 이미지(deploy.yml이 갱신), MariaDB root 비밀번호, 컨테이너 시간대 |
-| `DB_HOST`, `DB_PORT`, `DB_NAME` | `localhost`, `3306`, `growwithus-server` | MariaDB |
-| `DB_USERNAME`, `DB_PASSWORD` | `root`, `root` | |
-| `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` | `localhost`, `6379`, (없음) | |
-| `JWT_SECRET_KEY` | 개발용 더미 | Base64 인코딩된 256비트 이상. **배포 전 반드시 교체** |
-| `JWT_ACCESS_TOKEN_EXPIRE_TIME` | `3600000` (1시간) | ms |
-| `JWT_REFRESH_TOKEN_EXPIRE_TIME` | `604800000` (7일) | ms |
-| `CORS_ALLOWED_ORIGINS` | `*` | 콤마 구분, `allowedOriginPatterns`로 적용 |
-| `INTERNAL_SERVICE_KEY` | `local-internal-service-key` | `/internal/**`의 `X-Service-Key` 값. **배포 전 반드시 교체** |
-| `DEMO_ENABLED` | `true` | `/demo/**` 사용 여부. prod에서 `false`로 두면 시연 API가 모두 막힌다 |
-| `SCHEDULER_ENABLED` | `true` | `@Scheduled` 사용 여부 (prod에도 같은 기본값) |
-| `FILE_STORAGE` | `local` | 파일 저장소 구현체 (prod에도 같은 기본값) |
-| `FILE_UPLOAD_DIR` | `./uploads` | 로컬 저장소 폴더. `.gitignore`에 포함 |
-| `FILE_BASE_URL` | `http://localhost:8080` | 업로드 URL 앞에 붙는 서버 주소 |
-| `EXTERNAL_HTTP_CONNECT_TIMEOUT`, `EXTERNAL_HTTP_READ_TIMEOUT` | `3s`, `30s` | 외부 API 호출 타임아웃 (prod에도 같은 기본값) |
-| `PUBLIC_DATA_SERVICE_KEY` | (없음) | 공공데이터포털 인증키 (기상청 단기예보). 포털의 "일반 인증키"를 그대로 넣는다. 비워 두면 부팅은 되고 날씨 수집을 건너뛴다 (prod에도 같은 기본값) |
-| `KMA_MAX_ATTEMPTS`, `KMA_RETRY_DELAY` | `3`, `1s` | 기상청 호출 전체 시도 횟수와 다시 시도하기 전 대기 시간 (prod에도 같은 기본값) |
-| `WEATHER_DEFAULT_GRIDS` | `64:119` | 농장 도메인이 붙기 전까지 수집할 기상청 격자. `nx:ny`를 콤마로 잇는다. 기본값은 처인구 대표 격자 (prod에도 같은 기본값) |
-| `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL` | (없음) | LLM 연결 설정. 비워 두어도 부팅된다 |
-| `AI_LOCAL_ENABLED` | `false` | 로컬 Ollama 사용 여부. 유료 API로 자동 전환하지 않음 |
-| `AI_LOCAL_BASE_URL` | `http://127.0.0.1:11434` | loopback HTTP 주소만 허용 |
-| `AI_LOCAL_MODEL` | (없음) | 미리 다운로드한 로컬 모델. 활성화 시 필수, cloud 이름 거부 |
-| `AI_LOCAL_STT_ENABLED` | `false` | 로컬 음성 인식 작업 서버 사용 여부 |
-| `AI_LOCAL_STT_BASE_URL` | `http://127.0.0.1:8765` | 음성 인식 작업 서버, loopback HTTP 주소만 허용 |
-| `AI_GEMINI_ENABLED`, `GEMINI_API_KEY`, `GEMINI_MODEL` | `false`, (없음), `gemini-3.5-flash-lite` | Gemini로 STT, LLM, 사진 판정을 처리한다 ([cloud-ai.md](cloud-ai.md)) |
-| `GEMINI_IMAGE_MODEL` | (없음) | 관리사 AI 아바타를 그리는 Gemini 이미지 모델. 비워 두면 생성하지 않고 기본 아바타를 쓴다. `AI_GEMINI_ENABLED=true`일 때만 쓰인다 |
-| `STT_API_KEY`, `STT_BASE_URL`, `STT_MODEL` | (없음) | STT 연결 설정 |
-| `TTS_API_KEY`, `TTS_BASE_URL`, `TTS_MODEL`, `TTS_VOICE` | (없음) | TTS 연결 설정 |
-
-prod에서 기본값이 없어 반드시 넣어야 하는 값: DB, Redis, `JWT_SECRET_KEY`, `CORS_ALLOWED_ORIGINS`, `INTERNAL_SERVICE_KEY`, `DEMO_ENABLED`, `FILE_UPLOAD_DIR`, `FILE_BASE_URL`.
-
 ## 로컬 실행
 
 ```bash
