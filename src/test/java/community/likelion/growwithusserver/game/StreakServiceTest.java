@@ -33,4 +33,26 @@ class StreakServiceTest {
 
         assertThat(streakService.check(null).getBroken()).isEqualTo(2);
     }
+
+    @Test
+    void 오늘_응원하지_않은_주인에게_하루_한_번만_스트릭_위험을_알린다() {
+        LocalDate today = LocalDate.now();
+        User minji = User.builder().id(1L).username("minji").build();
+        User other = User.builder().id(2L).username("other").build();
+        Garden first = Garden.builder().id(3L).owner(minji).characterName("토순이").streakDays(12).build();
+        Garden second = Garden.builder().id(4L).owner(other).characterName("토순이").streakDays(2).build();
+        when(gardenRepository.findStreaksAtRisk(today)).thenReturn(List.of(first, second));
+        // other는 오늘 이미 알림을 받았다
+        when(notificationService.hasSentSince(other, NotificationType.STREAK_RISK, today.atStartOfDay())).thenReturn(true);
+
+        assertThat(streakService.remind().getReminded()).isEqualTo(1);
+
+        ArgumentCaptor<NotificationSendDto> sent = ArgumentCaptor.forClass(NotificationSendDto.class);
+        verify(notificationService, times(1)).send(sent.capture());
+        assertThat(sent.getValue().getReceiver()).isSameAs(minji);
+        assertThat(sent.getValue().getType()).isEqualTo(NotificationType.STREAK_RISK);
+        assertThat(sent.getValue().getBody()).contains("12일째");
+        assertThat(sent.getValue().getTargetScreen()).isEqualTo("DT_HOME");
+        assertThat(sent.getValue().getTargetId()).isEqualTo("gdn_3");
+    }
 }
