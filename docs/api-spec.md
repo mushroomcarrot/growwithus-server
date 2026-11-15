@@ -113,7 +113,7 @@
 | GET | /gardens/{gardenId}/growth | 성장 시뮬레이션 상세 (AI 핵심 2) | OWNER | DT_HOME, DT_HARVEST |
 | POST | /gardens/{gardenId}/cheers | 오늘의 응원 (스트릭, XP) | OWNER | DT_HOME |
 | POST | /care-logs/{careLogId}/hearts | 감사 하트 보내기 | OWNER | DT_HOME, DT_DIARY |
-| GET | /gardens/{gardenId}/diary | 성장 일기 (필터, 원문과 정리문, dry_ 커서) | OWNER | DT_DIARY |
+| GET | /gardens/{gardenId}/diary | 성장 일기 (필터, 원문과 정리문, 날짜 커서) | OWNER | DT_DIARY |
 | GET | /gardens/{gardenId}/events | 미확인 진화 이벤트 | OWNER | DT_HOME, DT_EVOLVE |
 | POST | /events/{eventId}/ack | 진화 이벤트 확인과 보상 지급 | OWNER | DT_EVOLVE |
 | GET | /leagues/current | 이웃 텃밭 주간 리그 | OWNER | DT_LEAGUE, DT_MY |
