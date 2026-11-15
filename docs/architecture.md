@@ -1242,7 +1242,8 @@ ADMIN은 RoleHierarchy로 USER, OWNER, CARETAKER 권한을 갖는다. SYSTEM은 
 | `TASK` | `tsk` | `VISIT` | `vst` |
 | `NOTIFICATION` | `ntf` | `CROP` | `crop` |
 | `LEAGUE` | `lg` | `QUEST` | `qst` |
-| `QUIZ` | `qz` | | |
+| `QUIZ` | `qz` | `AVATAR_JOB` | `avj` |
+| `DIARY` | `dry` | | |
 
 방문 슬롯 ID(`slot_20261128_10`)는 DB에 없는 계산 값이라 `IdPrefix`를 쓰지 않고 `VisitSlotPolicy`가 만들고 읽는다.
 
