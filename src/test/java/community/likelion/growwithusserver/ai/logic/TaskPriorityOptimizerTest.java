@@ -80,4 +80,11 @@ class TaskPriorityOptimizerTest {
             assertEquals(selected.size(), selected.stream().map(TaskRules.Guidance::type).distinct().count());
         }
     }
+
+    @Test void readValidationDoesNotHideFullBudgetWorkForAnUnstoredObservation() {
+        var context = context(List.of(guidance(TaskRules.Type.WATER, 120)), List.of(), List.of("LEAF_SPOT"));
+        var plan = rules.validateExisting(context, List.of(TaskRules.Type.WATER));
+        assertEquals(List.of(TaskRules.Type.WATER), plan.tasks().stream().map(TaskRules.Task::type).toList());
+        assertEquals(120, plan.totalMinutes());
+    }
 }

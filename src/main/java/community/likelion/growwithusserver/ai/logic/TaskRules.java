@@ -55,6 +55,14 @@ public final class TaskRules {
     public record Plan(List<Task> tasks, Set<Type> skippedTypes, int totalMinutes, String weatherNotice) {}
 
     public Plan validate(Context context, List<Type> candidates, int availableMinutes) {
+        return validate(context, candidates, availableMinutes, true);
+    }
+
+    public Plan validateExisting(Context context, List<Type> candidates) {
+        return validate(context, candidates, 120, false);
+    }
+
+    private Plan validate(Context context, List<Type> candidates, int availableMinutes, boolean addObservation) {
         Objects.requireNonNull(context);
         if (availableMinutes < 0 || availableMinutes > 120) {
             throw new IllegalArgumentException("하루 남은 작업 시간은 0분부터 120분입니다.");
@@ -64,7 +72,7 @@ public final class TaskRules {
         var optimizer = new TaskPriorityOptimizer();
         boolean reportedIssue = optimizer.hasReportedIssue(context);
         var requested = new ArrayList<>(Objects.requireNonNull(candidates));
-        if (reportedIssue && !requested.contains(Type.CHECK)) requested.add(Type.CHECK);
+        if (addObservation && reportedIssue && !requested.contains(Type.CHECK)) requested.add(Type.CHECK);
         Set<Type> skipped = new LinkedHashSet<>();
         if (context.rainExpected() || !context.weatherKnown()) skipped.add(Type.WATER);
         Set<Type> seen = new HashSet<>();
