@@ -163,6 +163,7 @@
 | POST | /internal/streaks/check | 매일 00:05 | 스트릭 끊김 처리, 캐릭터 SAD |
 | POST | /internal/leagues/settle | 매주 월 00:10 | 리그 정산, 새 리그와 퀘스트 생성 |
 | POST | /internal/farms/sync | 매주 월 03:00 | 공공데이터포털 주말농장 동기화 |
+| POST | /internal/streaks/remind | 매일 20:00 | 오늘 응원하지 않은 주인에게 스트릭 위험 알림 (명세 이후 추가) |
 
 ### 4.8 시연 (5, DEMO)
 
