@@ -1,0 +1,2 @@
+# Optional local image decoding only. Never install in the service image.
+Pillow
