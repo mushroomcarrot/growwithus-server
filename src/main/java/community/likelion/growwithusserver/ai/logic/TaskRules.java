@@ -60,20 +60,34 @@ public final class TaskRules {
             throw new IllegalArgumentException("하루 남은 작업 시간은 0분부터 120분입니다.");
         }
         List<Task> tasks = new ArrayList<>();
+        List<Guidance> eligible = new ArrayList<>();
+        var optimizer = new TaskPriorityOptimizer();
+        boolean reportedIssue = optimizer.hasReportedIssue(context);
+        var requested = new ArrayList<>(Objects.requireNonNull(candidates));
+        if (reportedIssue && !requested.contains(Type.CHECK)) requested.add(Type.CHECK);
         Set<Type> skipped = new LinkedHashSet<>();
         if (context.rainExpected() || !context.weatherKnown()) skipped.add(Type.WATER);
         Set<Type> seen = new HashSet<>();
         int total = 0;
-        for (Type type : Objects.requireNonNull(candidates)) {
+        for (Type type : requested) {
             if (type == null || !seen.add(type)) continue;
             Guidance rule = context.guidance().stream().filter(r -> r.type() == type).findFirst().orElse(null);
+            if (rule == null && type == Type.CHECK && reportedIssue) {
+                rule = new Guidance(Type.CHECK, Set.of(context.stage()), 1, "최근 이상 징후 확인하기",
+                        "최근 기록에 남긴 작물 변화를 먼저 살펴보고 현재 상태를 말로 남겨 주세요.", 5, "rule:reported-issue-observation");
+            }
             if (rule == null || !rule.stages().contains(context.stage())
                     || (type == Type.HARVEST_PREP && context.stage() != Stage.FRUIT) || skipped.contains(type)
-                    || repeated(context, rule) || total + rule.minutes() > availableMinutes) {
+                    || repeated(context, rule)) {
                 skipped.add(type);
                 continue;
             }
-            tasks.add(new Task(type, rule.title(), rule.description(), rule.minutes(), rule.sourceId()));
+            eligible.add(rule);
+        }
+        var selected = optimizer.select(context, eligible, availableMinutes);
+        for (var rule : eligible) if (!selected.contains(rule)) skipped.add(rule.type());
+        for (var rule : selected) {
+            tasks.add(new Task(rule.type(), rule.title(), rule.description(), rule.minutes(), rule.sourceId()));
             total += rule.minutes();
         }
         // 재배 근거가 없거나 모델이 부적절한 작업만 고르면 관찰만 안내한다.
@@ -105,6 +119,9 @@ public final class TaskRules {
     public boolean needsObservation(Context context, List<Type> pendingTypes, boolean alreadyHasCheck) {
         if (alreadyHasCheck || pendingTypes.isEmpty()) return false;
         var available = validate(context, pendingTypes, 120);
+        if (new TaskPriorityOptimizer().hasReportedIssue(context)) {
+            return available.tasks().stream().anyMatch(t -> t.type() == Type.CHECK);
+        }
         return available.tasks().stream().anyMatch(t -> t.type() == Type.CHECK)
                 && available.tasks().stream().noneMatch(t -> pendingTypes.contains(t.type()));
     }

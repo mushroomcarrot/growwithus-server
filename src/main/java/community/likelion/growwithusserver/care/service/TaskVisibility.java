@@ -24,7 +24,11 @@ public class TaskVisibility {
             var checked = new TaskRules().validate(contexts.create(found.get(), date), assigned.stream()
                     .filter(t -> t.getStatus() == TaskStatus.TODO).map(Task::getType).toList(), 120);
             var allowed = checked.tasks().stream().map(t -> t.type()).toList();
-            visible.addAll(assigned.stream().filter(t -> t.getStatus() == TaskStatus.DONE || allowed.contains(t.getType())).toList());
+            visible.addAll(assigned.stream().filter(t -> t.getStatus() == TaskStatus.DONE || allowed.contains(t.getType()))
+                    .sorted(Comparator.comparingInt((Task task) -> task.getStatus() == TaskStatus.DONE
+                                    ? allowed.size() : allowed.indexOf(task.getType()))
+                            .thenComparing(Task::getId, Comparator.nullsLast(Comparator.naturalOrder())))
+                    .toList());
             skipped.addAll(checked.skippedTypes()); notices.add(checked.weatherNotice());
         }
         return new Visible(List.copyOf(visible), Set.copyOf(skipped), String.join(" ", notices));
