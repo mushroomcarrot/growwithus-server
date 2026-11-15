@@ -885,12 +885,19 @@ community.likelion.growwithusserver/
 ├── GrowwithusServerApplication.java  # main()에서 JVM 기본 시간대를 Asia/Seoul로 고정
 ├── common/                         # 공통 모듈 (도메인에 의존하지 않음, 예외: JwtTokenProvider가 UserRepository 참조)
 │   ├── ai/
-│   │   ├── LlmClient, SttClient, TtsClient  # AI 호출 공통 인터페이스
-│   │   ├── AiProperties            # ai.llm, ai.stt, ai.tts 설정 (apiKey, baseUrl, model, voice)
-│   │   ├── AiClientConfiguration   # 구현체가 없을 때 쓰는 기본 빈 (항상 AiClientException)
+│   │   ├── LlmClient, SttClient, TtsClient, VisionClient, AvatarImageClient  # AI 호출 공통 인터페이스
+│   │   ├── AiClientConfiguration   # 구현체 선택 (로컬 모델 또는 기본 빈). Gemini를 켜면 빠진다
+│   │   ├── GeminiClientConfiguration, GeminiProperties  # ai.gemini 설정과 빈 등록
+│   │   ├── GeminiClient            # LLM, STT, 사진 확인 (generateContent)
+│   │   ├── GeminiAvatarClient      # 아바타 그림 (Interactions API)
+│   │   ├── OfflineTtsClient, AudioProcesses, FfmpegAudioNormalizer  # eSpeak NG와 FFmpeg로 읽어주기, 음성 변환
+│   │   ├── OllamaLlmClient, OllamaVisionClient, LocalWhisperSttClient, LocalTtsClient  # 로컬 모델 구현체
+│   │   ├── LocalLlmProperties, LocalSttProperties, LocalTtsProperties, LocalAiAddress  # 로컬 설정 (loopback 주소만 허용)
+│   │   ├── ImagePreview            # 사진을 768픽셀 이하 JPEG로 줄이기
+│   │   ├── AiProperties            # ai.llm, ai.stt, ai.tts 설정 (지금 쓰는 구현체는 없음)
 │   │   └── AiClientException       # C502
 │   ├── file/
-│   │   ├── FileUploadService       # uploadImage / uploadAudio: 검증 후 저장, URL 반환
+│   │   ├── FileUploadService       # uploadImage / uploadAudio: 검증 후 저장, URL 반환. readImage, storeGeneratedPng
 │   │   ├── FileStorage             # 저장소 추상화 (store)
 │   │   ├── LocalFileStorage        # 로컬 디스크 구현 (file.storage=local)
 │   │   ├── FileWebConfiguration    # 로컬 저장 파일을 /uploads/**로 제공
