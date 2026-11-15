@@ -1986,26 +1986,134 @@ TTS 구현체 LocalTtsClient는 선택적으로 127.0.0.1:8766의 로컬 작업�
 운영 활성화는 AI_LOCAL_TTS_ENABLED=true와 AI_LOCAL_TTS_BASE_URL 설정이 필요하다. compose.ai-workers.json에 독립 tts 작업자를 추가했고 compose.local-demo.json은 같은 네트워크 공간에서 연결한다. 새 DB 스키마는 없다. 사진 비전은 출력 토큰을 제한하고 미설정, 모델 오류와 잘못된 결과를 판정 불가로 처리한다. 실제 비전 모델 설치와 운영 사양 검증은 별도다.
 
 최신 시연 가상 성장 상태도 내부 simulated 표시로 구분하여 LLM 설명에서 제외한다. 이 표시는 JSON 응답에 노출하지 않으며 기존 시연 안내 문구를 유지한다.
-## 배포 전 실제 AI 검사
 
-verifyLocalAi Gradle 작업은 설치된 실제 STT와 LLM, TTS 및 비전 모델에 연결하며 일반 빌드에서는 실행하지 않는다. WAV, WEBM, MP4, M4A로 변환한 공개 합성 한국어 음성, 성장 설명과 실제 토마토 사진의 관련 여부를 검사한다. 결과는 build/reports/ai-predeploy.json이며 사람의 녹음 정확도, 청취 평가와 운영 검증은 별도 상태로 기록한다. 사진 원본은 Softeis의 Tomato je.jpg이며 출처와 CC BY-SA 3.0 표기를 검사 자료에 함께 저장하고 SHA-1을 확인한다.
+### 화면 연동 응답 확장 (#36)
 
-사진 판정은 업로드 원본을 변경하지 않고 JPEG 또는 PNG를 가로 세로 최대 768픽셀의 JPEG 미리보기로 바꿔 호출한다. 최대 5000만 픽셀과 20000픽셀 변 길이를 검사하고 손상된 입력은 판정 불가로 처리한다. 작은 로컬 비전 모델의 입력 메모리를 줄이기 위한 제한이다. compose.ai-ready.json은 로컬 시연 Compose에만 겹쳐 쓰는 선택 설정이며 qwen3-vl:2b-instruct 설치 후 사용한다. 운영 서버 사양에 맞는 모델 선택은 배포 단계에서 확인한다.
-배포 Dockerfile의 build 작업 디렉터리는 /app이다. 로컬 검사 보고서와 공개 자료도 /app/build/reports에 마운트하여 verifyLocalAi와 전체 JUnit 보고서가 같은 호스트 폴더를 사용한다. scripts/test_local_demo.py에서 Dockerfile과 검사 마운트 경로의 일치를 확인한다.
-로컬 TTS 클라이언트는 JSON을 UTF-8 바이트로 직렬화하고 Content-Length를 명시한다. 작업자는 길이가 없는 전송을 거절하므로 Map을 직접 전송해 chunked 요청이 되는 경우를 피한다. 실제 JDK HTTP 클라이언트와 로컬 HTTP 서버로 이 통신 조건을 검사한다.
+1. PUT /demo/stage는 ADMIN 토큰과 X-Demo-Mode 헤더가 필요하다. 요청은 stage (SEED, SPROUT, FLOWER, FRUIT)이고 응답은 빨리 감기와 같은 DemoFastForwardResponseDto (stage, eventId, expectedHarvestDate)다. stage가 없거나 enum이 아니면 C002다. minji, 시연 농장 demo:theme, B-14가 모두 일치하는 텃밭만 변경한다.
+2. 현재 단계보다 높은 단계를 고르면 EvolutionEventService.advanceStage로 올리고 새 진화 이벤트의 eventId를 반환한다. 낮은 단계는 대상 검증을 하는 resetDemoStage(gardenId, target)로 내리며 eventId는 null이다. 같은 단계는 이벤트를 만들지 않는다. 단계가 바뀔 때는 이전의 미확인 연출을 먼저 닫는다. 이미 지급한 XP, 배지와 기록은 삭제하지 않는다.
+3. 선택한 단계는 garden_growth_state.demo_start_stage에 저장하고 demo_days를 0으로, 관찰 보정을 비운다. 시연 성장 계산은 이 시작 단계를 기준으로 하므로 성장 조회, 배치, 빨리 감기 후에도 선택한 단계 아래로 되돌아가지 않는다. demo_start_stage가 null인 기존 시연 상태는 FLOWER로 본다. 단계 사이는 18일이며 SEED에서 FRUIT까지는 54일이다. expectedHarvestDate는 현재 날짜에 FRUIT까지 남은 시연 일수를 더한 날짜다.
+4. POST /demo/reset은 demo_start_stage도 FLOWER로 되돌린다. 초기화 시점의 단계가 FLOWER보다 낮으면 advanceStage로 올린 뒤 그 연출을 닫는다.
+5. POST /gardens/{gardenId}/stage-checks의 observed에 SPROUT을 추가했다. GrowthCalculator는 SPROUT 관찰도 보정 기준으로 받는다. SEED는 관찰 값이 아니며 시연 시작 단계로만 쓴다. stageCheck.required의 조건은 그대로이며 FLOWER와 FRUIT 예상 단계에서만 true다. SPROUT은 관리사가 화면에서 직접 선택해 보낸다.
+6. GET /gardens/{gardenId}/harvest 응답에 stage를 추가했다. 텃밭의 현재 단계이며 harvestable (관리사의 FRUIT 확인)과는 별개다. HarvestGarden에도 stage를 추가했다.
+7. GET /gardens/{gardenId}/home 응답에 farmName, plotCode, nickname을 추가했다. nickname은 주인 프로필의 별명이고 프로필이 없으면 사용자 이름이다.
+8. GET /caretakers/me/summary 응답에 heartsReceivedToday를 추가했다. 조회한 month와 관계없이 서버 날짜의 오늘 00:00부터 내일 00:00 전까지 받은 하트 수다.
+9. prod는 db/manual/demo_simulation.sql의 demo_start_stage 열 추가를 먼저 적용한다. ADD COLUMN IF NOT EXISTS이므로 다시 실행해도 안전하다.
+10. 검증: ./gradlew compileJava unitTest와 build -x test가 통과했다. DB가 필요한 전체 test와 실제 HTTP 호출은 이번 작업에서 실행하지 않았다.
+
+### 담당 이슈 후속 구현과 검증
+
+1. dami6326 담당 #3, #4, #9, #10, #11은 기존 구현을 유지한다. 실제 HTTP에서 관리사 완료 기록의 주인 홈과 일기 연결, 감사 하트와 중복 방지, 퀘스트, 리그, 배지를 확인했다. 이벤트 보상은 텃밭을 먼저 잠근 뒤 이벤트를 잠그도록 순서를 통일했다.
+2. #16의 POST /demo/fast-forward는 days 1~365를 받아 누적 최대 3650일까지 저장한다. minji, 시연 농장 demo:theme, B-14가 모두 일치하는 텃밭만 변경한다. 최초 시작은 FLOWER만 허용하며 다른 단계는 먼저 reset한다.
+3. garden_growth_state.demo_days가 null이면 실제 기상 계산을 유지한다. 시연에서는 저장된 시작 단계 (기본 FLOWER)부터 단계마다 18일에 다음 단계에 도달하는 합성 일별 기온을 GrowthCalculator에 전달한다. 실제 기상 테이블은 변경하지 않는다. 성장 조회와 배치도 저장된 시연 일수를 사용하므로 다시 조회해도 단계가 되돌아가지 않는다. 응답 explanation에 시연 자료임을 명시한다.
+4. 단계 상승은 기존 GrowthProjection과 EvolutionEventService.advanceStage를 통해 주인 이벤트, 일기와 알림에 연결한다. 자동 FRUIT만으로 관리사의 수확 확인을 대신하지 않는다. 수확 예정일은 현재 날짜에 남은 시연 일수를 더해 반환한다.
+5. GET /demo/state는 실제 단계, 단계 순서(3/4), 누적 일수와 현재 미완료 작업이 보이는 시연 텃밭 수를 반환한다. 조회 자체는 작업을 생성하지 않는다.
+6. POST /demo/reset은 이전 시연 작업을 보관하고, 미확인 연출을 닫고, 주 시연 텃밭을 FLOWER 시작 단계와 0일로 되돌린 뒤 맑음 상태의 작업을 다시 생성한다. 시연 단계 하향은 대상 검증을 다시 하는 EvolutionEventService.resetDemoStage에만 허용한다. 이미 지급한 XP, 배지, 돌봄 기록과 사진, 음성 참조는 삭제하지 않는다.
+7. care_task.archive_number는 현재 작업이면 0, 보관된 작업이면 자신의 PK다. 유니크 키는 garden_id, task_date, task_type, archive_number다. 오늘 목록과 신규 생성의 존재 검사는 현재 작업만 조회한다. 작업 생성의 반복 제한 및 음성 입력에서는 이전 시연 회차를 제외하며 돌봄 이력과 통계는 유지한다. 보관된 작업의 사진 업로드와 완료는 C4095로 거부한다.
+8. 초기화는 관리사 날짜 행, 모든 작업 행, 텃밭 행 순서로 잠근다. DB 초기화와 재생성은 한 트랜잭션이다. 날씨 덮어쓰기는 기존 Redis 저장소이므로 DB와 분산 트랜잭션은 아니다.
+9. GardenDemoSeeder는 기존 minji/B-14 외에 demo_owner_b13/B-13, demo_owner_b15/B-15를 준비한다. demo.enabled와 8자 이상의 DEMO_SEED_PASSWORD 조건을 유지하며 이미 분양되었거나 다른 관리사가 맡은 칸은 덮어쓰지 않는다. 세 칸이 모두 준비되어야 할 일 3곳이 가능하다.
+10. PUT /demo/weather는 세 시연 텃밭의 기존 생성기와 날씨 검증을 재사용한다. regeneratedTasks는 새 작업이 추가된 텃밭 수이며 기존 작업이 충분하면 0이다. 날씨에 맞지 않는 기존 작업은 화면과 완료 처리에서 제외된다.
+11. #14의 DemoVisitSeeder는 DEMO_ENABLED=true와 DEMO_SEED_VISIT_ENABLED=true일 때만 실행한다. 18일 뒤 이후 첫 토요일의 빈 슬롯에 기존 VisitService로 예약하고, 향후 31일 이내 같은 시연 텃밭 예약이 있으면 추가하지 않는다. 실제 예약 ID는 기존 vst_숫자 규칙이며 과거 날짜나 고정 ID를 강제로 넣지 않는다.
+12. prod는 db/manual/demo_simulation.sql을 먼저 적용해야 한다. 성장 일수 열, 시연 시작 단계 열, 작업 보관 번호와 유니크 키 교체를 포함한다. 신규 환경의 ddl-auto=update는 스키마를 생성하지만 기존 유니크 키 삭제는 수동 SQL이 필요하다.
+13. ./gradlew unitTest는 외부 DB 없는 검사다. 전체 test에는 기존 DB 컨텍스트 및 영속성 검사도 포함된다. 격리된 로컬 MariaDB와 Redis로 전체 테스트 262개, DB 없는 단위 테스트 258개와 build가 통과했다. 실제 HTTP에서 권한, 잘못된 일수, 세 텃밭, 비 예보, 9일 두 번의 진화, 중복 보상 방지, 반복 초기화, 보관 작업 거부와 이력 보존을 확인했다. 방문 시드는 재시작 후에도 한 건이었다. 운영 배포와 프론트 브라우저, 실제 사람 음성 검증과는 별개다.
+
+#### 남는 운영 조건
+
+1. 실제 농장의 칸, 관리사 방문 가능 시간과 실제 과거 기상 자료는 운영 데이터가 필요하다. 임의의 실농장 자료를 생성하지 않았다. 칸은 내부 관리 API로 넣을 수 있다 (문서 상단).
+2. 운영 스키마 적용, 인증키, HTTPS와 프론트 연동은 운영 환경에서 확인해야 한다.
+3. 실제 AI 공급자 (Gemini), 서버 TTS, AI 아바타는 이후 구현됐다. 사람 음성 품질과 실제 이미지 모델 호출 검증은 운영 환경에서 확인해야 한다.
+4. 초기화는 재시연을 위한 작업 회차와 성장 상태 초기화다. 사용자의 과거 기록과 보상까지 삭제하는 DB 전체 재적재는 수행하지 않는다.
+
+### PR #32 이후 마무리 구현
+
+CropGuidanceService가 실제 작물별 작업 지침을 읽고 내부 키 전용 API로 교체한다. 토마토 기본 지침의 내용은 용인시 농업기술센터를 참고하며 시간과 간격은 편성 기본 정책으로 구분한다. 저장한 빈 지침은 기본값을 끈 상태로 유지한다. GardenCareReader가 이 지침을 기존 AI 작업 생성과 최종 검증에 전달한다.
+
+DailyWeatherImportService는 출처가 있는 과거 일별 기온을 검증해 원자적으로 저장한다. 관측 일자료는 이후 예보 집계에서 보호한다. 가족 수와 보낸 하트를 사용자 응답에 연결하고 예약 인원 생략 시 가족 수를 사용한다. 프로필 등록 후 첫 작업은 커밋 뒤 모델 없이 초기화한다.
+
+compose.ai-workers.json은 Linux 동일 서버용 AI 작업자만 포함한다. 가상 계정이나 시연 DB는 없으며 host 네트워크에서 AI 서비스는 loopback에만 바인딩한다. 실제 서버 배포는 미실행이다. API, 운영 정책과 추가 스키마는 ai-completion.md와 db/manual/ai_completion.sql을 따른다.
+
+Gradle 테스트 JVM도 앱 시작과 같은 Asia/Seoul 시간대를 사용한다. Docker의 기본 UTC로 실행할 때 기상 API 시각 검사가 Z를 반환하던 환경 차이를 맞췄다. 기대값을 바꾸거나 테스트를 제외하지 않는다. 첫 통합 실행은 234개 중 233개 통과였으며, 실제 도메인 연결 검사와 두 애플리케이션 컨텍스트는 통과했다. 시간대 수정 뒤 전체 재실행 결과는 별도로 확인한다.
+
+### develop 6d8f52b 통합
+
+팀의 농장, 주인, 일기, 진화, 게임 코드를 보존해 작업 브랜치에 통합했다. GardenCareReader가 실제 텃밭과 소유권, 관리사, 작물 GDD 기준을 연결하고 변경 조회는 기존 트랜잭션의 실제 텃밭 행을 잠근다. 작업 지침 자료는 아직 연결하지 않아 안전한 CHECK 대체를 사용한다.
+
+StoredGardenCareLogReader가 관리사 돌봄 기록을 팀의 홈, 일기, 감사 하트에 연결한다. GardenCareLog와 운영 일기 DTO에 transcript를 추가해 정리문과 구분한다. 관리사 요약은 팀의 감사 하트 테이블을 읽는다. 농장과 관리사 프로필 조회도 실제 저장소에 연결했다.
+
+성장 계산은 GrowthProjection을 통해 실제 Garden의 단계, GDD와 예상 수확일을 갱신한다. 단계 상승은 팀의 EvolutionEventService를 호출하며 관리사 확인 응답에는 실제 주인 진화 이벤트 ID를 반환한다. 운영 알림도 그 서비스가 담당해 중복 전송하지 않는다. local-demo는 기존 격리 자료와 알림을 유지한다.
+
+운영 일기는 팀의 날짜 커서, REST_DAY, 감사 하트 기능을 유지한다. local-demo에서만 LocalSnapshotDiaryService와 별도 컨트롤러가 기존 dry_ 커서를 사용한다. 두 컨트롤러는 프로필로 분리해 같은 경로가 중복 등록되지 않는다. 역할 변경 시 주인과 관리사 모두 기존 프로필 등록 여부를 복구한다.
+
+통합 검사 결과는 build/reports/merge-verification.log와 JUnit XML에 기록한다. Docker Java 21의 전체 컴파일과 테스트, 로컬 시연 DB를 사용하는 contextLoads가 통과해야 머지 절차를 진행한다. 이전 핵심 78개 통과 결과와 새 통합 검사 결과를 구분한다.
+
+배포 우선순위와 실제 도메인 연결 조건은 ai-release.md에 정리했다. .env.prod.example은 기존 서버에서 Spring과 같은 네트워크 공간의 AI 작업자를 사용하는 설정 초안이다. 외부 제공자 API 키만으로 연결되는 구현은 없으며 서버 배치와 실제 텃밭 연결을 확정해야 배포할 수 있다. 운영용 Compose나 실제 서버 반영은 아직 수행하지 않았다.
+
+RUN-AI-EVALUATION.cmd는 evaluation 프로필의 일회성 컨테이너에서 기존 evaluateLocalAi Gradle 태스크를 실행한다. Java 실제 HTTP 클라이언트와 정리 서비스를 사용하며 DB 작업은 하지 않는다. 합성 입력별 원본 모델 응답을 local-ai-evaluation.json의 modelReplies에 함께 기록한다. 원본 응답이 없는 경우는 통신 단계 실패와 구분해 살펴본다. 일반 빌드나 테스트에서 이 모델 평가는 자동 실행하지 않는다.
+
+CHECK-LOCAL-LLM.cmd는 기존 진단 스크립트의 CheckLlm 모드로 Ollama 통신과 응답을 확인한다. 실제 Java 정리 프롬프트를 읽고 공개 합성 문장만 전송한다. 내부 AI 포트를 외부에 공개하지 않고 STT 컨테이너의 공유 네트워크를 이용한다. 진단 결과는 로컬 보고서에 기록하고 DB나 작업은 변경하지 않는다.
+
+STT 이미지는 faster-whisper 1.2.1과 PyAV 18 계열을 사용한다. PyAV 19에서 삭제된 metadata_errors 인자로 음성 해독이 실패하는 조합을 제외한다. 이미지 빌드 때 check_audio_decoder.py가 모델 다운로드 없이 생성한 PCM WAV를 실제 faster-whisper 해독기로 읽고 샘플 수를 확인한다. 실패하면 이미지 빌드도 중단한다. FIX-LOCAL-STT.cmd는 STT만 재빌드하고 교체한 뒤 상태와 한국어 합성 음성을 검사한다. 모델 볼륨과 DB는 보존하며 나머지 서비스는 재시작하지 않는다.
+
+로컬 STT 진단에는 `CHECK-LOCAL-STT.cmd`와 `scripts/diagnose-local-stt.ps1`을 사용한다. 기존 STT 컨테이너에서 공개 합성 음성으로 모델을 직접 실행하고 비밀번호나 사용자 녹음 없이 진단 보고서를 기록한다. 일반 Windows 계정의 Docker 접근 권한을 사용하며 작업 기록을 변경하지 않는다. 기본 서버 HTTP 검사와 실제 음성 처리 성공 여부는 별도로 기록한다. 합성 WAV는 `src/test/resources/ai-evaluation/`에 정답 문장과 생성 정보를 함께 보관한다.
+
+> 코드의 현재 상태를 그대로 기록한 문서다. 기능을 추가하거나 바꾸면 이 문서도 함께 갱신한다 ([development-guide.md](development-guide.md#문서-갱신-규칙)).
+>
+> 마지막 갱신: 2026-11-13, 원격 작업 브랜치 업로드 확인, Windows 사용자 실행용 설치와 시연 시작 도구 추가. 실제 모델과 DB 부팅, 전체 빌드는 미검증
+
+### 가족 일기와 로컬 시연 환경
+
+1. `diary` 패키지의 `DiaryListener`는 `CareCompleted`, `GrowthChanged` 이벤트를 원래 트랜잭션 안에서 수신한다. `DiaryEntry`에 원문, 확정 정리문, 사진, 단계와 원본 ID를 저장한다. 일기 저장 실패는 원래 완료 처리까지 롤백한다. `entry_type, source_id` 유니크 제약으로 원본을 한 번만 기록한다.
+2. `DiaryService`는 실제 텃밭 소유권 확인 후 `GET /gardens/{gardenId}/diary`를 반환한다. ALL, PHOTO, STAGE 필터, ID 내림차순 dry_ 커서, 1~50개 제한을 사용한다. 현재 페이지 돌봄의 하트 상태는 CareLog를 묶어서 조회한다. REST_DAY, 하트 보내기, 기존 기록의 이관은 미구현이다.
+3. 새 테이블은 `src/main/resources/db/manual/diary.sql`에 있다. 운영 DB에는 사전 검토와 적용이 필요하다. local-demo는 전용 MariaDB에서 ddl-auto=update로 준비한다.
+4. `demo/local`은 local-demo 프로필에만 등록된다. 가상 B14 텃밭, 농장, 주인 요약, 합성 기온을 제공한다. 사용자와 돌봄 기록은 실제 저장소를 쓴다. 단일 시연 텃밭의 변경 잠금은 전용 주인 사용자 행으로 직렬화한다. 운영용 텃밭 행 잠금의 대체 구현이 아니다.
+5. `LocalDemoSeeder`는 환경변수의 비밀번호로 전용 사용자 세 명과 관리사 프로필을 생성한다. 기존 계정의 역할이나 비밀번호가 다르면 덮어쓰지 않고 중단한다. 초기 성장 상승은 가족 일기도 만든다. 주인 등록 API의 첫 일기 자동 연결을 대신하지 않는다.
+6. `compose.local-demo.json`은 MariaDB, Redis, Ollama, faster-whisper, Spring을 구성한다. 모델 설치 작업이 완료된 뒤 서비스를 시작하며 backend와 stt는 ollama의 네트워크 공간을 사용한다. 기존 loopback 주소 검증을 완화하지 않는다. 호스트에는 127.0.0.1:8080만 공개하고 모델, DB, Redis 포트는 공개하지 않는다.
+7. `scripts/start-local-demo.ps1`은 무작위 설정을 한 번만 만들고 기존 설정과 볼륨을 유지한다. `scripts/smoke_local_demo.py`는 실행된 서버를 검사한다. 기본 검사는 음성과 완료를 not_tested로 표시하며, 실제 음성을 지정했을 때만 해당 흐름을 검사한다.
+8. `/local-demo`와 스크립트만 로그인 없이 볼 수 있다. 실제 API와 `/local-demo/status`는 토큰이 필요하다. 전용 HTML과 JS는 static 폴더 밖에 있어 프로필을 끄면 제공되지 않는다. 이 콘솔은 기능 검사 화면이며 팀 프론트를 대체하지 않는다.
+9. STT 모델의 필수 파일은 model.bin, config.json, tokenizer.json이다. 공식 base 모델에 없는 preprocessor_config.json은 선택 파일로 처리한다. 추론 시 자동 다운로드와 유료 API 전환은 없다. Qwen2.5 3B는 텍스트 전용이므로 기본 구성의 사진 검증은 null이다. TTS 공급자는 여전히 준비되지 않았다.
+10. Java 핵심 JUnit 77개, STT Python 23개, 시연 도구 Python 9개를 통과했다. 실제 Docker, 전체 Gradle 빌드, DB 쿼리와 잠금, 브라우저 녹음, 모델 추론은 작성 환경에서 검증하지 못했다. 상세 실행 절차는 [local-demo.md](local-demo.md)를 따른다.
+
+### 모델 평가와 시연 화면 보완
+
+1. evaluateLocalAi는 명시적으로 실행하는 JavaExec 작업이다. testClasses의 합성 원문 12개로 운영과 같은 VoiceMemoAnalysisService를 호출한다. 기본 test와 build에서는 모델을 호출하지 않는다. 모델과 주소는 기존 AI_LOCAL_MODEL, AI_LOCAL_BASE_URL을 사용하며 loopback과 cloud 이름 거부 정책도 같다.
+2. 평가기는 태그의 micro precision, recall, F1, 정확한 집합 일치, 대체 경로 수, p50과 p95 지연을 보고한다. 대체 결과는 모델 성공으로 세지 않는다. 결과가 하나라도 불일치하면 보고서를 저장하고 종료 코드 1을 반환한다. STT와 의미적 요약 품질은 평가하지 않으며 실제 점수는 아직 없다.
+3. Compose의 ai-evaluation은 evaluation 프로필을 선택해야 실행된다. 모델 서버와 네트워크 공간을 공유하고 호스트에는 별도 포트를 열지 않는다. 결과만 build/reports에 기록하며 사용자 DB와 음성 파일을 수정하지 않는다.
+4. 시연 콘솔은 계정별 토큰을 메모리에서 관리한다. 401이면 계정별 갱신 요청을 공유하고 원래 요청을 한 번만 다시 보낸다. 403과 네트워크 오류는 자동 재전송하지 않는다. 새 음성을 선택한 상태에서 이전 메모로 완료하지 못하게 검사한다.
+5. 원문에서 추출된 이상 징후를 한글 문구로 표시하며 수정 확정 시 오래된 태그를 지운다. 읽어주기는 브라우저 speechSynthesis이고 서버 TTS와 별개다. 마이크 권한 대기 중 작업이 바뀌면 받은 스트림을 종료한다. 기본 자동 녹음은 59초로 인코딩 여유를 둔다.
+6. 음성 처리 유효 시간은 HTTP 읽기 제한의 2배 + 30초이고 최소 2분이다. 기본 30초 설정은 2분, local-demo의 90초 설정은 3분 30초다. STT 다음 LLM을 기다리는 정상 요청을 먼저 만료시키지 않도록 한다. 재시도와 늦은 결과의 토큰 검사는 유지한다.
+7. 핵심 JUnit 77개, Python 32개, Node 시연 로직 10개가 통과했다. Node는 DOM과 fetch 대역 검사이며 실제 마이크와 브라우저 화면 검사와 다르다. 운영 DB, 모델, 전체 Gradle 빌드는 미검증이다. 팀 전달 기준과 남은 항목은 [ai-handoff.md](ai-handoff.md)를 따른다.
+
+### 방문 예약 동시 요청 보완
+
+1. VisitBookingDay는 farm_id와 visit_date의 유니크 행이다. 예약이 없는 날에도 직렬화할 대상을 만들며, 기존 예약 자료를 이관하거나 정원 수를 복사하지 않는다. 수동 스키마는 db/manual/visit_booking_day.sql이다.
+2. VisitService.reserve는 기존 소유권, 슬롯, 중복 검증 후 VisitCapacityGuard를 호출한다. 같은 트랜잭션 안에서 날짜 행을 upsert하고 잠근 뒤, 현재 RESERVED 방문 ID를 FOR UPDATE로 조회해 두 가족 정원을 확인한다. 실제 예약과 알림 저장이 끝날 때까지 잠금을 유지한다. 이전 스냅샷의 일반 count 결과에 의존하지 않는다.
+3. 취소는 VisitRepository.findByIdForUpdate로 예약 행을 잠근 후 소유권, 취소 상태, 기한을 확인한다. 두 취소가 같은 예약을 읽고 알림을 각각 보내는 경로를 막는다. 이미 취소된 예약은 기존 C4095 응답을 유지한다.
+4. 관련 DB는 InnoDB와 실제 트랜잭션을 사용해야 한다. 정원 보장을 검증하려면 같은 농장의 서로 다른 텃밭으로 마지막 자리의 경쟁 요청, 새 날짜 동시 생성, 취소와 예약 경쟁을 실행해야 한다. 실제 DB 검사는 아직 수행하지 않았다. 기존 날짜 유니크 제약은 그대로 유지한다.
+5. 로컬 시연 화면에서 가족 토큰으로 방문 시간 조회, 1명 예약, 이번 화면의 예약 취소를 호출한다. 성공 응답의 예약 ID를 메모리에 보관하며 새로고침 후 예약 이력 조회는 제공하지 않는다. 취소 응답을 놓친 뒤 재시도해 C4095를 받으면 이미 취소된 화면으로 복구한다. 예약 생성 응답 유실의 멱등 처리는 별도 남은 항목이다.
+6. 시연 수확 조회의 돌봄 수는 CareLogRepository.countByGardenId로 실제 완료 수를 반환한다. 시연용 고정 0을 쓰지 않는다.
+7. 핵심 JUnit 77개, Python 32개, Node 화면 로직 10개가 통과했다. 예약 정원 경계 검사 3개는 저장소 대역을 사용한다. UserService와 보안 의존성까지 필요한 VisitServiceTest는 이 환경의 부분 클래스패스 검사에 포함되지 않았다. 전체 Gradle 빌드와 실제 DB 검증이 필요하다.
+
+MariaDB 잠금 참고: https://mariadb.com/docs/server/reference/sql-statements/data-manipulation/selecting-data/for-update
+
+### 음성 초안 롤백과 파일 보존
+
+1. FileStorage에 deleteAudio를 추가하고 LocalFileStorage가 자신의 base URL과 voice-memos 아래의 UUID 음성 파일만 처리한다. 다른 디렉터리, 외부 URL, 경로 이동, 심볼릭 링크와 디렉터리 삭제를 거부한다. 재시도 읽기에도 같은 경로 검증을 사용한다.
+2. VoiceMemoStore.createPending은 초안 검증과 DB 저장 전에 FileUploadService.deleteAudioOnRollback으로 Spring 트랜잭션 완료 콜백을 등록한다. 확실한 ROLLED_BACK일 때만 새 음성을 삭제한다. 정상 커밋과 UNKNOWN 결과에서는 보존하며 처리 결과 저장과 재시도에는 삭제 콜백을 등록하지 않는다.
+3. 삭제 실패는 로그에 남기고 원래 비즈니스 오류를 유지한다. 실제 트랜잭션이 없는 직접 호출에서는 삭제하지 않는다. 파일 복사 도중의 부분 파일이나 사진 DB 저장 실패의 정리는 이 변경 범위가 아니다.
+4. Python STT 작업 서버는 PyAV InvalidDataError를 잘못된 음성으로 구분해 HTTP 400을 반환한다. Java는 INVALID_AUDIO로 저장하며 같은 깨진 파일의 재시도를 권하지 않는다. 일반 모델 내부 오류는 503을 유지한다. 실제 코덱 시험은 아직 하지 않았다.
+5. 핵심 JUnit 77개, STT Python 23개, 도구 Python 9개, Node 화면 로직 10개가 통과했다. Spring 트랜잭션 완료 콜백과 로컬 파일 삭제는 실제 라이브러리 및 임시 파일로 검사했으며 DB 커밋 자체는 대역이다. 모델, HTTP 인증과 MariaDB의 전체 통합 검사는 남아 있다.
+6. AI 역할 설명, 2분 시연 준비와 예상 질문 답변은 [ai-presentation.md](ai-presentation.md)에 정리했다. 자체 학습, 모델 성능, 사진 판별, 서버 TTS의 미구현 범위를 구분하며 실제 측정 전 점수나 응답 시간을 주장하지 않는다.
+
+### 사용자 PC의 실행 준비 도구
+
+1. 사용자 fetch와 push 뒤 origin/feat/seungyoon-ai가 f16edaf와 일치하는 것을 확인했다. origin/develop은 기준 커밋 0f025dc와 같고 main과 develop에는 병합하지 않았다. 이후 설치 도구 변경은 별도 커밋이다.
+2. RUN-LOCAL-DEMO.cmd는 setup-local-demo.ps1을 실행한다. 지정한 저장소의 깨끗한 feat/seungyoon-ai일 때만 명시적 브랜치 push를 시도하고 설치와 로컬 실행을 이어간다. 새 체크아웃, 병합, 강제 push나 볼륨 삭제를 수행하지 않는다.
+3. 설치는 공식 Docker 다운로드와 Authenticode의 유효한 Docker 서명을 확인한 뒤 per-user 모드로 수행한다. 기존 Docker가 있으면 설치하지 않는다. PATH 변경은 현재 프로세스에만 적용하며 시스템 재시작은 요청하지 않는다. WSL이나 운영체제 승인 단계는 사용자가 완료해야 한다.
+4. CheckOnly는 다운로드, 설치, Git 쓰기와 서비스 실행을 하지 않는다. PowerShell의 구문과 가짜 서명, 브랜치, 원격, dirty 상태, 업로드 실패, 엔진 준비 상태를 검사했다. 실제 설치는 이 작성 환경에서 실행하지 않았다. WSL 상태 조회도 E_ACCESSDENIED로 차단되어 있다.
+5. 세부 절차는 local-demo.md를 따른다. 설치 도구 준비가 실제 모델, DB, 전체 빌드와 시연의 성공을 의미하지 않는다. 코드 검사 결과 77개와 Python 32개, Node 10개는 이전과 같다.
+
+### 실행 검사 결과 파일
+
+smoke_local_demo.py는 실제 실행 시 build/reports/local-demo-smoke.json을 원자적으로 교체한다. 시작은 running, 성공은 passed와 실제 검사 결과, 실패는 failed와 예외 종류만 저장한다. 이전 성공을 새 실패로 잘못 판단하지 않도록 시각을 함께 기록하며, 비밀번호와 토큰, 발언, 예외 원문은 저장하지 않는다. 기본 검사의 voice와 completion은 not_tested를 유지한다. 이 보고서 기능 검사 2개가 추가되어 Python은 STT 23개와 도구 9개가 통과했다. 실제 서버 보고서는 아직 생성되지 않았다.
 
 
-## 2 CPU, 2 GB 서버 AI
-
-`AI_GEMINI_ENABLED=true`이면 STT, LLM과 사진 판정을 Gemini API로 처리한다. 프론트 API와 실패 복구 흐름은 유지한다. TTS는 앱 이미지의 eSpeak NG와 FFmpeg로 처리하며 Ollama, Whisper와 별도 TTS 작업자를 실행하지 않는다. Cloud Billing을 연결하지 않은 무료 프로젝트의 서버용 키를 사용하며 유료 모델로 자동 전환하지 않는다. 설정, 한도와 데이터 처리는 [cloud-ai.md](cloud-ai.md)를 참고한다. 모의 테스트로 실제 인식 품질이나 운영 부하 검증을 대신하지 않는다.
-
-
-### 클라우드 AI 명시적 검증
-
-`verifyCloudAi` Gradle 작업과 `scripts/verify-cloud-ai.ps1`은 공개 합성 음성과 체크섬이 고정된 공개 사진으로 실제 Gemini를 검사한다. 기본 test와 build에서는 이 외부 호출 작업을 실행하지 않는다. STT 4종, 문장 정리, 성장 설명, 사진과 경량 TTS를 검증하며 메모 확정의 저장소 대역 검사와 운영 DB 검증을 구분한다. 실패는 비정상 종료와 JSON 결과로 남긴다. 자세한 입력과 결과 범위는 [cloud-ai.md](cloud-ai.md)를 따른다.
-
-
-공개 음성 기준은 같은 경로의 synthetic-korean-reference.txt를 사용한다. 검증은 기준 문장에 없는 단어를 필수로 요구하지 않으며 인식 원문을 검사 성공 여부와 무관하게 결과에 기록한다.
-
-
-STT에는 템플릿 정답 문장 대신 텃밭 관리 녹음이라는 도메인 맥락을 제공한다. 잎과 흙 같은 동음이의어 해석을 돕되 실제 발화에 없는 작업이나 상태를 추가하지 않도록 지시한다. 인식 후 단어를 강제 치환하지 않는다. 요약 검사는 정확도 검사를 통과한 형식의 원문을 사용하며 선택한 형식을 결과에 남긴다. 다른 형식의 실패는 그대로 전체 실패로 처리한다.
+STT의 Docker build context는 local-ai 폴더이므로 해당 폴더에도 .dockerignore를 둔다. 호스트 가상환경, 모델, 캐시와 환경변수 파일을 빌드 컨텍스트로 보내지 않는다. 실제 모델 파일은 전용 Docker 볼륨의 명시적 초기화 작업으로 준비한다.
