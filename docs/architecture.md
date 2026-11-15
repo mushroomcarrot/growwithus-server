@@ -1299,6 +1299,9 @@ ADMIN은 RoleHierarchy로 USER, OWNER, CARETAKER 권한을 갖는다. SYSTEM은 
 | `FarmSyncScheduler` | 매주 월 03:00 | `FarmSyncService.sync` | `POST /internal/farms/sync` |
 | `GameScheduler.checkStreaks` | 매일 00:05 | `StreakService.check` | `POST /internal/streaks/check` |
 | `GameScheduler.settleLeagues` | 매주 월 00:10 | `LeagueSettleService.settle` | `POST /internal/leagues/settle` |
+| `GameScheduler.remindStreaks` | 매일 20:00 | `StreakService.remind` | `POST /internal/streaks/remind` |
+| `GrowthScheduler` | 매일 04:00 | `GrowthBatchService.run` | `POST /internal/ai/growth-simulation` |
+| `DailyTaskScheduler` | 매일 05:00 | `TaskGenerationService.generateAll` | `POST /internal/ai/daily-tasks` |
 
 ### 알림 (`NotificationService.send`)
 
