@@ -466,6 +466,7 @@ Refresh Token도 새로 발급하고 이전 토큰은 무효가 된다. 에러: 
       "hearted": false,
       "createdAt": "2026-11-10T10:21:00+09:00"
     },
+    { "type": "REST_DAY", "date": "2026-11-09", "message": "오늘은 쉬는 날이었어요" },
     {
       "diaryId": "dry_11",
       "type": "STAGE_CHANGE",
