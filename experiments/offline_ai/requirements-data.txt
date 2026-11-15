@@ -1,0 +1,2 @@
+# Optional local workbook conversion only. Never install in the service image.
+openpyxl==3.1.5

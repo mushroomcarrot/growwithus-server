@@ -1,0 +1,2 @@
+# Keep aggregate CSV fingerprints reproducible on Windows and Linux.
+results/**/*.csv text eol=lf

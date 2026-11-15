@@ -1,0 +1,672 @@
+{
+  "provenance": {
+    "data_kind": "public-aggregate",
+    "reference_date": "2026-10-31",
+    "source_urls": [
+      "https://www.yongin.go.kr/component/file/ND_fileDownload.do?q_fileId=693c5488-9c9f-4974-82c1-d306e3b0561a&q_fileSn=525802",
+      "https://www.yongin.go.kr/component/file/ND_fileDownload.do?q_fileId=211a4a72-b3b9-4c58-8425-19c954b05174&q_fileSn=525802"
+    ],
+    "input_sha256": "5f8cf4adb8fe6fadf39d2a472ab376b07c0f062c9f1299cada7f56572edc472a",
+    "source_files": [
+      {
+        "kind": "population",
+        "url": "https://www.yongin.go.kr/component/file/ND_fileDownload.do?q_fileId=693c5488-9c9f-4974-82c1-d306e3b0561a&q_fileSn=525802",
+        "sha256": "37f802c3282833afe45a7743441ef8a9703012342b7cb0c63195f2685a6d3d93"
+      },
+      {
+        "kind": "ages",
+        "url": "https://www.yongin.go.kr/component/file/ND_fileDownload.do?q_fileId=211a4a72-b3b9-4c58-8425-19c954b05174&q_fileSn=525802",
+        "sha256": "24252c2ff1415096e538bc777fd2578978dfbeb6731c2e96d2f1b9f3a2908442"
+      }
+    ]
+  },
+  "limitations": [
+    "Describes aggregate demographic similarity, not individual preferences or service demand.",
+    "Cluster count is configured, not a discovered ground truth.",
+    "Source period, resident definition and district boundaries must match before training.",
+    "The published k=3 result is configured; the k comparison does not establish service usefulness."
+  ],
+  "model": {
+    "schema_version": 1,
+    "algorithm": "k-means++",
+    "seed": 42,
+    "restarts": 10,
+    "k": 3,
+    "features": [
+      "children_share",
+      "seniors_share",
+      "residents_per_household"
+    ],
+    "means": [
+      0.11004189406770155,
+      0.18960150441997653,
+      2.3831644561476146
+    ],
+    "scales": [
+      0.03113237602047535,
+      0.0561047496532143,
+      0.28967788679358814
+    ],
+    "centers": [
+      [
+        -2.2829317232849102,
+        3.3363030269546057,
+        -1.924866782152881
+      ],
+      [
+        -0.6306383299198521,
+        0.21610476025935305,
+        -0.5338306860602815
+      ],
+      [
+        0.8377554413224814,
+        -0.5559206178198719,
+        0.7083518901784659
+      ]
+    ]
+  },
+  "metrics": {
+    "inertia": 35.03528241618757,
+    "silhouette": 0.4224327575905785,
+    "iterations": 5,
+    "sample_count": 39
+  },
+  "clusters": [
+    {
+      "cluster": 0,
+      "size": 2,
+      "centroid": {
+        "children_share": 0.038968805229323944,
+        "seniors_share": 0.37678395051452573,
+        "residents_per_household": 1.825573114334394
+      }
+    },
+    {
+      "cluster": 1,
+      "size": 18,
+      "centroid": {
+        "children_share": 0.09040862444771212,
+        "seniors_share": 0.20172600789319542,
+        "residents_per_household": 2.2285255111041007
+      }
+    },
+    {
+      "cluster": 2,
+      "size": 19,
+      "centroid": {
+        "children_share": 0.13612321148015233,
+        "seniors_share": 0.1584117173301324,
+        "residents_per_household": 2.5883583348007564
+      }
+    }
+  ],
+  "regions": [
+    {
+      "region": "기흥구/구갈동",
+      "population": 39827,
+      "households": 18170,
+      "age_0_14": 4204,
+      "age_65_plus": 5745,
+      "cluster": 1,
+      "features": {
+        "children_share": 0.10555653200090391,
+        "seniors_share": 0.14424887639038844,
+        "residents_per_household": 2.1919097413318656
+      }
+    },
+    {
+      "region": "기흥구/구성동",
+      "population": 38157,
+      "households": 15369,
+      "age_0_14": 3660,
+      "age_65_plus": 8845,
+      "cluster": 1,
+      "features": {
+        "children_share": 0.09591949052598475,
+        "seniors_share": 0.23180543543779647,
+        "residents_per_household": 2.482724965840328
+      }
+    },
+    {
+      "region": "기흥구/기흥동",
+      "population": 20693,
+      "households": 9160,
+      "age_0_14": 1776,
+      "age_65_plus": 4626,
+      "cluster": 1,
+      "features": {
+        "children_share": 0.08582612477649447,
+        "seniors_share": 0.2235538587928285,
+        "residents_per_household": 2.259061135371179
+      }
+    },
+    {
+      "region": "기흥구/동백1동",
+      "population": 30792,
+      "households": 11698,
+      "age_0_14": 3950,
+      "age_65_plus": 4466,
+      "cluster": 2,
+      "features": {
+        "children_share": 0.12828007274616784,
+        "seniors_share": 0.14503767212262925,
+        "residents_per_household": 2.6322448281757564
+      }
+    },
+    {
+      "region": "기흥구/동백2동",
+      "population": 25880,
+      "households": 9428,
+      "age_0_14": 2984,
+      "age_65_plus": 3882,
+      "cluster": 2,
+      "features": {
+        "children_share": 0.11530139103554869,
+        "seniors_share": 0.15,
+        "residents_per_household": 2.745014849384811
+      }
+    },
+    {
+      "region": "기흥구/동백3동",
+      "population": 27777,
+      "households": 10582,
+      "age_0_14": 4186,
+      "age_65_plus": 4870,
+      "cluster": 2,
+      "features": {
+        "children_share": 0.15070021960614896,
+        "seniors_share": 0.17532490909745474,
+        "residents_per_household": 2.624929124929125
+      }
+    },
+    {
+      "region": "기흥구/마북동",
+      "population": 33556,
+      "households": 13172,
+      "age_0_14": 3306,
+      "age_65_plus": 7286,
+      "cluster": 1,
+      "features": {
+        "children_share": 0.09852187388246514,
+        "seniors_share": 0.2171295744427226,
+        "residents_per_household": 2.5475250531430307
+      }
+    },
+    {
+      "region": "기흥구/보라동",
+      "population": 32348,
+      "households": 12607,
+      "age_0_14": 3430,
+      "age_65_plus": 6228,
+      "cluster": 2,
+      "features": {
+        "children_share": 0.10603437615926796,
+        "seniors_share": 0.19253122295041425,
+        "residents_per_household": 2.5658761005790436
+      }
+    },
+    {
+      "region": "기흥구/보정동",
+      "population": 36144,
+      "households": 13639,
+      "age_0_14": 4413,
+      "age_65_plus": 6484,
+      "cluster": 2,
+      "features": {
+        "children_share": 0.12209495351925631,
+        "seniors_share": 0.17939353696325808,
+        "residents_per_household": 2.6500476574528924
+      }
+    },
+    {
+      "region": "기흥구/상갈동",
+      "population": 12437,
+      "households": 6201,
+      "age_0_14": 928,
+      "age_65_plus": 2469,
+      "cluster": 1,
+      "features": {
+        "children_share": 0.07461606496743588,
+        "seniors_share": 0.19852054353943877,
+        "residents_per_household": 2.00564425092727
+      }
+    },
+    {
+      "region": "기흥구/상하동",
+      "population": 22671,
+      "households": 9143,
+      "age_0_14": 1927,
+      "age_65_plus": 4943,
+      "cluster": 1,
+      "features": {
+        "children_share": 0.08499845617749548,
+        "seniors_share": 0.21803184685280755,
+        "residents_per_household": 2.479601881220606
+      }
+    },
+    {
+      "region": "기흥구/서농동",
+      "population": 24418,
+      "households": 10979,
+      "age_0_14": 3326,
+      "age_65_plus": 2942,
+      "cluster": 2,
+      "features": {
+        "children_share": 0.1362109918912278,
+        "seniors_share": 0.12048488819723155,
+        "residents_per_household": 2.2240641224155207
+      }
+    },
+    {
+      "region": "기흥구/신갈동",
+      "population": 36008,
+      "households": 16093,
+      "age_0_14": 3497,
+      "age_65_plus": 6864,
+      "cluster": 1,
+      "features": {
+        "children_share": 0.09711730726505222,
+        "seniors_share": 0.19062430570984226,
+        "residents_per_household": 2.2374945628534144
+      }
+    },
+    {
+      "region": "기흥구/영덕1동",
+      "population": 34397,
+      "households": 13923,
+      "age_0_14": 4409,
+      "age_65_plus": 4667,
+      "cluster": 2,
+      "features": {
+        "children_share": 0.12817978312062098,
+        "seniors_share": 0.13568043724743437,
+        "residents_per_household": 2.4705164116928824
+      }
+    },
+    {
+      "region": "기흥구/영덕2동",
+      "population": 19095,
+      "households": 7987,
+      "age_0_14": 2497,
+      "age_65_plus": 3139,
+      "cluster": 2,
+      "features": {
+        "children_share": 0.13076721654883477,
+        "seniors_share": 0.1643885833987955,
+        "residents_per_household": 2.390759984975585
+      }
+    },
+    {
+      "region": "수지구/동천동",
+      "population": 50729,
+      "households": 19799,
+      "age_0_14": 7385,
+      "age_65_plus": 8050,
+      "cluster": 2,
+      "features": {
+        "children_share": 0.14557748033669105,
+        "seniors_share": 0.15868635297364428,
+        "residents_per_household": 2.562200111116723
+      }
+    },
+    {
+      "region": "수지구/상현1동",
+      "population": 19570,
+      "households": 6517,
+      "age_0_14": 2987,
+      "age_65_plus": 3113,
+      "cluster": 2,
+      "features": {
+        "children_share": 0.15263157894736842,
+        "seniors_share": 0.15907000510986202,
+        "residents_per_household": 3.002915451895044
+      }
+    },
+    {
+      "region": "수지구/상현2동",
+      "population": 32341,
+      "households": 11409,
+      "age_0_14": 4565,
+      "age_65_plus": 5610,
+      "cluster": 2,
+      "features": {
+        "children_share": 0.14115209795615472,
+        "seniors_share": 0.17346402399431063,
+        "residents_per_household": 2.8346919098956964
+      }
+    },
+    {
+      "region": "수지구/상현3동",
+      "population": 27017,
+      "households": 11064,
+      "age_0_14": 3539,
+      "age_65_plus": 3836,
+      "cluster": 2,
+      "features": {
+        "children_share": 0.13099159788281453,
+        "seniors_share": 0.14198467631491282,
+        "residents_per_household": 2.441883586406363
+      }
+    },
+    {
+      "region": "수지구/성복동",
+      "population": 54519,
+      "households": 18813,
+      "age_0_14": 7804,
+      "age_65_plus": 10513,
+      "cluster": 2,
+      "features": {
+        "children_share": 0.14314275757075515,
+        "seniors_share": 0.19283185678387352,
+        "residents_per_household": 2.897942911816297
+      }
+    },
+    {
+      "region": "수지구/신봉동",
+      "population": 40915,
+      "households": 14785,
+      "age_0_14": 5461,
+      "age_65_plus": 7015,
+      "cluster": 2,
+      "features": {
+        "children_share": 0.13347183184651107,
+        "seniors_share": 0.1714530123426616,
+        "residents_per_household": 2.767331755157254
+      }
+    },
+    {
+      "region": "수지구/죽전1동",
+      "population": 28752,
+      "households": 11106,
+      "age_0_14": 3169,
+      "age_65_plus": 5410,
+      "cluster": 2,
+      "features": {
+        "children_share": 0.11021841958820255,
+        "seniors_share": 0.18816082359488034,
+        "residents_per_household": 2.588870880605078
+      }
+    },
+    {
+      "region": "수지구/죽전2동",
+      "population": 16909,
+      "households": 7090,
+      "age_0_14": 1653,
+      "age_65_plus": 2981,
+      "cluster": 1,
+      "features": {
+        "children_share": 0.09775859009994678,
+        "seniors_share": 0.17629664675616535,
+        "residents_per_household": 2.38490832157969
+      }
+    },
+    {
+      "region": "수지구/죽전3동",
+      "population": 26323,
+      "households": 11124,
+      "age_0_14": 2853,
+      "age_65_plus": 4323,
+      "cluster": 1,
+      "features": {
+        "children_share": 0.1083843027010599,
+        "seniors_share": 0.1642290012536565,
+        "residents_per_household": 2.3663250629270047
+      }
+    },
+    {
+      "region": "수지구/풍덕천1동",
+      "population": 29995,
+      "households": 13543,
+      "age_0_14": 3163,
+      "age_65_plus": 5230,
+      "cluster": 1,
+      "features": {
+        "children_share": 0.10545090848474746,
+        "seniors_share": 0.1743623937322887,
+        "residents_per_household": 2.2147973122646385
+      }
+    },
+    {
+      "region": "수지구/풍덕천2동",
+      "population": 41141,
+      "households": 15408,
+      "age_0_14": 6878,
+      "age_65_plus": 4429,
+      "cluster": 2,
+      "features": {
+        "children_share": 0.16718115748280304,
+        "seniors_share": 0.10765416494494544,
+        "residents_per_household": 2.670106438213915
+      }
+    },
+    {
+      "region": "처인구/남사읍",
+      "population": 23446,
+      "households": 9945,
+      "age_0_14": 3747,
+      "age_65_plus": 4724,
+      "cluster": 2,
+      "features": {
+        "children_share": 0.15981404077454575,
+        "seniors_share": 0.201484261707754,
+        "residents_per_household": 2.357566616390146
+      }
+    },
+    {
+      "region": "처인구/동부동",
+      "population": 12290,
+      "households": 6151,
+      "age_0_14": 783,
+      "age_65_plus": 3285,
+      "cluster": 1,
+      "features": {
+        "children_share": 0.06371033360455655,
+        "seniors_share": 0.2672904800650936,
+        "residents_per_household": 1.99804909770769
+      }
+    },
+    {
+      "region": "처인구/모현읍",
+      "population": 34798,
+      "households": 16047,
+      "age_0_14": 3846,
+      "age_65_plus": 6793,
+      "cluster": 1,
+      "features": {
+        "children_share": 0.11052359330996034,
+        "seniors_share": 0.19521236852692683,
+        "residents_per_household": 2.1685050165139903
+      }
+    },
+    {
+      "region": "처인구/백암면",
+      "population": 7580,
+      "households": 4186,
+      "age_0_14": 257,
+      "age_65_plus": 3017,
+      "cluster": 0,
+      "features": {
+        "children_share": 0.03390501319261214,
+        "seniors_share": 0.39802110817941955,
+        "residents_per_household": 1.8107978977544195
+      }
+    },
+    {
+      "region": "처인구/삼가동",
+      "population": 16480,
+      "households": 6705,
+      "age_0_14": 1502,
+      "age_65_plus": 2781,
+      "cluster": 1,
+      "features": {
+        "children_share": 0.09114077669902913,
+        "seniors_share": 0.16875,
+        "residents_per_household": 2.4578672632363907
+      }
+    },
+    {
+      "region": "처인구/양지읍",
+      "population": 21958,
+      "households": 10656,
+      "age_0_14": 1883,
+      "age_65_plus": 4594,
+      "cluster": 1,
+      "features": {
+        "children_share": 0.08575462246106202,
+        "seniors_share": 0.20921759723107752,
+        "residents_per_household": 2.060623123123123
+      }
+    },
+    {
+      "region": "처인구/역북동",
+      "population": 34641,
+      "households": 15845,
+      "age_0_14": 4514,
+      "age_65_plus": 4564,
+      "cluster": 2,
+      "features": {
+        "children_share": 0.1303080165122254,
+        "seniors_share": 0.13175139285817383,
+        "residents_per_household": 2.186241716629852
+      }
+    },
+    {
+      "region": "처인구/원삼면",
+      "population": 7608,
+      "households": 4134,
+      "age_0_14": 335,
+      "age_65_plus": 2705,
+      "cluster": 0,
+      "features": {
+        "children_share": 0.04403259726603575,
+        "seniors_share": 0.355546792849632,
+        "residents_per_household": 1.8403483309143687
+      }
+    },
+    {
+      "region": "처인구/유림1동",
+      "population": 13644,
+      "households": 6751,
+      "age_0_14": 1137,
+      "age_65_plus": 2599,
+      "cluster": 1,
+      "features": {
+        "children_share": 0.08333333333333333,
+        "seniors_share": 0.1904866608032835,
+        "residents_per_household": 2.0210339209006074
+      }
+    },
+    {
+      "region": "처인구/유림2동",
+      "population": 38384,
+      "households": 14961,
+      "age_0_14": 5922,
+      "age_65_plus": 4623,
+      "cluster": 2,
+      "features": {
+        "children_share": 0.15428303459774906,
+        "seniors_share": 0.12044080867027929,
+        "residents_per_household": 2.5656039034823874
+      }
+    },
+    {
+      "region": "처인구/이동읍",
+      "population": 18431,
+      "households": 8750,
+      "age_0_14": 1433,
+      "age_65_plus": 4803,
+      "cluster": 1,
+      "features": {
+        "children_share": 0.07774944387173784,
+        "seniors_share": 0.2605935651890836,
+        "residents_per_household": 2.1064
+      }
+    },
+    {
+      "region": "처인구/중앙동",
+      "population": 26591,
+      "households": 13591,
+      "age_0_14": 2245,
+      "age_65_plus": 5348,
+      "cluster": 1,
+      "features": {
+        "children_share": 0.08442706178782294,
+        "seniors_share": 0.20112067992929938,
+        "residents_per_household": 1.9565153410345082
+      }
+    },
+    {
+      "region": "처인구/포곡읍",
+      "population": 31058,
+      "households": 14283,
+      "age_0_14": 2378,
+      "age_65_plus": 6199,
+      "cluster": 1,
+      "features": {
+        "children_share": 0.07656642410973018,
+        "seniors_share": 0.1995943074248181,
+        "residents_per_household": 2.1744731498984806
+      }
+    }
+  ],
+  "validation": {
+    "resident_definition": "domestic-registered-residents",
+    "region_count": 39,
+    "city_population": 1089320,
+    "city_households": 450814,
+    "city_children_0_14": 127932,
+    "city_seniors_65_plus": 194001,
+    "single_year_age_rows": 101,
+    "city_and_district_sums_match": true,
+    "ignored_unnamed_age_columns": [
+      "AS",
+      "AT",
+      "AU",
+      "AV",
+      "AW",
+      "AX",
+      "AY",
+      "AZ",
+      "BA",
+      "BB",
+      "BC",
+      "BD",
+      "BE",
+      "BF",
+      "BG",
+      "BH",
+      "BI"
+    ],
+    "age_summary_rows_used": false
+  },
+  "cluster_count_comparison": [
+    {
+      "k": 2,
+      "inertia": 59.1052353975089,
+      "silhouette": 0.40415121099976314,
+      "iterations": 2,
+      "sample_count": 39
+    },
+    {
+      "k": 3,
+      "inertia": 35.03528241618757,
+      "silhouette": 0.4224327575905785,
+      "iterations": 5,
+      "sample_count": 39
+    },
+    {
+      "k": 4,
+      "inertia": 26.088019169979923,
+      "silhouette": 0.34589073943385923,
+      "iterations": 2,
+      "sample_count": 39
+    },
+    {
+      "k": 5,
+      "inertia": 19.41645648168882,
+      "silhouette": 0.34151044394720603,
+      "iterations": 6,
+      "sample_count": 39
+    }
+  ]
+}
