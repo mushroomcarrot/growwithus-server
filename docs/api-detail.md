@@ -476,7 +476,7 @@ Refresh Token도 새로 발급하고 이전 토큰은 무효가 된다. 에러: 
       "createdAt": "2026-11-05T09:00:00+09:00"
     }
   ],
-  "nextCursor": "dry_11"
+  "nextCursor": "2026-11-05"
 }
 ```
 
