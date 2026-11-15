@@ -1747,6 +1747,25 @@ XP, 스트릭, 보상처럼 값을 읽고 고치는 API는 텃밭 행을 잠그�
 | `UserBadge` | `id`, `user`, `badge`, `acquiredAt`. 유니크: `user_id`, `badge_id` |
 | `GardenQuiz` | `id`, `garden`, `quizDate`, `bankIndex` (`QuizBank`에서의 순번), `choiceIndex` (안 풀었으면 `null`), `correct`, `answeredAt`. 유니크: `garden_id`, `quiz_date` |
 
+### 관리사, 작업, 음성, 성장 테이블
+
+| 테이블 | 엔티티 | 내용 |
+| --- | --- | --- |
+| `caretaker_profile` | `CaretakerProfile` | 사용자 (유니크), 성함, 소속 농장, 아바타 URL, 초상권 동의 여부와 시각 |
+| `caretaker_avatar_job` | `AvatarJob` | 아바타 생성 작업. 로그인 아이디, 상태 (PENDING, DONE, FAILED), 만든 그림 URL, 요청과 종료 시각 |
+| `care_task` | `Task` | 텃밭, 관리사, 날짜, 종류, 제목, 설명, 예상 분, 지침 출처, 상태 (TODO, DONE), 돌봄 기록, 보관 번호. 유니크 (텃밭, 날짜, 종류, 보관 번호) |
+| `care_task_day` | `TaskDay` | 관리사와 날짜마다 한 행. 하루 120분 검사의 잠금 대상 |
+| `care_task_photo` | `TaskPhoto` | 작업 인증 사진과 AI 확인 결과 |
+| `care_log` | `CareLog` | 텃밭, 작업 (유니크), 관리사, 주인, 사진, 음성 메모, 원문, 정리문, 받은 하트 |
+| `voice_memo` | `VoiceMemo` | 작업, 관리사, 음성 URL, 원문, 요약, 이상 징후 코드, 대체 처리 여부, 상태와 처리 상태 |
+| `garden_growth_state` | `GrowthState` | 텃밭마다 한 행. 단계, 누적 GDD, 진행률, 수확 예정일, 관찰 보정, 시연 일수와 시작 단계 |
+| `growth_event` | `GrowthEvent` | 성장 계산이 남기는 단계 변화 기록 (주인에게 보이는 이벤트는 `evolution_event`) |
+| `crop_guidance_settings` | `CropGuidanceSettings` | 작물별 작업 지침 (JSON) |
+| `diary_entry` | `DiaryEntry` | local-demo의 일기 스냅샷 |
+| `visit_booking_day` | `VisitBookingDay` | 방문 예약 정원 검사의 날짜 잠금 행 |
+
+prod는 `ddl-auto`가 `validate`이므로 `src/main/resources/db/manual/`의 SQL (`care_growth.sql`, `voice_memo.sql`, `diary.sql`, `visit_booking_day.sql`, `demo_simulation.sql`, `ai_completion.sql`, `avatar_job.sql`)을 먼저 적용한다. 새 DB의 첫 배포는 `JPA_DDL_AUTO=update`로 테이블을 만든다.
+
 ## 에러 코드
 
 | ErrorCode | code | HTTP | 메시지 | 사용처 |
