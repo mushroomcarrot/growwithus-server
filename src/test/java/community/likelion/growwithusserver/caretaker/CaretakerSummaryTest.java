@@ -17,7 +17,8 @@ class CaretakerSummaryTest {
         var profiles = mock(CaretakerProfileRepository.class);
         var logs = mock(CareLogRepository.class);
         var hearts = mock(CareLogHeartRepository.class);
-        var service = new CaretakerService(null, profiles, null, logs, hearts);
+        var service = new CaretakerService(null, profiles, null, logs,
+                mock(community.likelion.growwithusserver.care.data.repository.TaskRepository.class), hearts);
         when(profiles.findByUsername("care")).thenReturn(Optional.of(CaretakerProfile.builder().build()));
         LocalDate today = LocalDate.now();
         YearMonth month = YearMonth.from(today).minusMonths(1);

@@ -68,6 +68,7 @@ public class GardenHomeService {
                         .orElse(garden.getOwner().getName()))
                 .character(GardenHomeResponseDto.CharacterDto.builder()
                         .name(garden.getCharacterName())
+                        .cropName(garden.getCrop() == null ? null : garden.getCrop().getName())
                         .stage(garden.getStage())
                         .level(garden.getStage().getLevel())
                         .mood(garden.getMood())
@@ -122,6 +123,7 @@ public class GardenHomeService {
     private GardenHomeResponseDto.RecentCareLogDto toRecentCareLog(GardenCareLog careLog) {
         return GardenHomeResponseDto.RecentCareLogDto.builder()
                 .careLogId(IdPrefix.CARE_LOG.format(careLog.careLogId()))
+                .taskTypes(careLog.taskTypes())
                 .summary(careLog.summary())
                 .photoUrl(careLog.photoUrl())
                 .createdAt(DateTimes.toOffset(careLog.createdAt()))
