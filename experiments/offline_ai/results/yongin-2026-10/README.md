@@ -1,5 +1,7 @@
 # 용인시 2026년 10월 실제 지역 군집화 결과
 
+[PCA 시각화와 150회 안정성 검증](VALIDATION.md)에서 지역 분포, 초기값 민감도와 재표집 결과를 확인할 수 있다.
+
 ## 원본 및 검증
 
 제공기관은 용인시다. [월별 인구통계](https://www.yongin.go.kr/user/bbs/BD_selectBbsList.do?q_bbsCode=1227)에 2026년 11월 9일 등록된 인구 및 세대현황, 연령별 인구현황 XLSX를 사용했다. 기준일은 2026년 10월 31일이다. 두 원본을 직접 내려받았으며 [model.json](model.json)의 `provenance.source_files`에 파일별 실제 다운로드 URL과 SHA-256을 보관한다.

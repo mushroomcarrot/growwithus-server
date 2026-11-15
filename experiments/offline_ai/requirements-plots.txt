@@ -1,0 +1,2 @@
+# Optional local report rendering only. No service dependency.
+matplotlib==3.11.2
