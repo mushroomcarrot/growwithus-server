@@ -56,7 +56,7 @@ prod의 ddl-auto는 JPA_DDL_AUTO이며 기본값은 validate다. 새 DB에 처�
 - HTTP 200만으로 성공을 판단하지 않고 processingStatus와 retryable을 확인한다. LLM_FAILED의 정리문은 원문 대체일 수 있다.
 - 음성 확정과 작업 완료는 별도 요청이다. 완료에서 photoId와 voiceMemoId를 연결한다.
 - 가족 일기는 /gardens/{gardenId}/diary이며 transcript와 summary를 별도 표시한다. [voice-api.md](voice-api.md)를 따른다.
-- 비전 미설정 시 aiCheck는 null이다. 서버 TTS 제공자는 미구현이므로 브라우저 읽어주기 대체가 필요하다.
+- 비전 미설정 시 aiCheck는 null이다. 서버 TTS는 Gemini 구성에서 eSpeak NG로 동작하며, 실패하거나 꺼져 있으면 (`C502`) 브라우저 읽어주기로 대체한다.
 
 ## 확인된 결과와 남은 검사
 
