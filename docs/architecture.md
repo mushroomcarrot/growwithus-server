@@ -1185,11 +1185,45 @@ ADMIN은 RoleHierarchy로 USER, OWNER, CARETAKER 권한을 갖는다. SYSTEM은 
 | `VisitRequestDto` | `gardenId`, `slotId` (`@NotBlank`), `headcount` (선택, `@Min(1)`, 생략 시 1), `memo` (선택, `@Size(max=200)`) |
 | `VisitResponseDto` | `visitId` (`vst_5`), `date`, `startTime` (`HH:mm`), `status` (`RESERVED`, `CANCELED`) |
 | `OutingResponseDto` | `type` (`EXPERIENCE_FARM`, `RESTAURANT`), `name`, `distanceKm` (농장 위치를 모르면 `null`), `address`, `description` |
+| `FarmItemDto` | `farmId` (`farm_3`), `name`, `district`, `address`, `latitude`, `longitude`, `distanceKm` (`from`이 없으면 `null`) |
+| `PlotPreviewResponseDto` | `farmId`, `plotCode`, `available` (성공 응답에서는 항상 true), `crop` (`cropId`, `name`, `characterName`), `caretaker` (`caretakerId`, `name`, `avatarUrl`. 배정 전이면 `null`), `monthlyFee` (가정치) |
+| `CropResponseDto` | `cropId` (`crop_1`), `name`, `characterName`, `baseTemp`, `stages` (`stage`, `level`, `requiredGdd`), `schedule` |
+| `FarmSyncResponseDto` | `totalFarms`, `addedFarms`, `updatedFarms`, `skippedFarms` (읍면동을 찾지 못한 농장 이름) |
+| `OwnerProfileRequestDto` | `nickname` (`@NotBlank @Size(max=20)`), `district` (`@NotNull`, `SUJI`와 `GIHEUNG`만 허용), `farmId` (`@NotBlank`), `plotCode` (`@NotBlank @Size(max=20)`) |
+| `OwnerProfileCreateResponseDto` | `gardenId`, `characterName`, `stage`, `nextStep` |
+| `OwnerProfileUpdateRequestDto` | `nickname` (선택, 20자 이하, 공백만은 안 됨), `district` (선택, `SUJI`와 `GIHEUNG`만 허용) |
+| `OwnerProfileResponseDto` | `nickname`, `district`, `gardenId` |
+| `GardenHomeResponseDto` | `gardenId`, `farmName`, `plotCode`, `nickname` (주인 프로필 별명, 없으면 사용자 이름), `character` (`name`, `cropName` 작물 이름, `stage`, `level`, `mood`, `animation`, `message`), `weather` (`CurrentWeatherDto`, 수집된 날씨가 없으면 `null`), `streak` (`days`, `cheeredToday`), `xp` (`total`, `today`), `harvest` (`expectedDate`, `dDay`. 계산 전이면 둘 다 `null`), `caretaker` (배정 전이면 `null`), `recentCareLog` (`careLogId`, `taskTypes` 묶인 작업 종류, `summary`, `photoUrl`, `createdAt`, `hearted`. 없으면 `null`), `hasUnreadEvent` |
+| `CheerResponseDto` | `streakDays`, `xpGained`, `totalXp`, `mood` |
+| `HeartResponseDto` | `careLogId`, `hearted`, `xpGained` |
+| `DiaryItemDto` | `type` (`CARE_LOG`, `STAGE_CHANGE`, `REST_DAY`), `date`, `createdAt` (CARE_LOG와 STAGE_CHANGE의 기록 시각). 종류에 따라 `careLogId`, `taskTypes`, `summary`, `photoUrl`, `caretakerName`, `hearted` (CARE_LOG), `eventId`, `fromStage`, `toStage` (STAGE_CHANGE), `message` (REST_DAY). 해당하지 않는 필드는 `null` |
+| `EvolutionEventResponseDto` | `eventId` (`evt_3`), `fromStage`, `toStage`, `occurredAt`, `reward` (`xp`, `badgeCode`. 배지가 없으면 `null`) |
+| `EventAckResponseDto` | `eventId`, `xpGained`, `totalXp`, `badge` (`code`, `name`. 배지가 없으면 `null`) |
+| `LeagueResponseDto` | `leagueId` (`lg_7`), `weekStart` (월요일), `weekEnd` (일요일), `myRank`, `members` (`rank`, `gardenId`, `nickname`, `weeklyXp`, `me`. 순위순) |
+| `QuestResponseDto` | `questId` (`qst_21`), `title`, `progress` (목표까지만 센다), `goal`, `rewardXp`, `status` (`IN_PROGRESS`, `COMPLETED`, `CLAIMED`) |
+| `QuestClaimResponseDto` | `questId`, `xpGained`, `totalXp`, `status` (`CLAIMED`) |
+| `BadgeResponseDto` | `code`, `name`, `description`, `acquiredAt` |
+| `QuizResponseDto` | `quizId` (`qz_31`), `question`, `choices`, `answered` |
+| `QuizAnswerRequestDto` | `choiceIndex` (`@NotNull`, 0부터. 없는 보기면 C002) |
+| `QuizAnswerResponseDto` | `correct`, `explanation`, `xpGained` (틀리면 0) |
+| `StreakCheckRequestDto` | `date` (선택. 응원했는지 확인할 날, 생략 시 어제) |
+| `StreakCheckResponseDto` | `broken` (스트릭이 끊긴 텃밭 수) |
+| `LeagueSettleRequestDto` | `weekStart` (선택. 정산할 주에 속한 날, 생략 시 지난주. 월요일이 아니면 그 주의 월요일로 맞춘다) |
+| `LeagueSettleResponseDto` | `settledLeagues` (이번 실행으로 정산한 리그 수), `createdQuests` (새 주에 만든 퀘스트 수) |
 | `WeatherSyncRequestDto` | `farmIds` (선택, `farm_3` 형식의 목록. 비어 있으면 등록된 모든 농장. 형식이 틀리면 C002) |
 | `WeatherSyncResponseDto` | `syncedFarms` (실황과 예보를 모두 저장한 농장 수), `failedFarms` (하나라도 받지 못한 농장. `farm_3`, 기본 격자면 `grid_64_119`) |
 | `DemoWeatherRequestDto` | `condition` (`@NotNull`, `SUNNY`, `RAIN`, `HOT`만 허용. 그 외는 C002) |
-| `DemoWeatherResponseDto` | `condition`, `animation` (`sunny_happy`, `rain_umbrella`, `hot_sweat`), `weatherNotice` (작업 생성이 붙기 전까지 `null`), `regeneratedTasks` (작업 생성이 붙기 전까지 0) |
-| `DemoStateResponseDto` | `weather` (덮어쓴 적이 없으면 `null`), `stage`, `stageProgress`, `fastForwardDays`, `todayTaskGardens` (뒤의 넷은 해당 도메인이 붙기 전까지 `null`) |
+| `DemoWeatherResponseDto` | `condition`, `animation` (`sunny_happy`, `rain_umbrella`, `hot_sweat`), `weatherNotice` (관리사 카드에 나가는 안내 문구), `regeneratedTasks` (새 작업이 추가된 시연 텃밭 수. 기존 작업이 충분하면 0) |
+| `DemoStateResponseDto` | `weather` (덮어쓴 적이 없으면 `null`), `stage`, `stageProgress` (예: `3/4`), `fastForwardDays`, `todayTaskGardens` (할 일이 남은 시연 텃밭 수) |
+| `DemoFastForwardResponseDto` | `stage`, `eventId` (단계가 올랐을 때만), `expectedHarvestDate` |
+| `CaretakerDtos` | `Register` (`name` 20자 이하, `farmId`), `Profile` (`caretakerId`, `name`, `farmId`, `nextStep`), `Avatar` (`avatarJobId`, `status`, `avatarUrl`), `Summary` (`month`, `completedTasks`, `gardenCount`, `workDays`, `heartsReceived`, `heartsReceivedToday`, `expectedAllowance`, `allowanceNote`) |
+| `TaskDtos` | `Today` (`date`, `weatherNotice`, `skippedTypes`, `totalMinutes`, `gardens`), `GardenCard` (`gardenId`, `plotCode`, `cropName`, `ownerNickname`, `tasks`, `stageCheck`), `Item` (`taskId`, `type`, `title`, `description`, `minutes`, `status`), `StageCheck` (`required`, `expectedStage`, `gardenId`), `Photo` (`photoId`, `photoUrl`, `aiCheck`), `Completed` (`taskId`, `status`, `careLogId`, `remainingTasks`, `stageCheck`) |
+| `VoiceMemoResponseDto` | `voiceMemoId`, `transcript`, `summary`, `issues` (코드 목록), `status`와 처리 상태 ([voice-api.md](voice-api.md)) |
+| `VoiceMemoConfirmRequestDto` | `summary` (선택, 1~1000자, 공백만 있는 값은 C002) |
+| `VoiceMemoConfirmResponseDto` | `voiceMemoId`, `status` (`CONFIRMED`) |
+| `GrowthDtos` | `Detail` (`stage`, `level`, `accumulatedGdd`, `nextStage`, `nextStageGdd`, `progress`, `expectedHarvestDate`, `calibratedAt`, `explanation`, `dailyGdd`), `CheckRequest` (`observed`, `photoId`), `Checked` (`stage`, `calibrated`, `calibratedAt`, `eventId`) |
+| `PlotAdminRequestDto`, `PlotAdminResponseDto` | 요청 `cropId`, `caretakerUsername` (둘 다 선택). 응답 `farmId`, `plotCode`, `cropId`, `cropName`, `caretakerUsername`, `assigned` |
+| `StreakRemindResponseDto` | `reminded` (이번 실행으로 스트릭 위험 알림을 보낸 주인 수) |
 
 `userId`는 `usr_` 접두어에 PK를 붙인 문자열이다 (예: `usr_12`, `User.getPublicId()`).
 
