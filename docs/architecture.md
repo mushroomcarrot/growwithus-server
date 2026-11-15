@@ -952,27 +952,29 @@ community.likelion.growwithusserver/
 │       └── repository/    UserRepository
 │   └── profile/       OwnerSummaryReader (주인 프로필, 텃밭 도메인과의 접점), OwnerSummaryConfiguration (구현체가 없을 때의 기본 빈)
 ├── farm/                           # 주말농장, 칸, 작물 기준 데이터
-│   ├── controller/    FarmController (/farms, /farms/{farmId}/plots/{plotCode}, /crops), FarmSyncController (/internal/farms)
-│   ├── service/       FarmService (목록, 칸 미리보기, 작물), FarmSyncService (공공데이터 파일 동기화), FarmSeeder (작물, 농장, 시연 농장 시드), FarmWeatherFarmReader (날씨 수집에 농장 격자 제공), KmaGrid (좌표를 기상청 격자로), YonginTown (읍면동 대표 좌표)
+│   ├── controller/    FarmController (/farms, /farms/{farmId}/plots/{plotCode}, /crops), FarmSyncController (/internal/farms/sync), FarmPlotAdminController (/internal/farms/{farmId}/plots)
+│   ├── service/       FarmService (목록, 칸 미리보기, 작물), FarmSyncService (공공데이터 파일 동기화), FarmSeeder (작물, 농장, 시연 농장 시드), FarmWeatherFarmReader (날씨 수집에 농장 격자 제공), KmaGrid (좌표를 기상청 격자로), YonginTown (읍면동 대표 좌표). FarmPlotAdminService (운영자의 칸 등록과 수정)
 │   ├── scheduler/     FarmSyncScheduler (매주 월 03:00)
 │   ├── caretaker/     FarmCaretakerReader (관리사 프로필 도메인과의 접점), FarmCaretaker, FarmCaretakerConfiguration (기본 빈)
+│   ├── garden/        PlotGardenLink (텃밭 도메인과의 접점. 분양된 칸에 관리사를 배정할 때 텃밭에도 반영), PlotGardenLinkConfiguration (기본 빈). 구현체는 garden의 GardenPlotLink
 │   └── data/
-│       ├── dto/           FarmItemDto, PlotPreviewResponseDto, CropResponseDto, FarmSyncResponseDto
+│       ├── dto/           FarmItemDto, PlotPreviewResponseDto, CropResponseDto, FarmSyncResponseDto, PlotAdminRequestDto, PlotAdminResponseDto
 │       ├── entity/        Farm, Plot, Crop
 │       ├── enums/         District, GrowthStage
-│       ├── exception/     FarmNotFoundException, PlotNotFoundException, PlotAlreadyAssignedException
+│       ├── exception/     FarmNotFoundException, PlotNotFoundException, PlotAlreadyAssignedException, CropNotFoundException, PlotRequestInvalidException
 │       └── repository/    FarmRepository, PlotRepository, CropRepository
 ├── garden/                         # 주인 프로필, 텃밭, 홈, 응원, 감사 하트, XP
 │   ├── controller/    OwnerProfileController (/owners/me/profile), GardenHomeController (/gardens/{gardenId}/home, cheers), CareLogHeartController (/care-logs/{careLogId}/hearts)
 │   ├── service/       OwnerProfileService (프로필 등록과 텃밭 시작, 수정), GardenService (텃밭 조회, 소유 확인, 잠금), GardenHomeService (홈, 응원), CareLogHeartService (하트), XpService (XP 지급), CharacterAnimation (기분과 날씨로 애니메이션 결정), GardenHarvestReader (수확 도메인에 텃밭 제공), GardenOwnerSummaryReader (/users/me에 주인 요약 제공), GardenDemoSeeder (시연 계정과 텃밭 시드)
-│   ├── care/          GardenCareLogReader (돌봄 기록 도메인과의 접점), GardenCareLog, GardenCareLogConfiguration (기본 빈)
+│   ├── care/          GardenCareLogReader (돌봄 기록 도메인과의 접점), GardenCareLog, GardenCareLogConfiguration (기본 빈). 구현체는 care의 StoredGardenCareLogReader
+│   ├── (접점 구현)    GardenCareReader (care, growth가 쓰는 텃밭 조회), GardenGrowthProjection (성장 계산 결과를 텃밭에 반영), GardenPlotLink, GardenDemoSeeder (시연 계정과 텃밭 시드)
 │   └── data/
 │       ├── dto/           OwnerProfileRequestDto, OwnerProfileCreateResponseDto, OwnerProfileUpdateRequestDto, OwnerProfileResponseDto, GardenHomeResponseDto, CheerResponseDto, HeartResponseDto
 │       ├── entity/        OwnerProfile, Garden, XpHistory, CareLogHeart
 │       ├── enums/         CharacterMood, XpReason
 │       ├── exception/     ProfileAlreadyExistsException, OwnerProfileNotFoundException, OwnerRoleRequiredException, OwnerDistrictNotAllowedException, CheerAlreadyDoneException, HeartAlreadySentException, CareLogNotFoundException
 │       └── repository/    OwnerProfileRepository, GardenRepository, XpHistoryRepository, CareLogHeartRepository
-├── diary/                          # 성장 일기 (테이블 없음, 돌봄 기록과 진화 이벤트를 날짜순으로 엮는다)
+├── diary/                          # 성장 일기 (돌봄 기록과 진화 이벤트를 날짜순으로 엮는다. local-demo만 diary_entry 스냅샷을 쓴다)
 │   ├── controller/    DiaryController (/gardens/{gardenId}/diary)
 │   ├── service/       DiaryService
 │   └── data/          dto/ DiaryItemDto, enums/ DiaryFilter, DiaryItemType, exception/ DiaryCursorInvalidException
