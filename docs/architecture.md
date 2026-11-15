@@ -1397,7 +1397,7 @@ ADMIN은 RoleHierarchy로 USER, OWNER, CARETAKER 권한을 갖는다. SYSTEM은 
 
 ### 도메인 사이의 접점
 
-아직 없는 도메인이 필요한 곳은 인터페이스로 받아 두었다. 기본 빈은 비어 있는 결과를 주고, 그 도메인이 구현체를 `@Component`로 등록하면 기본 빈이 빠진다 (`@ConditionalOnMissingBean`).
+도메인이 서로의 저장소를 직접 읽지 않도록 필요한 값만 인터페이스로 받는다. 구현체가 없으면 기본 빈이 비어 있는 결과를 주고, 구현체를 `@Component`로 등록하면 기본 빈이 빠진다 (`@ConditionalOnMissingBean`). 지금은 모든 접점에 구현체가 있다.
 
 | 인터페이스 | 쓰는 곳 | 구현체 |
 | --- | --- | --- |
