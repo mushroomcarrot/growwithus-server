@@ -844,7 +844,7 @@ STT로 받아 적고 LLM이 가족용 문장으로 정리한다. `issues`는 다
 | `POST /internal/ai/growth-simulation` | 매일 06:00 | `{ "date": "2026-11-10" }` | `{ "updated": 3, "stageChanged": 1 }` |
 | `POST /internal/streaks/check` | 매일 00:05 | `{ "date": "2026-11-09" }` | `{ "broken": 2 }` |
 | `POST /internal/leagues/settle` | 매주 월 00:10 | `{ "weekStart": "2026-11-02" }` | `{ "settledLeagues": 4, "createdQuests": 12 }` |
-| `POST /internal/farms/sync` | 매주 월 03:00 | 없음 | `{ "created": 2, "updated": 10 }` |
+| `POST /internal/farms/sync` | 매주 월 03:00 | 없음 | `{ "totalFarms": 8, "addedFarms": 2, "updatedFarms": 1, "skippedFarms": [] }` |
 
 1. `daily-tasks`의 `fallback`은 LLM 실패로 규칙 기반 작업을 쓴 텃밭 수다.
 2. 대상을 비워 두면 전체를 처리한다.
