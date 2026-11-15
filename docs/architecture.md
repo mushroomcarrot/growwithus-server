@@ -1,14 +1,5 @@
 # 현재 구조
 
-## 음성 초안 롤백과 파일 보존
-
-1. FileStorage에 deleteAudio를 추가하고 LocalFileStorage가 자신의 base URL과 voice-memos 아래의 UUID 음성 파일만 처리한다. 다른 디렉터리, 외부 URL, 경로 이동, 심볼릭 링크와 디렉터리 삭제를 거부한다. 재시도 읽기에도 같은 경로 검증을 사용한다.
-2. VoiceMemoStore.createPending은 초안 검증과 DB 저장 전에 FileUploadService.deleteAudioOnRollback으로 Spring 트랜잭션 완료 콜백을 등록한다. 확실한 ROLLED_BACK일 때만 새 음성을 삭제한다. 정상 커밋과 UNKNOWN 결과에서는 보존하며 처리 결과 저장과 재시도에는 삭제 콜백을 등록하지 않는다.
-3. 삭제 실패는 로그에 남기고 원래 비즈니스 오류를 유지한다. 실제 트랜잭션이 없는 직접 호출에서는 삭제하지 않는다. 파일 복사 도중의 부분 파일이나 사진 DB 저장 실패의 정리는 이 변경 범위가 아니다.
-4. Python STT 작업 서버는 PyAV InvalidDataError를 잘못된 음성으로 구분해 HTTP 400을 반환한다. Java는 INVALID_AUDIO로 저장하며 같은 깨진 파일의 재시도를 권하지 않는다. 일반 모델 내부 오류는 503을 유지한다. 실제 코덱 시험은 아직 하지 않았다.
-5. 핵심 JUnit 77개, STT Python 23개, 도구 Python 9개, Node 화면 로직 10개가 통과했다. Spring 트랜잭션 완료 콜백과 로컬 파일 삭제는 실제 라이브러리 및 임시 파일로 검사했으며 DB 커밋 자체는 대역이다. 모델, HTTP 인증과 MariaDB의 전체 통합 검사는 남아 있다.
-6. AI 역할 설명, 2분 시연 준비와 예상 질문 답변은 [ai-presentation.md](ai-presentation.md)에 정리했다. 자체 학습, 모델 성능, 사진 판별, 서버 TTS의 미구현 범위를 구분하며 실제 측정 전 점수나 응답 시간을 주장하지 않는다.
-
 ## 사용자 PC의 실행 준비 도구
 
 1. 사용자 fetch와 push 뒤 origin/feat/seungyoon-ai가 f16edaf와 일치하는 것을 확인했다. origin/develop은 기준 커밋 0f025dc와 같고 main과 develop에는 병합하지 않았다. 이후 설치 도구 변경은 별도 커밋이다.
