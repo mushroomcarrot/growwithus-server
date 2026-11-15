@@ -1094,46 +1094,38 @@ community.likelion.growwithusserver/
 | POST | `/visits` | OWNER | `VisitRequestDto` | `VisitResponseDto` | 주말 방문 예약, 담당 관리사에게 알림 |
 | DELETE | `/visits/{visitId}` | OWNER | 없음 | `null` | 방문 전날까지 취소, 담당 관리사에게 알림 |
 | GET | `/gardens/{gardenId}/outings` | OWNER | 없음 | `List<OutingResponseDto>` | 농장에서 가까운 순으로 나들이 장소 최대 6곳 |
-| GET | `/demo/state` | ADMIN + `X-Demo-Mode` | 없음 | `DemoStateResponseDto` | 시연 상태 (지금은 날씨만 채워짐) |
-| PUT | `/demo/weather` | ADMIN + `X-Demo-Mode` | `FarmItemDto` | `farmId` (`farm_3`), `name`, `district`, `address`, `latitude`, `longitude`, `distanceKm` (`from`이 없으면 `null`) |
-| `PlotPreviewResponseDto` | `farmId`, `plotCode`, `available` (성공 응답에서는 항상 true), `crop` (`cropId`, `name`, `characterName`), `caretaker` (`caretakerId`, `name`, `avatarUrl`. 배정 전이면 `null`), `monthlyFee` (가정치) |
-| `CropResponseDto` | `cropId` (`crop_1`), `name`, `characterName`, `baseTemp`, `stages` (`stage`, `level`, `requiredGdd`), `schedule` |
-| `FarmSyncResponseDto` | `totalFarms`, `addedFarms`, `updatedFarms`, `skippedFarms` (읍면동을 찾지 못한 농장 이름) |
-| `OwnerProfileRequestDto` | `nickname` (`@NotBlank @Size(max=20)`), `district` (`@NotNull`, `SUJI`와 `GIHEUNG`만 허용), `farmId` (`@NotBlank`), `plotCode` (`@NotBlank @Size(max=20)`) |
-| `OwnerProfileCreateResponseDto` | `gardenId`, `characterName`, `stage`, `nextStep` |
-| `OwnerProfileUpdateRequestDto` | `nickname` (선택, 20자 이하, 공백만은 안 됨), `district` (선택, `SUJI`와 `GIHEUNG`만 허용) |
-| `OwnerProfileResponseDto` | `nickname`, `district`, `gardenId` |
-| `GardenHomeResponseDto` | `gardenId`, `farmName`, `plotCode`, `nickname` (주인 프로필 별명, 없으면 사용자 이름), `character` (`name`, `cropName` 작물 이름, `stage`, `level`, `mood`, `animation`, `message`), `weather` (`CurrentWeatherDto`, 수집된 날씨가 없으면 `null`), `streak` (`days`, `cheeredToday`), `xp` (`total`, `today`), `harvest` (`expectedDate`, `dDay`. 계산 전이면 둘 다 `null`), `caretaker` (배정 전이면 `null`), `recentCareLog` (`careLogId`, `taskTypes` 묶인 작업 종류, `summary`, `photoUrl`, `createdAt`, `hearted`. 없으면 `null`), `hasUnreadEvent` |
-| `CheerResponseDto` | `streakDays`, `xpGained`, `totalXp`, `mood` |
-| `HeartResponseDto` | `careLogId`, `hearted`, `xpGained` |
-| `DiaryItemDto` | `type` (`CARE_LOG`, `STAGE_CHANGE`, `REST_DAY`), `date`, `createdAt` (CARE_LOG와 STAGE_CHANGE의 기록 시각). 종류에 따라 `careLogId`, `taskTypes`, `summary`, `photoUrl`, `caretakerName`, `hearted` (CARE_LOG), `eventId`, `fromStage`, `toStage` (STAGE_CHANGE), `message` (REST_DAY). 해당하지 않는 필드는 `null` |
-| `EvolutionEventResponseDto` | `eventId` (`evt_3`), `fromStage`, `toStage`, `occurredAt`, `reward` (`xp`, `badgeCode`. 배지가 없으면 `null`) |
-| `EventAckResponseDto` | `eventId`, `xpGained`, `totalXp`, `badge` (`code`, `name`. 배지가 없으면 `null`) |
-| `LeagueResponseDto` | `leagueId` (`lg_7`), `weekStart` (월요일), `weekEnd` (일요일), `myRank`, `members` (`rank`, `gardenId`, `nickname`, `weeklyXp`, `me`. 순위순) |
-| `QuestResponseDto` | `questId` (`qst_21`), `title`, `progress` (목표까지만 센다), `goal`, `rewardXp`, `status` (`IN_PROGRESS`, `COMPLETED`, `CLAIMED`) |
-| `QuestClaimResponseDto` | `questId`, `xpGained`, `totalXp`, `status` (`CLAIMED`) |
-| `BadgeResponseDto` | `code`, `name`, `description`, `acquiredAt` |
-| `QuizResponseDto` | `quizId` (`qz_31`), `question`, `choices`, `answered` |
-| `QuizAnswerRequestDto` | `choiceIndex` (`@NotNull`, 0부터. 없는 보기면 C002) |
-| `QuizAnswerResponseDto` | `correct`, `explanation`, `xpGained` (틀리면 0) |
-| `StreakCheckRequestDto` | `date` (선택. 응원했는지 확인할 날, 생략 시 어제) |
-| `StreakCheckResponseDto` | `broken` (스트릭이 끊긴 텃밭 수) |
-| `LeagueSettleRequestDto` | `weekStart` (선택. 정산할 주에 속한 날, 생략 시 지난주. 월요일이 아니면 그 주의 월요일로 맞춘다) |
-| `LeagueSettleResponseDto` | `settledLeagues` (이번 실행으로 정산한 리그 수), `createdQuests` (새 주에 만든 퀘스트 수) |
-| `DemoWeatherRequestDto` | `DemoWeatherResponseDto` | 시연 날씨 덮어쓰기 (SUNNY, RAIN, HOT) |
-| POST | `/demo/reset` | ADMIN + `X-Demo-Mode` | 없음 | `DemoStateResponseDto` | 맑음, FLOWER, 가상 일수 0으로 초기화 |
+| GET | `/demo/state` | ADMIN + `X-Demo-Mode` | 없음 | `DemoStateResponseDto` | 시연 상태 (날씨, 단계와 단계 순서, 누적 가상 일수, 할 일이 남은 시연 텃밭 수) |
+| PUT | `/demo/weather` | ADMIN + `X-Demo-Mode` | `DemoWeatherRequestDto` | `DemoWeatherResponseDto` | 시연 날씨 덮어쓰기 (SUNNY, RAIN, HOT). 세 시연 텃밭의 작업을 날씨에 맞게 다시 만든다 |
+| POST | `/demo/reset` | ADMIN + `X-Demo-Mode` | 없음 | `DemoStateResponseDto` | 맑음, FLOWER, 가상 일수 0, 할 일 3곳으로 초기화. 지급한 XP, 배지, 돌봄 기록은 지우지 않는다 |
 | PUT | `/demo/stage` | ADMIN + `X-Demo-Mode` | `DemoStageRequestDto` (`stage`) | `DemoFastForwardResponseDto` | 시연 성장 단계 선택 (SEED, SPROUT, FLOWER, FRUIT) |
-| POST | `/demo/fast-forward` | ADMIN + `X-Demo-Mode` | `DemoFastForwardRequestDto` (`days`) | `DemoFastForwardResponseDto` | 시연 시간 빨리 감기 |
+| POST | `/demo/fast-forward` | ADMIN + `X-Demo-Mode` | `DemoFastForwardRequestDto` (`days` 1~365) | `DemoFastForwardResponseDto` | 시연 시간 빨리 감기. 18일이면 다음 단계로 오르고 진화 이벤트가 생긴다 |
 | POST | `/internal/weather/sync` | SYSTEM (`X-Service-Key`) | `WeatherSyncRequestDto` (본문 생략 가능) | `WeatherSyncResponseDto` | 기상청 단기예보와 초단기실황 수집. 스케줄러가 매시 15분에 같은 로직을 돌린다 |
+| POST | `/caretakers/me/profile` | USER, CARETAKER | `CaretakerDtos.Register` | `CaretakerDtos.Profile` | 관리사 프로필 등록 (성함, 농장). 역할을 먼저 골라야 한다 (`USER`는 `C4031`). `nextStep=CARE_TODAY` |
 | POST | `/caretakers/me/avatar` | CARETAKER | multipart `photo`, `portraitConsent` | `CaretakerDtos.Avatar` | AI 아바타 생성 요청. PENDING 작업을 만들고 바로 돌아온다 |
 | GET | `/caretakers/me/avatar` | CARETAKER | 없음 | `CaretakerDtos.Avatar` | 가장 최근 아바타 작업 상태 (PENDING, DONE, FAILED). 폴링용 |
+| GET | `/caretakers/me/summary?month=` | CARETAKER | 쿼리 `month` (선택, `YYYY-MM`) | `CaretakerDtos.Summary` | 그 달의 작업 수, 돌본 텃밭 수, 일한 날, 받은 하트, 예상 수당 (가정치) |
+| POST | `/tts` | USER, CARETAKER | `TtsController.Request` (`text`, `speed`) | `audio/mpeg` (래퍼 없음) | 읽어주기 음성. 같은 문장은 캐시한다. 제공자가 없으면 `C502` |
+| GET | `/caretaker/tasks/today` | CARETAKER | 없음 | `TaskDtos.Today` | 오늘 할 일 카드 (텃밭별 작업, `weatherNotice`, `skippedTypes`, `stageCheck`). 조회할 때 없는 작업을 만든다 |
+| POST | `/caretaker/tasks/{taskId}/photos` | CARETAKER | multipart `photo` | `TaskDtos.Photo` | 작업 인증 사진. AI 사진 확인 결과는 `aiCheck` (모델이 없거나 실패하면 `null`) |
+| POST | `/caretaker/tasks/{taskId}/complete` | CARETAKER | `TaskDtos.CompleteRequest` (본문 생략 가능) | `TaskDtos.Completed` | 작업 완료, 돌봄 기록 생성, 주인에게 알림 |
+| POST | `/caretaker/tasks/{taskId}/voice-memos` | CARETAKER | multipart `audio` | `VoiceMemoResponseDto` | 말로 남기기. STT 원문과 LLM 정리문을 DRAFT로 저장 |
+| GET | `/caretaker/tasks/{taskId}/voice-memos/latest` | CARETAKER | 없음 | `VoiceMemoResponseDto` | 마지막 음성 메모와 처리 상태 (화면 복구용) |
+| POST | `/caretaker/voice-memos/{voiceMemoId}/confirm` | CARETAKER | `VoiceMemoConfirmRequestDto` (본문 생략 가능) | `VoiceMemoConfirmResponseDto` | 본인 초안 확정. 같은 확정 요청은 다시 보내도 된다 |
+| POST | `/caretaker/voice-memos/{voiceMemoId}/retry` | CARETAKER | 없음 | `VoiceMemoResponseDto` | 실패한 음성 인식 또는 문장 정리 재시도 |
+| GET | `/gardens/{gardenId}/growth` | OWNER | 없음 | `GrowthDtos.Detail` | 성장 시뮬레이션 상세 (단계, 진행률, 누적 GDD, 수확 예정일, `explanation`, `calibratedAt`) |
+| POST | `/gardens/{gardenId}/stage-checks` | CARETAKER | `GrowthDtos.CheckRequest` (`observed`, `photoId`) | `GrowthDtos.Checked` | 관리사의 단계 확인으로 시뮬레이션 보정. `observed`는 SPROUT, FLOWER, FRUIT, NO_CHANGE |
+| POST | `/internal/ai/daily-tasks` | SYSTEM (`X-Service-Key`) | `date`, `gardenIds` (본문 생략 가능) | `generated`, `fallback` | AI 오늘의 작업 생성. 스케줄러는 매일 05:00 |
+| POST | `/internal/ai/growth-simulation` | SYSTEM (`X-Service-Key`) | `date`, `gardenIds` | `updated`, `failed` | 성장 시뮬레이션. 스케줄러는 매일 04:00. `/internal/ai/simulate-growth`도 같은 동작이다 |
+| GET, PUT | `/internal/crops/{cropId}/task-guidance` | SYSTEM (`X-Service-Key`) | PUT은 `rules` 배열 | `CropGuidanceService.Update` | 작물별 작업 지침 조회와 전체 교체 ([ai-completion.md](ai-completion.md)) |
+| POST | `/internal/weather/daily` | SYSTEM (`X-Service-Key`) | `nx`, `ny`, `sourceUrl`, `days` | `importedDays` | 출처가 있는 과거 일별 기온 입력 ([ai-completion.md](ai-completion.md)) |
+| POST | `/internal/streaks/remind` | SYSTEM (`X-Service-Key`) | 없음 | `StreakRemindResponseDto` | 오늘 응원하지 않은 주인에게 스트릭 위험 알림. 스케줄러는 매일 20:00 |
 | GET | `/internal/farms/{farmId}/plots` | SYSTEM (`X-Service-Key`) | 없음 | `List<PlotAdminResponseDto>` | 농장의 칸 목록 (운영자용) |
 | PUT | `/internal/farms/{farmId}/plots/{plotCode}` | SYSTEM (`X-Service-Key`) | `PlotAdminRequestDto` | `PlotAdminResponseDto` | 칸 등록 및 수정 (작물, 담당 관리사) |
 | POST | `/internal/farms/sync` | SYSTEM (`X-Service-Key`) | 없음 | `FarmSyncResponseDto` | 공공데이터 주말농장 파일 동기화. 스케줄러는 매주 월 03:00 |
 | POST | `/internal/streaks/check` | SYSTEM (`X-Service-Key`) | `StreakCheckRequestDto` (본문 생략 가능) | `StreakCheckResponseDto` | 전날 응원이 없는 텃밭의 스트릭 끊김 처리. 스케줄러는 매일 00:05 |
 | POST | `/internal/leagues/settle` | SYSTEM (`X-Service-Key`) | `LeagueSettleRequestDto` (본문 생략 가능) | `LeagueSettleResponseDto` | 지난주 리그 정산, 새 주의 리그와 퀘스트 생성. 스케줄러는 매주 월 00:10 |
 
-관리사 프로필과 작업 (`/caretakers/**`, `/caretaker/**`, `/tts`, `/gardens/*/stage-checks`), `POST /internal/ai/daily-tasks`, `POST /internal/ai/growth-simulation`은 이후 구현됐다 (문서 상단 참고). 아래 문장은 당시 기록이다. 돌봄 기록 도메인이 없어서 `POST /care-logs/{careLogId}/hearts`는 항상 `C404`다 ([알려진 이슈](#알려진-이슈--결정-대기)).
+`docs/api-spec.md` 4장의 API는 모두 구현되어 있다. 요청과 응답 예시는 [api-detail.md](api-detail.md)를 본다. local-demo 프로필에서만 `GET /local-demo`, `/local-demo/app.js`, `/local-demo/status` (시연 화면)가 추가로 열린다.
 
 ### 경로별 권한 (`SecurityConfiguration`)
 
