@@ -1,14 +1,5 @@
 # 현재 구조
 
-## 사용자 PC의 실행 준비 도구
-
-1. 사용자 fetch와 push 뒤 origin/feat/seungyoon-ai가 f16edaf와 일치하는 것을 확인했다. origin/develop은 기준 커밋 0f025dc와 같고 main과 develop에는 병합하지 않았다. 이후 설치 도구 변경은 별도 커밋이다.
-2. RUN-LOCAL-DEMO.cmd는 setup-local-demo.ps1을 실행한다. 지정한 저장소의 깨끗한 feat/seungyoon-ai일 때만 명시적 브랜치 push를 시도하고 설치와 로컬 실행을 이어간다. 새 체크아웃, 병합, 강제 push나 볼륨 삭제를 수행하지 않는다.
-3. 설치는 공식 Docker 다운로드와 Authenticode의 유효한 Docker 서명을 확인한 뒤 per-user 모드로 수행한다. 기존 Docker가 있으면 설치하지 않는다. PATH 변경은 현재 프로세스에만 적용하며 시스템 재시작은 요청하지 않는다. WSL이나 운영체제 승인 단계는 사용자가 완료해야 한다.
-4. CheckOnly는 다운로드, 설치, Git 쓰기와 서비스 실행을 하지 않는다. PowerShell의 구문과 가짜 서명, 브랜치, 원격, dirty 상태, 업로드 실패, 엔진 준비 상태를 검사했다. 실제 설치는 이 작성 환경에서 실행하지 않았다. WSL 상태 조회도 E_ACCESSDENIED로 차단되어 있다.
-5. 세부 절차는 local-demo.md를 따른다. 설치 도구 준비가 실제 모델, DB, 전체 빌드와 시연의 성공을 의미하지 않는다. 코드 검사 결과 77개와 Python 32개, Node 10개는 이전과 같다.
-
-
 ## 실행 검사 결과 파일
 
 smoke_local_demo.py는 실제 실행 시 build/reports/local-demo-smoke.json을 원자적으로 교체한다. 시작은 running, 성공은 passed와 실제 검사 결과, 실패는 failed와 예외 종류만 저장한다. 이전 성공을 새 실패로 잘못 판단하지 않도록 시각을 함께 기록하며, 비밀번호와 토큰, 발언, 예외 원문은 저장하지 않는다. 기본 검사의 voice와 completion은 not_tested를 유지한다. 이 보고서 기능 검사 2개가 추가되어 Python은 STT 23개와 도구 9개가 통과했다. 실제 서버 보고서는 아직 생성되지 않았다.
