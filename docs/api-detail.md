@@ -480,7 +480,13 @@ Refresh Token도 새로 발급하고 이전 토큰은 무효가 된다. 에러: 
 }
 ```
 
-돌봄 완료와 단계 상승 시 원래 저장 트랜잭션 안에서 일기 스냅샷을 추가한다. `transcript`는 확정 메모의 STT 원문이며 없으면 `null`이다. `summary`는 확정 정리문 또는 작업 완료 문구다. `PHOTO`는 사진이 있는 항목, `STAGE`는 성장 항목만 반환한다. `hearted`는 연결된 돌봄 기록의 현재 하트 수를 반영한다. 하트 전송 API, REST_DAY 생성, 과거 기록의 일괄 이관은 아직 구현하지 않았다. 새 테이블 준비는 `db/manual/diary.sql`을 확인한다.
+1. 종류마다 쓰는 필드가 다르고, 값이 없는 필드는 응답에서 빠진다. `CARE_LOG`와 `STAGE_CHANGE`에는 기록 시각 `createdAt`이 있다. `CARE_LOG`는 `careLogId`, `taskTypes`, `summary`, `transcript`, `photoUrl`, `caretakerName`, `hearted`, `STAGE_CHANGE`는 `eventId`, `fromStage`, `toStage`, `REST_DAY`는 `message`다.
+2. `transcript`는 확정한 음성 메모의 STT 원문이고 없으면 빠진다. `summary`는 확정한 정리문 또는 작업 완료 문구다.
+3. `PHOTO`는 사진이 있는 돌봄 기록만, `STAGE`는 단계 변화만 준다. `REST_DAY`는 `ALL`에서만 나오며, 기록이 없던 날을 한 건으로 채운다. 오늘과 텃밭을 시작한 날은 채우지 않는다.
+4. `nextCursor`는 이번 페이지에 담은 마지막 날짜 (`YYYY-MM-DD`)다. 그대로 `cursor`로 보내면 그 전날부터 이어서 준다. 더 없으면 `null`이다. 하루를 페이지 사이에서 나누지 않으므로 한 페이지가 `limit`보다 조금 많을 수 있다.
+5. `hearted`는 그 돌봄 기록에 감사 하트를 보냈는지다 (`POST /care-logs/{careLogId}/hearts`).
+6. 에러: `C002` 커서가 날짜 형식이 아님, `C403` 남의 텃밭, `C404` 텃밭 없음
+7. local-demo 프로필의 시연 화면만 예전 형식 (`diaryId`, `dry_숫자` 커서)을 쓴다. 운영 API와는 다르다.
 
 ### 4.6 미확인 진화 이벤트
 
