@@ -32,6 +32,8 @@ def render(report_path, destination, font_file=None):
     def save(fig, name):
         fig.savefig(destination / (name + ".png"), dpi=180, bbox_inches="tight")
         fig.savefig(destination / (name + ".svg"), bbox_inches="tight", metadata={"Date": None})
+        svg = destination / (name + ".svg")
+        svg.write_text("\n".join(line.rstrip() for line in svg.read_text(encoding="utf-8").splitlines()) + "\n", encoding="utf-8")
         plt.close(fig)
 
     fig, ax = plt.subplots(figsize=(10.5, 7))
