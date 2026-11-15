@@ -250,7 +250,7 @@ community.likelion.growwithusserver/
 
 ### 관리사 작업과 성장 상태
 
-1. `care`는 `Task`, `TaskDay`, `TaskPhoto`, `CareLog`를 저장한다. 오늘 할 일 조회 시 미생성 작업을 만들며 담당자 전체의 하루 작업 시간을 120분으로 제한한다. 생성 저장 시 `TaskDay`와 텃밭 행을 잠그고 현재 날씨와 단계로 재검증한다. 작업 완료, 돌봄 기록과 알림은 한 트랜잭션이다.
+1. `care`는 `Task`, `TaskDay`, `TaskPhoto`, `CareLog`를 저장한다. 오늘 할 일 조회 시 미생성 작업을 만들며 담당자 전체의 하루 작업 시간을 120분으로 제한한다. 생성 저장 시 `TaskDay`와 텃밭 행을 잠그고 현재 날씨와 단계로 재검증한다. 작업 완료, 돌봄 기록과 알림은 한 트랜잭션이다. 돌봄 기록은 텃밭 방문 단위다. 사진과 음성 없이 완료한 작업은 같은 날 같은 텃밭, 같은 관리사의 현재 회차 돌봄 기록이 있으면 새 기록과 가족 알림을 만들지 않고 그 기록에 묶는다 (`Task.careLogId`). 음성 정리문이 없는 기록은 묶인 작업 이름으로 문장을 다시 만들고, `CareLogExtended` 이벤트로 일기 사본의 작업 종류와 정리문을 맞춘다. 사진이나 음성이 있는 완료는 항상 새 기록을 만든다. 관리사의 완료 작업 수와 수당 가정치는 돌봄 기록이 아니라 완료한 작업 수로 센다.
 2. `caretaker`는 프로필과 월별 요약, TTS 캐시를 제공한다. 기본 SVG를 사용하며 AI 아바타 생성은 후순위다. 내 정보의 관리사 요약에는 누적 돌봄 횟수를 포함한다.
 3. `growth`는 `GrowthState`와 `GrowthEvent`를 저장한다. 관찰 보정과 완료된 날짜의 기온을 기준으로 재계산하고 단계 상승 알림을 보낸다. 물 주기 등의 단계 검증은 저장된 성장 상태를 우선한다. `GrowthStatusService`는 확인한 단계에서 같은 확인 요청을 반복하지 않으며 다음 주요 단계에서 다시 요청한다. NO_CHANGE는 보정하지 않아 요청이 유지된다. 관찰 값은 SPROUT, FLOWER, FRUIT, NO_CHANGE다.
 4. `CareGardenReader`와 `CaretakerFarmReader`는 실제 팀 도메인 어댑터가 필요하다. 기본 구현은 빈 결과다. 실제 자료 없이 농장이나 작물 기준값을 생성하지 않는다. 일기 연결은 남아 있다. 기존 수확 API는 소유권 확인 후 저장된 성장 예측일을 우선 사용한다. 성장 예측일이 null이면 기존 날짜로 대신하지 않으며 수확 가능 여부는 실제 텃밭 데이터에서 가져온다.
@@ -363,7 +363,7 @@ ADMIN은 RoleHierarchy로 USER, OWNER, CARETAKER 권한을 갖는다. SYSTEM은 
 | `NotificationListResponseDto` | `items` (`NotificationItemDto` 목록), `unreadCount`, `nextCursor` |
 | `NotificationItemDto` | `notificationId` (`ntf_3`), `type`, `title`, `body`, `target` (`screen`, `id`. 이동 대상이 없으면 `null`), `read`, `createdAt` |
 | `NotificationReadResponseDto` | `readCount` (이번에 읽음 처리한 수), `unreadCount` (남은 수) |
-| `HarvestResponseDto` | `stage` (텃밭의 현재 단계), `expectedDate`, `dDay` (지났으면 0, 수확일이 없으면 `null`), `harvestable`, `daysCaredTogether` (시작한 날을 1일로 셈), `careLogCount`, `caretakerName`, `message` |
+| `HarvestResponseDto` | `stage` (텃밭의 현재 단계), `expectedDate`, `dDay` (지났으면 0, 수확일이 없으면 `null`), `harvestable`, `daysCaredTogether` (시작한 날을 1일로 셈), `careLogCount`, `caretakerName`, `message`, `visit` (오늘 이후의 가장 가까운 예약 `VisitResponseDto`, 없으면 `null`) |
 | `VisitSlotResponseDto` | `slotId` (`slot_20261128_10`), `date`, `startTime`, `endTime` (`HH:mm`), `available` |
 | `VisitRequestDto` | `gardenId`, `slotId` (`@NotBlank`), `headcount` (선택, `@Min(1)`, 생략 시 1), `memo` (선택, `@Size(max=200)`) |
 | `VisitResponseDto` | `visitId` (`vst_5`), `date`, `startTime` (`HH:mm`), `status` (`RESERVED`, `CANCELED`) |
@@ -1068,10 +1068,10 @@ community.likelion.growwithusserver/
 | `OwnerProfileCreateResponseDto` | `gardenId`, `characterName`, `stage`, `nextStep` |
 | `OwnerProfileUpdateRequestDto` | `nickname` (선택, 20자 이하, 공백만은 안 됨), `district` (선택, `SUJI`와 `GIHEUNG`만 허용) |
 | `OwnerProfileResponseDto` | `nickname`, `district`, `gardenId` |
-| `GardenHomeResponseDto` | `gardenId`, `farmName`, `plotCode`, `nickname` (주인 프로필 별명, 없으면 사용자 이름), `character` (`name`, `stage`, `level`, `mood`, `animation`, `message`), `weather` (`CurrentWeatherDto`, 수집된 날씨가 없으면 `null`), `streak` (`days`, `cheeredToday`), `xp` (`total`, `today`), `harvest` (`expectedDate`, `dDay`. 계산 전이면 둘 다 `null`), `caretaker` (배정 전이면 `null`), `recentCareLog` (`careLogId`, `summary`, `photoUrl`, `createdAt`, `hearted`. 없으면 `null`), `hasUnreadEvent` |
+| `GardenHomeResponseDto` | `gardenId`, `farmName`, `plotCode`, `nickname` (주인 프로필 별명, 없으면 사용자 이름), `character` (`name`, `cropName` 작물 이름, `stage`, `level`, `mood`, `animation`, `message`), `weather` (`CurrentWeatherDto`, 수집된 날씨가 없으면 `null`), `streak` (`days`, `cheeredToday`), `xp` (`total`, `today`), `harvest` (`expectedDate`, `dDay`. 계산 전이면 둘 다 `null`), `caretaker` (배정 전이면 `null`), `recentCareLog` (`careLogId`, `taskTypes` 묶인 작업 종류, `summary`, `photoUrl`, `createdAt`, `hearted`. 없으면 `null`), `hasUnreadEvent` |
 | `CheerResponseDto` | `streakDays`, `xpGained`, `totalXp`, `mood` |
 | `HeartResponseDto` | `careLogId`, `hearted`, `xpGained` |
-| `DiaryItemDto` | `type` (`CARE_LOG`, `STAGE_CHANGE`, `REST_DAY`), `date`. 종류에 따라 `careLogId`, `taskTypes`, `summary`, `photoUrl`, `caretakerName`, `hearted` (CARE_LOG), `eventId`, `fromStage`, `toStage` (STAGE_CHANGE), `message` (REST_DAY). 해당하지 않는 필드는 `null` |
+| `DiaryItemDto` | `type` (`CARE_LOG`, `STAGE_CHANGE`, `REST_DAY`), `date`, `createdAt` (CARE_LOG와 STAGE_CHANGE의 기록 시각). 종류에 따라 `careLogId`, `taskTypes`, `summary`, `photoUrl`, `caretakerName`, `hearted` (CARE_LOG), `eventId`, `fromStage`, `toStage` (STAGE_CHANGE), `message` (REST_DAY). 해당하지 않는 필드는 `null` |
 | `EvolutionEventResponseDto` | `eventId` (`evt_3`), `fromStage`, `toStage`, `occurredAt`, `reward` (`xp`, `badgeCode`. 배지가 없으면 `null`) |
 | `EventAckResponseDto` | `eventId`, `xpGained`, `totalXp`, `badge` (`code`, `name`. 배지가 없으면 `null`) |
 | `LeagueResponseDto` | `leagueId` (`lg_7`), `weekStart` (월요일), `weekEnd` (일요일), `myRank`, `members` (`rank`, `gardenId`, `nickname`, `weeklyXp`, `me`. 순위순) |
@@ -1153,7 +1153,7 @@ ADMIN은 RoleHierarchy로 USER, OWNER, CARETAKER 권한을 갖는다. SYSTEM은 
 | `NotificationListResponseDto` | `items` (`NotificationItemDto` 목록), `unreadCount`, `nextCursor` |
 | `NotificationItemDto` | `notificationId` (`ntf_3`), `type`, `title`, `body`, `target` (`screen`, `id`. 이동 대상이 없으면 `null`), `read`, `createdAt` |
 | `NotificationReadResponseDto` | `readCount` (이번에 읽음 처리한 수), `unreadCount` (남은 수) |
-| `HarvestResponseDto` | `stage` (텃밭의 현재 단계), `expectedDate`, `dDay` (지났으면 0, 수확일이 없으면 `null`), `harvestable`, `daysCaredTogether` (시작한 날을 1일로 셈), `careLogCount`, `caretakerName`, `message` |
+| `HarvestResponseDto` | `stage` (텃밭의 현재 단계), `expectedDate`, `dDay` (지났으면 0, 수확일이 없으면 `null`), `harvestable`, `daysCaredTogether` (시작한 날을 1일로 셈), `careLogCount`, `caretakerName`, `message`, `visit` (오늘 이후의 가장 가까운 예약 `VisitResponseDto`, 없으면 `null`) |
 | `VisitSlotResponseDto` | `slotId` (`slot_20261128_10`), `date`, `startTime`, `endTime` (`HH:mm`), `available` |
 | `VisitRequestDto` | `gardenId`, `slotId` (`@NotBlank`), `headcount` (선택, `@Min(1)`, 생략 시 1), `memo` (선택, `@Size(max=200)`) |
 | `VisitResponseDto` | `visitId` (`vst_5`), `date`, `startTime` (`HH:mm`), `status` (`RESERVED`, `CANCELED`) |

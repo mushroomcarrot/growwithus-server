@@ -23,4 +23,6 @@ public class HarvestResponseDto {
     private int careLogCount;
     private String caretakerName;
     private String message;
+    // 오늘 이후의 가장 가까운 방문 예약. 없으면 null
+    private VisitResponseDto visit;
 }

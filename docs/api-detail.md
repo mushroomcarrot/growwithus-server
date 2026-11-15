@@ -374,6 +374,7 @@ Refresh Token도 새로 발급하고 이전 토큰은 무효가 된다. 에러: 
   "nickname": "민지네",
   "character": {
     "name": "토순이",
+    "cropName": "방울토마토",
     "stage": "FLOWER",
     "level": 3,
     "mood": "HAPPY",
@@ -387,6 +388,7 @@ Refresh Token도 새로 발급하고 이전 토큰은 무효가 된다. 에러: 
   "caretaker": { "caretakerId": "crt_soonja", "name": "박순자", "avatarUrl": "..." },
   "recentCareLog": {
     "careLogId": "cl_1110_01",
+    "taskTypes": ["SUPPORT", "PRUNE"],
     "summary": "지지대를 세우고 곁순을 정리했어요",
     "photoUrl": "...",
     "createdAt": "2026-11-10T10:20:00+09:00",
@@ -608,9 +610,12 @@ Refresh Token도 새로 발급하고 이전 토큰은 무효가 된다. 에러: 
   "daysCaredTogether": 46,
   "careLogCount": 21,
   "caretakerName": "박순자",
-  "message": "11월 28일쯤 토순이를 만나러 오세요"
+  "message": "11월 28일쯤 토순이를 만나러 오세요",
+  "visit": { "visitId": "vst_1128_b14", "date": "2026-11-28", "startTime": "10:00", "status": "RESERVED" }
 }
 ```
+
+`visit`은 오늘 이후의 가장 가까운 방문 예약이다. 없으면 `null`이다. 화면은 이 값으로 기존 예약을 보여 주고 `visitId`로 취소한다.
 
 ### 5.2 방문 가능 시간
 
@@ -775,7 +780,7 @@ STT로 받아 적고 LLM이 가족용 문장으로 정리한다. `issues`는 다
 }
 ```
 
-돌봄 기록을 만들고 가족에게 알린다. 에러: `C403` 담당 작업 아님, `C4095` 이미 완료함
+돌봄 기록을 만들고 가족에게 알린다. 돌봄 기록은 텃밭 방문 단위다. `photoId`와 `voiceMemoId` 없이 완료하면 같은 날 같은 텃밭에 이미 만든 돌봄 기록에 작업을 묶고, 그 기록의 `careLogId`를 그대로 돌려준다. 이때 가족 알림은 다시 보내지 않는다. 묶을 기록이 없거나 사진, 음성이 있으면 새 기록을 만든다. 에러: `C403` 담당 작업 아님, `C4095` 이미 완료함
 
 ### 6.6 성장 단계 확인
 

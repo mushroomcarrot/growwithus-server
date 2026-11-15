@@ -38,7 +38,8 @@ class HarvestServiceTest {
                 community.likelion.growwithusserver.support.FakeRepository.of(
                         community.likelion.growwithusserver.growth.data.repository.GrowthStateRepository.class,
                         (method, args) -> Optional.empty()));
-        harvestService = new HarvestService(new HarvestGardenService(harvestGardenReader), outingRepository, growth);
+        harvestService = new HarvestService(new HarvestGardenService(harvestGardenReader), outingRepository, growth,
+                org.mockito.Mockito.mock(community.likelion.growwithusserver.harvest.data.repository.VisitRepository.class));
         garden = HarvestGarden.builder()
                 .gardenId(3L)
                 .ownerUsername("minji")

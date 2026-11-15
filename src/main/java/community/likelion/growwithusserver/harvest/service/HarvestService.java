@@ -25,6 +25,7 @@ public class HarvestService {
     private final HarvestGardenService harvestGardenService;
     private final OutingRepository outingRepository;
     private final community.likelion.growwithusserver.growth.service.GrowthStatusService growth;
+    private final community.likelion.growwithusserver.harvest.data.repository.VisitRepository visitRepository;
 
     @Transactional(readOnly = true)
     public GlobalResponse<HarvestResponseDto> getHarvest(String username, String gardenId) {
@@ -49,6 +50,14 @@ public class HarvestService {
                 .careLogCount(garden.getCareLogCount())
                 .caretakerName(garden.getCaretakerName())
                 .message(createMessage(garden, expectedDate))
+                .visit(visitRepository.findFirstByGardenIdAndStatusAndVisitDateGreaterThanEqualOrderByVisitDateAscStartTimeAsc(
+                                garden.getGardenId(), community.likelion.growwithusserver.harvest.data.enums.VisitStatus.RESERVED, today)
+                        .map(visit -> community.likelion.growwithusserver.harvest.data.dto.VisitResponseDto.builder()
+                                .visitId(community.likelion.growwithusserver.common.id.IdPrefix.VISIT.format(visit.getId()))
+                                .date(visit.getVisitDate())
+                                .startTime(visit.getStartTime().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")))
+                                .status(visit.getStatus()).build())
+                        .orElse(null))
                 .build());
     }
 
