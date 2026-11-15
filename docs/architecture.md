@@ -1866,46 +1866,116 @@ docker run -d -p 6379:6379 redis:7
 
 - 컴파일만: `./gradlew compileJava`
 - DB 없이 빌드: `./gradlew build -x test` (`contextLoads` 테스트가 실제 MariaDB를 요구)
-- DB 없이 도는 단위 테스트만: `./gradlew test --tests 'community.likelion.growwithusserver.common.*'` (도메인 단위 테스트는 `common` 자리에 `notification`, `harvest`, `weather`, `demo`, `farm`, `garden`, `diary`, `evolution`, `game`)
+- DB 없이 도는 단위 테스트 전체: `./gradlew unitTest` (도메인 하나만 돌리려면 `./gradlew test --tests 'community.likelion.growwithusserver.farm.*'`처럼 패키지를 준다)
 - Swagger: http://localhost:8080/swagger-ui.html
 
 ## 알려진 이슈 / 결정 대기
 
 | 항목 | 현재 상태 | 영향 |
 | --- | --- | --- |
-| `profileRegistered` 갱신 | 주인 프로필을 등록하면 true가 되고, 역할을 바꿨다가 돌아오면 그 역할의 기존 프로필이 있을 때 true로 복원된다. 관리사도 `POST /caretakers/me/profile`로 등록하면 true가 된다 | 해결됨 |
-| `/users/me`의 `caretaker` | 관리사 프로필이 있으면 채워진다 | 해결됨 |
 | 기존 로컬 DB의 `user` 테이블 | `ddl-auto: update`는 예전 `email` 컬럼(not null)을 지우지 않는다 | 가입 시 insert가 실패한다. 로컬 DB의 `user`, `product` 테이블을 직접 drop하고 다시 띄운다 |
-| prod `ddl-auto: validate` | 스키마 자동 생성 안 함 | prod DB에 테이블을 미리 만들어야 부팅됨 (마이그레이션 도구 없음). 이번에 추가된 테이블: `farm`, `plot`, `crop`, `owner_profile`, `garden`, `xp_history`, `care_log_heart`, `evolution_event`, `badge`, `user_badge`, `league`, `league_member`, `quest`, `user_quest`, `garden_quiz`. 이후 추가분은 `db/manual/`의 SQL (`care_growth.sql`, `voice_memo.sql`, `diary.sql`, `visit_booking_day.sql`, `demo_simulation.sql`, `ai_completion.sql`, `avatar_job.sql`)을 적용한다 |
+| prod `ddl-auto: validate` | 스키마 자동 생성 안 함 (마이그레이션 도구 없음) | 새 DB의 첫 배포만 `JPA_DDL_AUTO=update`로 테이블을 만들고, 그 뒤로는 `db/manual/`의 SQL을 배포 전에 직접 적용한다. 빠뜨리면 부팅이 실패한다 |
 | `@CreatedDate` 미동작 | `@EnableJpaAuditing` 없음 | 감사 필드는 서비스에서 `LocalDateTime.now()`로 직접 채운다 |
 | 검증 실패 메시지 | 클라이언트에는 C002 고정 메시지만 반환 | 어떤 필드가 틀렸는지는 서버 로그에만 남음 |
-| 테스트 | `contextLoads`, `common` 단위 테스트 (페이지네이션, ID, 파일 검증, 필터, 날짜 직렬화), `notification`, `harvest`, `weather`, `demo`, `farm`, `garden`, `diary`, `evolution`, `game` 서비스 단위 테스트 (저장소는 Mockito로 대체) | 실제 DB를 쓰는 저장소 쿼리 테스트는 없음. 잠금과 동시 요청은 로컬 MariaDB에 서버를 띄워 손으로 확인했다 |
-| AI 클라이언트 구현체 | Gemini (`AI_GEMINI_ENABLED`)와 로컬 모델 (`AI_LOCAL_*`) 구현체가 있다. 둘 다 끄면 기본 빈이 쓰인다 | 기본 빈에서는 `LlmClient`, `SttClient`, `TtsClient` 호출이 `C502`이고 규칙 기반 대체가 동작한다. 아바타는 `GEMINI_IMAGE_MODEL`이 없으면 FAILED와 기본 아바타다 |
+| 테스트 | `./gradlew unitTest`로 DB 없는 단위 테스트 315개 (저장소는 Mockito로 대체, 건너뜀 3개는 FFmpeg와 eSpeak NG가 있어야 도는 음성 검사). DB가 필요한 `contextLoads`, `AiDomainContextTest`, `AiCompletionPersistenceTest`는 전체 `test`에서만 돈다 | CI는 `bootJar testClasses`와 Docker 이미지 빌드만 확인하고 테스트는 돌리지 않는다. 잠금과 동시 요청은 로컬 MariaDB에 서버를 띄워 손으로 확인했다 |
+| AI 실제 품질 | Gemini와 로컬 모델 구현체가 있고 모의 응답 테스트는 통과한다 | 실제 키로 한국어 음성 인식 품질, 사진 판정 정확도, 아바타 이미지 모델 호출, 2 GB 서버의 지연과 메모리는 확인하지 않았다. 배포 주소에서 시연용 녹음과 사진으로 확인해야 한다 |
+| 읽어주기 | Gemini를 켠 배포 이미지에서는 eSpeak NG로 합성한다. AI를 모두 끈 로컬에서는 `POST /tts`가 `C502`다 | 프론트는 `C502`면 브라우저 읽어주기로 대체한다. eSpeak NG의 한국어 발음은 신경망 음성보다 부자연스럽다 |
 | 시연 계정 | 가입 API로는 ADMIN을 만들 수 없음 | 시연 전에 DB에서 시연 계정의 `role`을 `ADMIN`으로 직접 바꾼다. 시연이 끝나면 prod `DEMO_ENABLED=false` |
-| 브라우저 녹음 길이 | webm과 사파리 조각 mp4는 서버가 길이를 읽지 못함 | 5MB 이하로만 확인한다. 60초 제한은 프론트 녹음 제한에 기대며, STT 제공자가 정해지면 STT 결과 길이로 다시 확인할 수 있다 |
-| 돌봄 기록, 관리사 프로필 접점 | 실제 도메인 구현체 연결 완료 | 홈, 일기, 감사 하트 연결을 격리 환경 실제 HTTP로 검증 |
-| 단계를 올리는 곳 | GrowthService와 GardenGrowthProjection에서 EvolutionEventService에 연결 | 시연도 같은 이벤트와 보상 경로 사용 |
+| 브라우저 녹음 길이 | webm과 사파리 조각 mp4는 업로드 모듈이 길이를 읽지 못해 5MB 이하로만 확인한다 | Gemini나 로컬 STT를 켜면 변환한 실제 길이가 60초를 넘을 때 다시 거부한다 |
 | 실제 농장의 칸 | 공공데이터에 칸 정보가 없다. 운영자가 `PUT /internal/farms/{farmId}/plots/{plotCode}`로 칸, 작물, 담당 관리사를 넣는다 | 칸을 넣기 전의 실제 농장은 목록에는 나오지만 분양받을 수 없다 (`C404`). 실제 칸 자료는 운영자가 확보해야 한다 |
 | 농장 좌표 | 원본에 좌표가 없어 읍면동 대표 좌표를 쓴다 | 같은 읍면동의 농장은 좌표와 거리가 같게 나온다 |
 | 방문 슬롯 정원의 동시성 | VisitCapacityGuard가 날짜 행을 잠근 뒤 정원을 검사한다 | 같은 텃밭의 같은 날 예약은 유니크 키로 보호한다 |
 | 관리사별 방문 가능 시간 | 데이터가 없어 주말 고정 시간(10, 11, 14, 15시)을 쓴다 | 관리사가 시간을 고르게 하려면 프로필에 가능 시간을 추가하고 `VisitSlotPolicy`를 고친다 |
 | 나들이 추천 데이터 | 실제 장소 7곳을 시드로 넣는다. 식당은 원본에 좌표가 없어 좌표를 확인한 4곳만 넣었고, 그중 2곳(국수59, 백암제일식당)은 가게가 있는 길의 좌표다 | 거리가 100m쯤 어긋날 수 있다. 예시 6곳이 이미 들어간 DB에는 시드가 다시 들어가지 않으므로 `outing` 테이블을 비우고 다시 띄운다. 식당을 더 넣으려면 주소를 좌표로 바꾸는 방법이 필요하다 |
 | 날씨 수집 격자 | 등록된 농장의 격자를 수집한다 (`FarmWeatherFarmReader`) | 농장이 하나도 없으면 수집할 격자가 없다. `WEATHER_DEFAULT_GRIDS`는 구현체가 없을 때의 기본 빈만 쓰므로 지금은 쓰이지 않는다 |
-| 날씨 수집 인증키 | `PUBLIC_DATA_SERVICE_KEY`가 비어 있으면 수집을 건너뜀 | `weather_forecast`가 비어 `getCurrentWeather`는 시연 날씨가 있을 때만 값을 준다. 로컬 `.env`와 배포 환경에 키를 넣어야 한다 |
-| 시연 API | 날씨, 누적 일수, 빨리 감기, 성장과 작업 회차 초기화 구현 | 운영 스키마 변경 필요. 상단 시연 도메인 설명 참고 |
+| 날씨 수집 인증키 | `PUBLIC_DATA_SERVICE_KEY`가 비어 있으면 수집을 건너뜀 | 현재 날씨는 시연 날씨가 있을 때만 나오고, 시연 텃밭이 아닌 텃밭은 과거 기온이 없어 성장 계산이 실패한다 (`failed`). 로컬 `.env`와 배포 환경에 키를 넣어야 한다 |
+| 시연 API | 날씨, 단계 선택, 빨리 감기, 초기화가 모두 구현되어 있고 6단계 시나리오를 실제 HTTP로 통과했다 | 운영 DB에는 `db/manual/demo_simulation.sql`이 필요하다. 프론트 화면과 붙인 리허설은 하지 않았다 |
 | 파일 저장소 | 로컬 디스크만 구현 | 서버를 여러 대 띄우거나 재배포로 디스크가 초기화되면 파일이 사라진다. 필요하면 S3 구현체를 추가한다 |
 
-### 이슈별 남은 작업
+### 운영에서 확인할 것
 
-다른 도메인이 생겨야 마저 할 수 있는 항목이다. 해당 도메인을 만들 때 함께 붙인다.
+GitHub 이슈는 모두 닫았다 (2026-11-13). 코드로 더 할 일은 없고, 아래는 운영 환경이나 자료가 있어야 할 수 있는 일이다.
 
-| 이슈 | 남은 항목 | 필요한 것 |
+| 항목 | 필요한 것 |
+| --- | --- |
+| 첫 배포 | `develop`을 `main`으로 올리는 PR, 서버 `.env`, GitHub Secrets. 그 뒤 HTTPS 주소에서 프론트 연동 확인 |
+| 실제 AI 확인 | 무료 프로젝트의 Gemini 키. 음성 업로드와 정리, 사진 확인, 성장 설명을 실제 HTTP로 확인. 아바타는 `GEMINI_IMAGE_MODEL`을 넣고 사진 한 장으로 확인 |
+| 실제 농장의 칸과 관리사 | 운영자가 확보한 칸 자료. `PUT /internal/farms/{farmId}/plots/{plotCode}`로 넣는다 |
+| 실제 기온 | `PUBLIC_DATA_SERVICE_KEY`. 텃밭을 시작한 날부터의 과거 기온은 `POST /internal/weather/daily`로 넣는다 |
+| 작물 기준 | 방울토마토 하나만 있고 적산온도 기준은 명세의 예시 값이다. 농사로 자료로 바꾸고 작물을 늘리려면 자료가 필요하다 |
+| 관리사별 방문 가능 시간 | 운영 자료. 지금은 주말 고정 시간 (10, 11, 14, 15시)이다 |
+| 리그, 마이 화면 | 디자인이 나오면 응답 필드를 맞춘다 |
+
+## 작업별 상세 기록
+
+작업마다 남긴 결정과 검증 기록이다. 최근 것이 위에 있다. 여기 적힌 "남은 일"은 그 시점의 기록이므로 현재 상태는 앞쪽 설명과 [알려진 이슈](#알려진-이슈--결정-대기)를 본다.
+
+### 한국어 읽어주기와 가족 전달 문장
+
+`AI_ELEVENLABS_ENABLED=true`이면 Gemini 사용 여부와 관계없이 `ElevenLabsTtsClient`를 TTS 구현체로 선택한다. `POST /tts`의 요청, MP3 응답과 `TtsService`의 텍스트 및 속도별 32건 캐시는 유지한다. 기본값 false이면 기존 음성 생성기를 유지한다.
+
+| 환경변수 | 기본값 | 용도 |
 | --- | --- | --- |
-| #5 | AI 아바타 API와 시연 관리사 프로필 시드 구현 완료 | 실제 이미지 모델 호출은 `GEMINI_IMAGE_MODEL`과 키를 넣은 환경에서 확인해야 한다. 그 전에는 FAILED와 기본 아바타로 동작한다 |
-| #14 | 방문 시드 구현 완료 | DEMO_SEED_VISIT_ENABLED=true로 선택 실행. 실제 관리사 방문 가능 시간은 운영 자료가 필요하다 |
-| #16 | 코드 구현 및 격리 환경 HTTP 검증 완료 | 운영 스키마 적용과 실제 프론트 리허설 필요. 과거 기록을 삭제하는 전체 DB 재적재는 하지 않는다 |
-| #11 | 리그, 마이 화면 디자인 반영 | 디자인이 아직 없어 응답 구조를 명세 기준으로 만들었다. 디자인이 나오면 필드를 맞춘다 |
-# 2026-11-13 AI 후속 보완
+| `AI_ELEVENLABS_ENABLED` | `false` | ElevenLabs TTS 선택 |
+| `ELEVENLABS_API_KEY` | 빈 값 | 서버 전용 키, 로그와 저장소에 넣지 않음 |
+| `ELEVENLABS_VOICE_ID` | 빈 값 | 계정에서 이용 가능한 한국어 목소리 20자리 ID |
+| `ELEVENLABS_MODEL` | `eleven_multilingual_v2` | 한국어 음성 생성 모델 |
+| `ELEVENLABS_SPEED_SCALE` | `1.2` | 요청 속도에 곱하는 배율 (0.5부터 2.0) |
+
+1. `POST https://api.elevenlabs.io/v1/text-to-speech/{voiceId}`에 발음 변환한 텍스트와 속도만 보내고 MP3를 받는다. API 키는 `xi-api-key` 헤더에만 넣는다. 연결 제한 2초, 읽기 제한 8초이며 HTTP 리다이렉트를 따르지 않는다. 동시 생성은 2건이며 자동 재시도, 목소리 복제, 결제 설정 변경은 하지 않는다.
+2. 응답 MIME, MP3 헤더와 1 MB 제한을 검사한다. 인증, 잔액, 한도 또는 제공자 장애 시 C502를 반환한다. 배포 프론트의 기존 브라우저 읽어주기 대체 처리가 이어받는다. 실패 응답은 MP3 캐시에 저장하지 않는다.
+3. 기존 API가 허용하는 속도 0.5부터 1.5까지는 유지한다. ElevenLabs 지원 범위 0.7부터 1.2까지는 외부 음성을 쓰고 그 밖의 속도는 기존 eSpeak NG 및 FFmpeg 생성기로 처리한다. 기본 속도는 0.9다. ElevenLabs에는 요청 속도에 `ELEVENLABS_SPEED_SCALE`을 곱하고 0.7부터 1.2로 맞춘 값을 보낸다 (0.9 요청은 1.08). 프론트 요청 값과 캐시 키는 그대로다.
+4. `VoiceMemoAnalysisService`는 발화자를 텃밭 관리사, 수신자를 가족, 돌봄 대상을 작물로 명시한다. 원문의 작업 주체, 부정과 시제를 보존하고 해요체로 정리한다. 임의의 가족 관계나 사람의 건강 상태는 추가하지 않는다. 이상 징후의 원문 근거 검사와 실패 시 원문 보존은 유지한다.
+5. `verifyElevenLabs`는 명시적으로 실행할 때만 공개 문장 1건을 실제 합성한다. `--args="build/reports --family"`는 공개 문장 6건의 Gemini 정리도 검사한다. 일반 `test`에는 외부 요청이 없으며 DB와 실제 사람의 녹음을 사용하지 않는다. 생성 MP3 청취와 배포 서버의 키 적용 및 실제 프론트 재생 확인은 별도다.
+6. GitHub Actions secret `ELEVENLABS_API_KEY`가 있으면 main 배포가 서버 `.env`의 ElevenLabs 네 항목만 반영한다. `deploy/configure_elevenlabs.py`가 검증 후 파일을 교체하며 기존 DB, JWT와 Gemini 설정은 유지한다. 키가 없으면 기존 설정을 유지한다. 설정 적용 실패 또는 앱 건강 검사 실패는 `.env.bak`을 복구한다. 기존 CI는 Java 21 단위 테스트와 실제 음성 도구 검사, Python 환경변수 보존 검사까지 실행한다.
+7. `KoreanSpeechText.normalize`가 ElevenLabs로 보내는 문장만 한국어 발음으로 풀어 쓴다. 화면 문장, 캐시 키와 eSpeak 입력은 바꾸지 않는다. `B-13`은 "비 십삼 구역"으로 읽고 뒤에 구역, 칸, 번이 이미 있으면 덧붙이지 않는다. 화면의 "B-13 밭"도 "비 십삼 구역"으로 읽는다. 개, 번, 포기, 그루, 시 같은 단위 앞의 99 이하 수는 고유어 ("두 번", "스무 포기", "일곱 시"), 나머지는 한자어 ("삼 개월", "십오 분")로 읽는다. `9:30`, `20~25℃`, `-3도`, `17.5`, `60%`, `mm`, `cm`, `L` 같은 단위, 6월과 10월, 0으로 시작하는 번호, 대문자 약어 (`AI`는 "에이아이")도 변환한다.
+8. 기본 모델은 발음이 더 자연스러운 `eleven_multilingual_v2`다. `eleven_flash_v2_5`보다 응답이 느리고 글자당 크레딧을 두 배 쓴다. 되돌리려면 `ELEVENLABS_MODEL`만 바꾼다 (자동 배포는 `deploy.yml`의 값). 언어 지정 `language_code=ko`는 받는 모델 (`eleven_flash_v2_5`, `eleven_turbo_v2_5`)에만 보낸다. 음성 설정은 stability 0.5, similarity_boost 0.75다. 실제 청취 확인은 하지 않았다.
+
+### 이슈 정리와 스트릭 위험 알림 (2026-11-13)
+
+1. 열려 있던 #7, #8, #12, #14, #16의 체크리스트를 코드와 대조해 모두 구현된 것을 확인하고 닫았다. 명세와 다르게 구현한 부분 (일별 성장 기록 테이블 없음, 성장 배치 04:00, 방문 고정 시간)은 각 이슈의 댓글에 적었다.
+2. 알림 종류 `STREAK_RISK`를 보내는 곳이 없어 `StreakService.remind`를 추가했다. 매일 20:00 (`GameScheduler.remindStreaks`)와 `POST /internal/streaks/remind`가 같은 메서드를 부른다. 스트릭이 1일 이상인데 오늘 응원하지 않은 주인에게 보내며, `NotificationService.hasSentSince`로 같은 날 한 번만 보낸다. 이동 화면은 `DT_HOME`이다.
+3. 현재 `develop`으로 시연 시나리오 6단계를 격리한 로컬 MariaDB와 Redis에서 실제 HTTP로 돌렸다. 홈 조회, 비로 변경 후 `rain_umbrella`와 물 주기 제외, 오늘 할 일과 사진 업로드와 완료, 단계 확인, 감사 하트와 응원, 주인과 관리사 알림, 일기, 18일 빨리 감기 후 FRUIT 이벤트와 보상 (XP 100, FIRST_FRUIT), 수확 안내, 방문 예약, 나들이, 리그와 퀘스트와 배지, 초기화 후 FLOWER와 할 일 3곳이 모두 동작했다.
+4. 그 실행에서 확인한 환경 의존 동작: AI를 모두 끈 로컬에서 `POST /tts`는 `C502`, 사진의 `aiCheck`는 null이다. 날씨 인증키가 없으면 `POST /internal/weather/sync`는 모든 농장이 `failedFarms`이고, 시연 상태가 없는 텃밭의 성장 배치는 `failed`로 센다.
+5. 이 문서의 두 벌로 겹쳐 있던 내용을 한 벌로 합쳤다. API 표에 섞여 있던 DTO 행을 DTO 표로 옮기고, 관리사와 작업, 음성, 성장의 API와 DTO, 테이블, 스케줄러, 알림을 보내는 곳을 현재 코드에 맞췄다.
+6. 검증: `./gradlew unitTest` 315개 통과 (실패 0, 건너뜀 3), `./gradlew build -x test` 통과.
+
+### 빠진 기능 보완 (#5, #3)
+
+1. `POST /caretakers/me/avatar` (multipart `photo`, `portraitConsent`)는 초상권 동의와 사진을 확인하고 PENDING 작업만 만든 뒤 바로 돌아온다. 동의가 없으면 C4003, 사진이 jpg, png 10MB 이하가 아니거나 읽을 수 없으면 C4001, 프로필이 없으면 C404, 진행 중인 작업이 있으면 C4095다. 응답은 `CaretakerDtos.Avatar` (`avatarJobId` 예: `avj_3`, `status`, `avatarUrl`)다.
+2. `GET /caretakers/me/avatar`는 가장 최근 작업을 준다. 요청한 적이 없으면 C404다. `avatarUrl`은 PENDING이면 null, DONE이면 만든 그림, FAILED면 지금 쓰는 아바타 (처음이면 기본 아바타 `/images/caretaker-default.svg`)다. 클라이언트는 PENDING인 동안 2초 간격으로 폴링한다.
+3. 그림은 `AvatarService`가 가진 실행기 (스레드 1개, 대기 8개)에서 트랜잭션 밖으로 만든다. 대기열이 가득 차면 바로 FAILED로 돌려준다. 5분이 지나도 PENDING인 작업 (서버 재시작 등)은 조회하거나 새로 요청할 때 FAILED로 정리한다 (`AvatarJobStore.STALE_AFTER`).
+4. 올린 사진 원본은 저장하지 않는다. `FileUploadService.readImage`로 검증만 하고 768픽셀 이하 JPEG로 줄여 메모리에 들고 있다가 버린다. 만든 그림만 `FileUploadService.storeGeneratedPng`로 `avatars/` 아래에 저장하고 프로필의 `avatarUrl`을 바꾼다. 동의 여부와 시각은 `caretaker_profile.portrait_consent`, `portrait_consented_at`에 남긴다.
+5. 그림 생성은 `common/ai`의 `AvatarImageClient`로만 호출한다. `AI_GEMINI_ENABLED=true`이고 `GEMINI_IMAGE_MODEL`을 넣었을 때만 `GeminiAvatarClient`가 Gemini Interactions API (`POST /v1beta/interactions`)를 부른다. 받은 그림은 그대로 쓰지 않고 가운데를 잘라 512픽셀 PNG로 다시 만든다. 모델을 넣지 않았거나 호출이 실패하면 비어 있는 값을 주고 작업은 FAILED가 된다. 다른 모델로 자동 전환하지 않는다. 실제 키로 이미지 모델을 호출하는 검증은 하지 않았다 (모의 HTTP 응답으로만 검사).
+6. `CaretakerDemoSeeder` (순서 `FarmSeeder.ORDER + 15`)가 `demo.enabled=true`일 때 `GardenDemoSeeder`가 만든 soonja 계정에 시연 농장 소속 프로필 (성함 박순자, 기본 아바타)을 붙이고 `profileRegistered`를 true로 바꾼다. 명세의 `crt_soonja`에 해당하며, soonja로 로그인하면 `nextStep`이 바로 `CARE_TODAY`다. 이미 프로필이 있으면 건드리지 않는다.
+7. `GET /internal/farms/{farmId}/plots`와 `PUT /internal/farms/{farmId}/plots/{plotCode}` (`X-Service-Key`)로 운영자가 농장의 칸을 넣고 고친다 (`FarmPlotAdminService`). 요청은 `PlotAdminRequestDto` (`cropId`, `caretakerUsername`, 둘 다 선택)이고 응답은 `PlotAdminResponseDto` (`farmId`, `plotCode`, `cropId`, `cropName`, `caretakerUsername`, `assigned`)다. 없는 칸은 만들고 (이때 `cropId` 필수), 있는 칸은 보낸 값만 고친다. 칸 번호는 한글, 영문, 숫자로 시작하고 하이픈을 쓸 수 있는 20자 이하다.
+8. 칸 관리의 오류: 농장이나 작물이 없으면 C404, 회원이 없으면 C4041, 관리사 (`CARETAKER`)가 아닌 회원이거나 칸 번호가 틀리거나 새 칸에 작물이 없으면 C002다. 이미 분양된 칸은 작물을 바꿀 수 없고 담당 관리사는 비어 있을 때만 채울 수 있다 (C4093). 분양된 칸에 관리사를 채우면 `PlotGardenLink` (구현체 `GardenPlotLink`)가 그 칸의 텃밭을 잠그고 담당 관리사를 함께 채운다. 관리사의 오늘 할 일은 다음 조회 때 만들어진다.
+9. prod는 `db/manual/avatar_job.sql`의 `caretaker_avatar_job` 테이블을 먼저 적용한다.
+10. 검증: `./gradlew unitTest` 312개가 통과했다 (실패 0, 건너뜀 3). 격리한 로컬 MariaDB와 Redis에 서버를 띄워 실제 HTTP로 아바타 요청과 폴링, C4003, C4001, C404, 권한 (주인 토큰은 C403), 시연 관리사의 `CARE_TODAY`와 `/users/me`의 `caretaker`, 칸 등록, 신규 주인의 실제 농장 칸 분양, 분양 후 관리사 배정과 오늘 할 일 반영을 확인했다. 운영 배포와 프론트 연동, 실제 이미지 모델 호출은 확인하지 않았다.
+
+### 2 CPU, 2 GB 서버 AI
+
+`AI_GEMINI_ENABLED=true`이면 STT, LLM과 사진 판정을 Gemini API로 처리한다. 프론트 API와 실패 복구 흐름은 유지한다. TTS는 앱 이미지의 eSpeak NG와 FFmpeg로 처리하며 Ollama, Whisper와 별도 TTS 작업자를 실행하지 않는다. Cloud Billing을 연결하지 않은 무료 프로젝트의 서버용 키를 사용하며 유료 모델로 자동 전환하지 않는다. 설정, 한도와 데이터 처리는 [cloud-ai.md](cloud-ai.md)를 참고한다. 모의 테스트로 실제 인식 품질이나 운영 부하 검증을 대신하지 않는다.
+
+### 배포 전 실제 AI 검사
+
+verifyLocalAi Gradle 작업은 설치된 실제 STT와 LLM, TTS 및 비전 모델에 연결하며 일반 빌드에서는 실행하지 않는다. WAV, WEBM, MP4, M4A로 변환한 공개 합성 한국어 음성, 성장 설명과 실제 토마토 사진의 관련 여부를 검사한다. 결과는 build/reports/ai-predeploy.json이며 사람의 녹음 정확도, 청취 평가와 운영 검증은 별도 상태로 기록한다. 사진 원본은 Softeis의 Tomato je.jpg이며 출처와 CC BY-SA 3.0 표기를 검사 자료에 함께 저장하고 SHA-1을 확인한다.
+
+사진 판정은 업로드 원본을 변경하지 않고 JPEG 또는 PNG를 가로 세로 최대 768픽셀의 JPEG 미리보기로 바꿔 호출한다. 최대 5000만 픽셀과 20000픽셀 변 길이를 검사하고 손상된 입력은 판정 불가로 처리한다. 작은 로컬 비전 모델의 입력 메모리를 줄이기 위한 제한이다. compose.ai-ready.json은 로컬 시연 Compose에만 겹쳐 쓰는 선택 설정이며 qwen3-vl:2b-instruct 설치 후 사용한다. 운영 서버 사양에 맞는 모델 선택은 배포 단계에서 확인한다.
+배포 Dockerfile의 build 작업 디렉터리는 /app이다. 로컬 검사 보고서와 공개 자료도 /app/build/reports에 마운트하여 verifyLocalAi와 전체 JUnit 보고서가 같은 호스트 폴더를 사용한다. scripts/test_local_demo.py에서 Dockerfile과 검사 마운트 경로의 일치를 확인한다.
+로컬 TTS 클라이언트는 JSON을 UTF-8 바이트로 직렬화하고 Content-Length를 명시한다. 작업자는 길이가 없는 전송을 거절하므로 Map을 직접 전송해 chunked 요청이 되는 경우를 피한다. 실제 JDK HTTP 클라이언트와 로컬 HTTP 서버로 이 통신 조건을 검사한다.
+
+### 클라우드 AI 명시적 검증
+
+`verifyCloudAi` Gradle 작업과 `scripts/verify-cloud-ai.ps1`은 공개 합성 음성과 체크섬이 고정된 공개 사진으로 실제 Gemini를 검사한다. 기본 test와 build에서는 이 외부 호출 작업을 실행하지 않는다. STT 4종, 문장 정리, 성장 설명, 사진과 경량 TTS를 검증하며 메모 확정의 저장소 대역 검사와 운영 DB 검증을 구분한다. 실패는 비정상 종료와 JSON 결과로 남긴다. 자세한 입력과 결과 범위는 [cloud-ai.md](cloud-ai.md)를 따른다.
+
+
+공개 음성 기준은 같은 경로의 synthetic-korean-reference.txt를 사용한다. 검증은 기준 문장에 없는 단어를 필수로 요구하지 않으며 인식 원문을 검사 성공 여부와 무관하게 결과에 기록한다.
+
+
+STT에는 템플릿 정답 문장 대신 텃밭 관리 녹음이라는 도메인 맥락을 제공한다. 잎과 흙 같은 동음이의어 해석을 돕되 실제 발화에 없는 작업이나 상태를 추가하지 않도록 지시한다. 인식 후 단어를 강제 치환하지 않는다. 요약 검사는 정확도 검사를 통과한 형식의 원문을 사용하며 선택한 형식을 결과에 남긴다. 다른 형식의 실패는 그대로 전체 실패로 처리한다.
+
+### AI 후속 보완 (성장 설명, 로컬 TTS, 음성 복구)
 
 성장 배치는 명세의 POST /internal/ai/growth-simulation을 지원하며 기존 /internal/ai/simulate-growth도 호환 경로로 유지한다. 성장 조회는 먼저 GrowthService의 DB 트랜잭션을 끝낸 다음 GrowthExplanationService에서 LLM 설명을 생성한다. 모델 오류, 잘못된 JSON과 300자 초과 응답은 기존 설명으로 대체한다. 성공 응답은 계산된 사실을 키로 최대 128개까지 캐시한다. 합성 날씨와 활성 DB 트랜잭션에서는 모델을 호출하지 않는다. 모델 설명은 관찰이나 수확 확정을 대신하지 않는다.
 
