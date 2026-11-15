@@ -1023,11 +1023,37 @@ community.likelion.growwithusserver/
 │       ├── enums/         WeatherCondition
 │       ├── exception/     KmaApiException
 │       └── repository/    WeatherForecastRepository, DailyWeatherRepository
-└── demo/                           # 시연 컨트롤 (지금은 날씨만)
+├── caretaker/                      # 관리사 프로필, AI 아바타, 활동 요약, 읽어주기
+│   ├── controller/    CaretakerController (/caretakers/me/profile, avatar, summary), TtsController (/tts)
+│   ├── service/       CaretakerService (등록, 요약), AvatarService (요청, 비동기 생성), AvatarJobStore (작업 상태 저장), TtsService (캐시), CaretakerDemoSeeder (시연 관리사 프로필)
+│   ├── farm/          CaretakerFarmReader (농장 도메인과의 접점), StoredCaretakerFarmReader, StoredFarmCaretakerReader (farm의 FarmCaretakerReader 구현체)
+│   └── data/          dto/ CaretakerDtos, entity/ CaretakerProfile, AvatarJob, enums/ AvatarStatus, exception/ CaretakerException, repository/
+├── care/                           # 관리사 오늘 할 일, 인증 사진, 작업 완료, 돌봄 기록
+│   ├── controller/    TaskController (/caretaker/tasks), DailyTaskController (/internal/ai/daily-tasks)
+│   ├── service/       TodayTaskService, TaskGenerationService와 TaskGenerationStore (작업 생성), TaskVisibility (날씨에 맞지 않는 작업 숨김), TaskPhotoService, TaskWriteService (사진, 완료), TaskAccess (담당 확인), WeatherTaskContextFactory (LLM 입력), CareNotificationListener, StoredGardenCareLogReader, TaskVoiceReader
+│   ├── guidance/      CropGuidanceController (/internal/crops/{cropId}/task-guidance), CropGuidanceService, CropGuidanceSettings
+│   ├── scheduler/     DailyTaskScheduler (매일 05:00)
+│   ├── garden/        CareGardenReader (텃밭 도메인과의 접점), CareGardenConfiguration (기본 빈). 구현체는 garden의 GardenCareReader
+│   └── data/          dto/ TaskDtos, entity/ Task, TaskDay, TaskPhoto, CareLog, enums/ TaskStatus, repository/
+├── voice/                          # 관리사 음성 메모 (STT, LLM 정리, 확정, 재시도)
+│   ├── controller/    VoiceMemoController (/caretaker/tasks/{taskId}/voice-memos, /caretaker/voice-memos/{voiceMemoId})
+│   ├── service/       VoiceMemoService (파일과 모델 처리), VoiceMemoStore (초안 저장, 확정), VoiceTaskAccess
+│   ├── task/          VoiceTaskReader (작업 도메인과의 접점), VoiceTaskConfiguration (기본 빈). 구현체는 care의 TaskVoiceReader
+│   └── data/          dto/, entity/ VoiceMemo, enums/ VoiceMemoStatus, VoiceProcessingStatus, exception/ VoiceMemoException, repository/
+├── growth/                         # 성장 시뮬레이션, 단계 확인 보정
+│   ├── controller/    GrowthController (/gardens/{gardenId}/growth, stage-checks), GrowthBatchController (/internal/ai/growth-simulation)
+│   ├── service/       GrowthService (계산과 보정), GrowthExplanationService (LLM 설명), GrowthStatusService (다른 도메인이 읽는 저장 상태), GrowthBatchService, GrowthScheduler (매일 04:00), GrowthProjection (텃밭 도메인과의 접점)
+│   ├── weather/       GrowthWeatherReader, StoredGrowthWeatherReader (일별 기온 조회)
+│   └── data/          dto/ GrowthDtos, entity/ GrowthState, GrowthEvent, repository/
+├── ai/                             # DB와 모델 없이 도는 핵심 계산과 LLM 입출력 연결
+│   ├── logic/         TaskRules (작업 검증 규칙), GrowthCalculator (적산온도 계산), VoiceAnalysis (이상 징후 코드)
+│   └── service/       TaskPlanningService (LLM 작업 선택과 규칙 대체), VoiceMemoAnalysisService (STT 후 정리)
+└── demo/                           # 시연 컨트롤
     ├── controller/    DemoController (/demo)
-    ├── service/       DemoService
+    ├── service/       DemoService (상태, 날씨), DemoSimulationService (빨리 감기, 단계 선택), DemoResetService와 DemoTaskResetService (초기화), DemoGardenService (시연 텃밭 확인), DemoVisitSeeder (시연 방문)
+    ├── local/         local-demo 프로필 전용 시연 화면과 시드 (LocalDemoPageController, LocalDemoSeeder 등)
     └── data/
-        ├── dto/           DemoWeatherRequestDto, DemoWeatherResponseDto, DemoStateResponseDto
+        ├── dto/           DemoWeatherRequestDto, DemoWeatherResponseDto, DemoStateResponseDto, DemoFastForwardRequestDto, DemoFastForwardResponseDto, DemoStageRequestDto
         └── exception/     DemoWeatherNotAllowedException
 ```
 
