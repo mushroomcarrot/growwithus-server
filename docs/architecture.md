@@ -1499,6 +1499,57 @@ XP, 스트릭, 보상처럼 값을 읽고 고치는 API는 텃밭 행을 잠그�
 
 격리 수준은 READ COMMITTED다 (`spring.datasource.hikari.transaction-isolation`). MariaDB 11.6부터 기본인 `innodb_snapshot_isolation`에서는 REPEATABLE READ 트랜잭션이 무언가를 읽은 뒤에 행을 잠그거나 고칠 때, 그 사이 다른 요청이 그 행을 바꿨으면 "Record has changed since last read"로 실패한다 (응답은 `C500`). READ COMMITTED에서는 잠금을 얻은 뒤 가장 최근에 커밋된 값을 읽으므로 뒤에 온 요청이 `C4095`처럼 뜻이 맞는 응답을 받는다. 잠그는 조회 하나에 잠그지 않는 서브쿼리를 섞으면 READ COMMITTED에서도 같은 오류가 나고, 주인(user) 행까지 함께 잠그면 배지 지급과 교착이 생긴다. 그래서 PK를 먼저 읽고 텃밭 행만 잠근다.
 
+## 관리사, 작업, 음성, 성장
+
+### 관리사 프로필, 아바타, 읽어주기
+
+1. `POST /caretakers/me/profile`로 성함과 농장을 등록하면 `profileRegistered`가 true가 되고 `nextStep`이 `CARE_TODAY`가 된다. 처음에는 기본 아바타 (`/images/caretaker-default.svg`)를 쓴다.
+2. AI 아바타는 `POST /caretakers/me/avatar`로 요청하고 `GET /caretakers/me/avatar`로 폴링한다. 초상권 동의, 비동기 생성, 실패 시 기본 아바타 유지의 자세한 동작은 [빠진 기능 보완](#빠진-기능-보완-5-3)에 있다.
+3. `GET /caretakers/me/summary`는 그 달의 돌봄 기록으로 작업 수, 돌본 텃밭 수, 일한 날을 세고 감사 하트 테이블에서 받은 하트를 센다. 예상 수당은 작업 수에 `CARE_ALLOWANCE_PER_TASK`를 곱한 가정치다.
+4. `POST /tts`는 `TtsService`가 같은 문장과 속도의 결과를 32개까지 캐시한다. 응답은 `GlobalResponse`로 감싸지 않은 `audio/mpeg`다.
+5. 담당 텃밭은 칸의 담당 관리사로 정해진다. 시연 농장은 시드가 배정하고, 실제 농장은 운영자가 `PUT /internal/farms/{farmId}/plots/{plotCode}`로 배정한다.
+
+### 관리사 작업
+
+1. `care`는 `Task`, `TaskDay`, `TaskPhoto`, `CareLog`를 저장한다. 오늘 할 일을 조회할 때 없는 작업을 만들며 담당자 전체의 하루 작업 시간을 120분으로 제한한다. 생성해서 저장할 때 `TaskDay`와 텃밭 행을 잠그고 현재 날씨와 단계로 다시 검증한다. 돌봄 기록은 텃밭 방문 단위다. 사진과 음성 없이 완료한 작업은 같은 날 같은 텃밭, 같은 관리사의 현재 회차 돌봄 기록이 있으면 새 기록과 가족 알림을 만들지 않고 그 기록에 묶는다 (`Task.careLogId`). 음성 정리문이 없는 기록은 묶인 작업 이름으로 문장을 다시 만들고, `CareLogExtended` 이벤트로 일기 사본의 작업 종류와 정리문을 맞춘다. 사진이나 음성이 있는 완료는 항상 새 기록을 만든다. 관리사의 완료 작업 수와 수당 가정치는 돌봄 기록이 아니라 완료한 작업 수로 센다.
+2. LLM은 작업 종류만 고른다 (`TaskPlanningService`). 문구와 시간은 작물별 작업 지침 (`CropGuidanceService`)에서 가져오고, 비 예보 시 물 주기 제외, 120분 상한, 최소 반복 간격은 `TaskRules`가 검증한다. LLM이 실패하면 같은 규칙으로 대체한다. LLM 입력은 날씨, 성장 단계, 지침, 지난 작업 기록, 최근 7일 음성 메모의 이상 징후다.
+3. 예보나 단계가 바뀌어 기존 미완료 작업이 전부 숨겨지면, 기존 작업과 완료 기록을 유지한 채 남은 시간 안에서 관찰 작업을 하나 추가한다. 같은 관찰 작업을 중복 생성하지 않는다.
+4. 작업 반복 방지 이력은 최소 14일과 지침의 최대 반복 간격 중 긴 기간을 실제 완료 시각으로 조회한다 (`care_task`의 `(garden_id, completed_at)` 인덱스).
+5. 작업 완료, 돌봄 기록 생성, 주인 알림은 한 트랜잭션이다. 본인 담당이 아니면 C403, 이미 완료했거나 시연 초기화로 보관된 작업이면 C4095다. 주인 프로필 등록이 커밋되면 첫 작업을 LLM 없이 규칙으로 만든다.
+6. 사진은 공통 업로드 모듈로 저장하고 `VisionClient`로 작업과 맞는지 확인한다. 모델이 없거나 실패해도 업로드는 유지하고 `aiCheck`는 null이다.
+
+### 음성 메모
+
+1. `VoiceMemoService`는 파일과 모델 처리를 맡고, 트랜잭션이 필요한 초안 저장과 확정은 `VoiceMemoStore`가 맡는다. `TaskVoiceReader`가 작업과 현재 텃밭 담당자를 확인한다. 재시도와 저장 구조는 [voice-api.md](voice-api.md)에 있다.
+2. STT가 실패하면 원본 파일과 메모를 유지하고 재시도 상태로 저장한다. STT 원문이 있으면 LLM 실패로 구분해 재시도할 때 음성을 다시 인식하지 않는다. LLM이 실패해도 원문은 유지한다.
+3. `GET /caretaker/tasks/{taskId}/voice-memos/latest`는 업로드 응답을 잃었을 때 작업 ID로 마지막 저장 메모를 복구한다. 모델 호출이나 저장은 하지 않는다. 미완료 작업의 PROCESSING이 2분 동안 끝나지 않으면 `retryable=true`를 준다.
+4. 음성 분석 중 작업이 완료되어도 파일과 원문은 보존한다. 완료된 작업의 메모는 재시도 가능하다고 표시하지 않으며 미확정 메모를 뒤늦게 확정하거나 돌봄 기록에 자동으로 연결하지 않는다.
+5. 확정한 메모의 원문 (`transcript`)과 정리문 (`summary`)은 돌봄 기록과 주인의 성장 일기에 함께 나간다.
+
+### 성장 시뮬레이션
+
+1. `GrowthCalculator`가 일별 유효적산온도 max(0, 평균기온 - 기준온도)를 누적해 단계를 정하고, 최근 7일 기온이 이어진다고 보고 수확 예정일을 예측한다. 일별 기온은 `daily_weather`에서 읽고, 현재 상태와 보정은 `garden_growth_state`에 저장한다.
+2. 관리사의 단계 확인 (`POST /gardens/{gardenId}/stage-checks`)이 들어오면 그 날짜와 단계를 기준으로 다시 계산한다 (`calibratedAt`). NO_CHANGE는 보정하지 않는다. `stageCheck.required`는 예상 단계가 FLOWER나 FRUIT이고 관리사가 아직 그 단계를 확인하지 않았을 때 true다.
+3. 단계가 오르면 `GardenGrowthProjection`이 `EvolutionEventService.advanceStage`를 불러 진화 이벤트, 일기 항목, 주인 알림을 만든다.
+4. 과거 기온이 빠진 날이 있으면 단계를 지어내지 않고 C502로 실패한다. 배치는 그 텃밭을 `failed`로 센다. 실제 기온은 날씨 수집 (`PUBLIC_DATA_SERVICE_KEY`)이나 `POST /internal/weather/daily`로 넣는다.
+5. 자동 계산으로 FRUIT가 되어도 수확 가능 (`harvestable`)으로 바꾸지 않는다. 관리사가 FRUIT를 확인해야 한다.
+6. `explanation`은 `GrowthExplanationService`가 DB 트랜잭션이 끝난 뒤 LLM으로 만들고, 실패하거나 300자를 넘으면 템플릿 문구를 쓴다. 시연 가상 성장은 LLM을 부르지 않고 시연 자료임을 알리는 문구를 준다.
+7. 시연 상태 (`garden_growth_state.demo_days`)가 있는 텃밭은 실제 기온 대신 단계마다 18일에 오르는 합성 기온으로 계산한다. 자세한 규칙은 [화면 연동 응답 확장](#화면-연동-응답-확장-36)과 [담당 이슈 후속 구현과 검증](#담당-이슈-후속-구현과-검증)에 있다.
+
+### AI 핵심 로직
+
+`ai/logic`은 DB와 모델 없이 실행할 수 있는 계산 코드이고, `ai/service`는 `LlmClient`, `SttClient`와 Jackson으로 입출력을 연결한다. 상세 연결 규칙은 [ai-integration.md](ai-integration.md)를 본다.
+
+| 클래스 | 역할 |
+| --- | --- |
+| `TaskRules` | 단계별 재배 기준, 작업 이력, 비 예보와 관리사 잔여 시간에 따라 후보 검증. 근거가 없으면 관찰만 안내 |
+| `TaskPlanningService` | LLM이 작업 종류를 선택하고 규칙을 적용. 오류 또는 모델 미연결 시 같은 규칙의 대체 결과 반환 |
+| `GrowthCalculator` | 완료된 날짜의 기온으로 적산온도 재계산. 단계 확인을 기준으로 보정하고 누락 일수 표시. 단계 기준 수치는 호출자가 전달 |
+| `VoiceMemoAnalysisService` | STT 후 JSON 요약과 이상 징후 코드 검증. LLM 실패 시 원문 유지, STT 실패는 C502로 전달 |
+| `VoiceAnalysis.Issue` | 프론트에서 사용할 코드와 한글 문구 5개. 병명 진단이 아닌 관찰 분류 |
+
+`local-ai/`의 STT, TTS 작업 서버는 같은 호스트에서만 쓰는 별도 프로세스이며 공개 API가 아니다 ([local-demo.md](local-demo.md)).
+
 ## 권한
 
 | `UserRole` | authority | 의미 |
