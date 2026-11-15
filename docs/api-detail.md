@@ -468,17 +468,9 @@ Refresh Token도 새로 발급하고 이전 토큰은 무효가 된다. 에러: 
     },
     { "type": "REST_DAY", "date": "2026-11-09", "message": "오늘은 쉬는 날이었어요" },
     {
-      "diaryId": "dry_11",
       "type": "STAGE_CHANGE",
       "date": "2026-11-05",
-      "careLogId": null,
       "eventId": "evt_3",
-      "taskTypes": [],
-      "transcript": null,
-      "summary": "작물이 다음 단계로 자랐어요.",
-      "photoUrl": null,
-      "caretakerName": null,
-      "hearted": false,
       "fromStage": "SPROUT",
       "toStage": "FLOWER",
       "createdAt": "2026-11-05T09:00:00+09:00"
