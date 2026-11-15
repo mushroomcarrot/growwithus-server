@@ -55,4 +55,12 @@ class StreakServiceTest {
         assertThat(sent.getValue().getTargetScreen()).isEqualTo("DT_HOME");
         assertThat(sent.getValue().getTargetId()).isEqualTo("gdn_3");
     }
+
+    @Test
+    void 위험한_텃밭이_없으면_알림을_보내지_않는다() {
+        when(gardenRepository.findStreaksAtRisk(any())).thenReturn(List.of());
+
+        assertThat(streakService.remind().getReminded()).isZero();
+        verify(notificationService, times(0)).send(any());
+    }
 }
