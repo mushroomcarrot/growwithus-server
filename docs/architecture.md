@@ -1,24 +1,5 @@
 # 현재 구조
 
-## 음성 메모 도메인
-
-`voice/controller`, `service`, `data/{dto,entity,enums,exception,repository}`, `task` 패키지를 추가했다. `VoiceMemoService`는 파일과 모델 처리를 맡고, 트랜잭션이 필요한 초안 저장과 확정은 `VoiceMemoStore`가 맡는다. `TaskVoiceReader`는 `care_task`와 현재 텃밭 담당자를 검증한다. [voice-api.md](voice-api.md)에 재시도와 저장 구조를 정리했다.
-
-`GET /caretaker/tasks/{taskId}/voice-memos/latest`는 업로드 응답 유실 시 작업 ID로 마지막 저장 메모를 복구한다. 현재 담당자를 확인한 뒤 본인의 메모 하나만 조회하며 모델 호출이나 저장은 하지 않는다. 미완료 작업의 PROCESSING이 2분 동안 끝나지 않으면 `retryable=true`를 반환한다. 실제 retry는 같은 작업과 메모를 잠그고 처리 토큰을 교체한다. 특정 업로드의 멱등 키를 대신하지는 않는다.
-
-### 관리사 작업과 성장 상태
-
-1. `care`는 `Task`, `TaskDay`, `TaskPhoto`, `CareLog`를 저장한다. 오늘 할 일 조회 시 미생성 작업을 만들며 담당자 전체의 하루 작업 시간을 120분으로 제한한다. 생성 저장 시 `TaskDay`와 텃밭 행을 잠그고 현재 날씨와 단계로 재검증한다. 작업 완료, 돌봄 기록과 알림은 한 트랜잭션이다. 돌봄 기록은 텃밭 방문 단위다. 사진과 음성 없이 완료한 작업은 같은 날 같은 텃밭, 같은 관리사의 현재 회차 돌봄 기록이 있으면 새 기록과 가족 알림을 만들지 않고 그 기록에 묶는다 (`Task.careLogId`). 음성 정리문이 없는 기록은 묶인 작업 이름으로 문장을 다시 만들고, `CareLogExtended` 이벤트로 일기 사본의 작업 종류와 정리문을 맞춘다. 사진이나 음성이 있는 완료는 항상 새 기록을 만든다. 관리사의 완료 작업 수와 수당 가정치는 돌봄 기록이 아니라 완료한 작업 수로 센다.
-2. `caretaker`는 프로필과 월별 요약, TTS 캐시를 제공한다. 기본 SVG를 사용하며 AI 아바타 생성은 후순위다. 내 정보의 관리사 요약에는 누적 돌봄 횟수를 포함한다.
-3. `growth`는 `GrowthState`와 `GrowthEvent`를 저장한다. 관찰 보정과 완료된 날짜의 기온을 기준으로 재계산하고 단계 상승 알림을 보낸다. 물 주기 등의 단계 검증은 저장된 성장 상태를 우선한다. `GrowthStatusService`는 확인한 단계에서 같은 확인 요청을 반복하지 않으며 다음 주요 단계에서 다시 요청한다. NO_CHANGE는 보정하지 않아 요청이 유지된다. 관찰 값은 SPROUT, FLOWER, FRUIT, NO_CHANGE다.
-4. `CareGardenReader`와 `CaretakerFarmReader`는 실제 팀 도메인 어댑터가 필요하다. 기본 구현은 빈 결과다. 실제 자료 없이 농장이나 작물 기준값을 생성하지 않는다. 일기 연결은 남아 있다. 기존 수확 API는 소유권 확인 후 저장된 성장 예측일을 우선 사용한다. 성장 예측일이 null이면 기존 날짜로 대신하지 않으며 수확 가능 여부는 실제 텃밭 데이터에서 가져온다.
-5. 수동 스키마는 `src/main/resources/db/manual/voice_memo.sql`, `care_growth.sql`이다. prod 배포 전 적용 및 검증이 필요하다. 전체 연결 상태와 제한은 [ai-integration.md](ai-integration.md)를 기준으로 확인한다.
-6. 예보나 단계 변경으로 기존 미완료 작업이 전부 숨겨지면, 기존 작업과 완료 기록을 유지한 채 남은 예산 안에서 관찰 작업을 하나 추가한다. 날짜별 담당자 잠금 안에서 재검사하며 같은 관찰 작업을 중복 생성하지 않는다. 모두 완료했거나 예산이 부족하면 추가하지 않는다.
-7. 음성 분석 중 작업이 완료되어도 파일과 원문은 보존한다. 완료된 작업의 메모는 재시도 가능하다고 표시하지 않으며 미확정 메모를 뒤늦게 확정하거나 돌봄 기록에 자동 연결하지 않는다.
-8. 작업 반복 방지 이력은 최소 14일과 안내 자료의 최대 반복 간격 중 긴 기간을 실제 완료 시각으로 조회한다. `care_task`의 `(garden_id, completed_at)` 인덱스를 사용한다. 예정일이 오래전인 작업도 최근 완료했다면 간격 검사에 포함된다. 이상 징후용 최근 7일 작업 조회와는 분리한다.
-
-`VoiceMemo` 엔티티는 `voice_memo` 테이블에 작업 PK, 관리사 로그인 아이디, 음성 URL, 원문, 요약, 이상 징후 코드, 대체 처리 여부, 상태, 생성 및 확정 시각을 저장한다. prod DB 준비용 수동 SQL은 `src/main/resources/db/manual/voice_memo.sql`이며 아직 DB에 적용하지 않았다. 작업과 사용자 FK 및 파일 보상 삭제는 남아 있다.
-
 ## AI 핵심 로직
 
 `ai/logic`은 DB와 모델 없이 실행할 수 있는 계산 코드다. `ai/service`는 기존 `LlmClient`, `SttClient`와 Jackson으로 입출력을 연결한다. 음성 정리는 위 음성 메모 API에 연결했고 작업 추천 및 성장 계산의 컨트롤러와 저장 서비스 연결은 남아 있다. 상세 연결 규칙은 [ai-integration.md](ai-integration.md)를 본다.
