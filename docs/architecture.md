@@ -1,22 +1,5 @@
 # 현재 구조
 
-## 한눈에 보기
-
-| 항목 | 내용 |
-| --- | --- |
-| 언어 / 런타임 | Java 21 |
-| 프레임워크 | Spring Boot 4.1.2 (webmvc, data-jpa, security, validation, data-redis) |
-| 빌드 | Gradle (Groovy DSL, `build.gradle`) |
-| DB | MariaDB (`MariaDBDialect`) |
-| 캐시 / 토큰 저장소 | Redis |
-| 인증 | JWT (jjwt 0.12.6, HS256), Stateless |
-| API 문서 | springdoc-openapi 3.0.3 (`/swagger-ui.html`) |
-| 베이스 패키지 | `community.likelion.growwithusserver` |
-| 시간대 | JVM 기본 `Asia/Seoul` (`GrowwithusServerApplication.main`에서 `TimeZone.setDefault`), Jackson도 `Asia/Seoul` |
-| 외부 호출 | `RestClient` (JDK `HttpClient`, 연결 3초, 읽기 30초 타임아웃) |
-| 스케줄러 | `@EnableScheduling` (`scheduler.enabled`로 끌 수 있음) |
-| 앱 클래스 | `GrowwithusServerApplication` |
-
 ## 패키지 구조
 
 ```
