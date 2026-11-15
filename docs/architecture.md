@@ -1,13 +1,5 @@
 # 현재 구조
 
-## 실행 검사 결과 파일
-
-smoke_local_demo.py는 실제 실행 시 build/reports/local-demo-smoke.json을 원자적으로 교체한다. 시작은 running, 성공은 passed와 실제 검사 결과, 실패는 failed와 예외 종류만 저장한다. 이전 성공을 새 실패로 잘못 판단하지 않도록 시각을 함께 기록하며, 비밀번호와 토큰, 발언, 예외 원문은 저장하지 않는다. 기본 검사의 voice와 completion은 not_tested를 유지한다. 이 보고서 기능 검사 2개가 추가되어 Python은 STT 23개와 도구 9개가 통과했다. 실제 서버 보고서는 아직 생성되지 않았다.
-
-
-STT의 Docker build context는 local-ai 폴더이므로 해당 폴더에도 .dockerignore를 둔다. 호스트 가상환경, 모델, 캐시와 환경변수 파일을 빌드 컨텍스트로 보내지 않는다. 실제 모델 파일은 전용 Docker 볼륨의 명시적 초기화 작업으로 준비한다.
-
-
 ## Team domain integration
 
 # 현재 구조
