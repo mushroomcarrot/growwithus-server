@@ -1260,7 +1260,7 @@ ADMIN은 RoleHierarchy로 USER, OWNER, CARETAKER 권한을 갖는다. SYSTEM은 
 
 | 항목 | 내용 |
 | --- | --- |
-| 진입점 | `FileUploadService.uploadImage(MultipartFile, directory)`, `uploadAudio(MultipartFile, directory)`. 반환값은 업로드 URL |
+| 진입점 | `FileUploadService.uploadImage(MultipartFile, directory)`, `uploadAudio(MultipartFile, directory)`. 반환값은 업로드 URL. `validateAudio(MultipartFile)`로 저장 없이 음성을 먼저 검증할 수 있음. `readImage(MultipartFile)`는 사진을 저장하지 않고 검증한 내용만 돌려주고, `storeGeneratedPng(bytes, directory)`는 서버가 만든 PNG를 저장한다 (AI 아바타) |
 | 사진 검증 | 확장자 jpg, jpeg, png이고 파일 앞부분(매직 넘버)이 실제 JPEG, PNG여야 함. 10MB 이하 |
 | 음성 검증 | 확장자 webm, m4a, mp4, wav이고 파일 앞부분이 실제 형식과 맞아야 함 (webm은 EBML 헤더, m4a와 mp4는 `ftyp` 박스, wav는 RIFF/WAVE). 헤더에서 길이를 읽으면 60초 이하 (wav는 `data` 크기와 초당 바이트 수, m4a와 mp4는 `mvhd` 박스). 길이를 읽을 수 없거나 0이면 (크롬 webm, 사파리 조각 mp4) 5MB 이하만 받는다. 60초 녹음 제한은 프론트도 건다 |
 | 위반 시 | `C4001` (multipart 상한 초과도 `C4001`) |
