@@ -1,33 +1,5 @@
 # 현재 구조
 
-## 권한
-
-| `UserRole` | authority | 의미 |
-| --- | --- | --- |
-| `USER` | `ROLE_USER` | 가입 직후, 역할 선택 전 |
-| `OWNER` | `ROLE_OWNER` | 텃밭 주인 (도시민) |
-| `CARETAKER` | `ROLE_CARETAKER` | 텃밭 관리사 (어르신) |
-| `ADMIN` | `ROLE_ADMIN` | 서비스 관리자 |
-
-- **RoleHierarchy** (`SecurityConfiguration.roleHierarchy()`): `ROLE_ADMIN > ROLE_OWNER`, `ROLE_ADMIN > ROLE_CARETAKER`, `ROLE_ADMIN > ROLE_USER`. USER, OWNER, CARETAKER는 서로 포함하지 않는다. 그래서 명세의 "USER, OWNER"처럼 일부만 허용하는 경로를 `hasAnyRole`로 그대로 표현한다.
-- **역할 결정:** 가입 직후는 `USER`. `PUT /users/me/role`로 `OWNER` 또는 `CARETAKER`를 고른다. `USER`, `ADMIN`으로는 바꿀 수 없다 (C002). ADMIN 계정은 가입 경로가 없어 DB에서 직접 `role`을 바꿔 만든다.
-- **역할 변경:** 역할이 실제로 바뀌면 `profileRegistered`를 false로 되돌린다. 이전 AT, RT는 블랙리스트에 올리고 새 역할이 담긴 토큰을 발급한다.
-- **역할 미선택 접근:** `USER`가 OWNER나 CARETAKER 전용 경로에 접근하면 403 `C4031`을 준다 (그 외 권한 부족은 `C403`).
-- `hasRole("OWNER")`처럼 `ROLE_` 접두사 없이 쓴다.
-
-### nextStep
-
-`UserService.resolveNextStep(User)` 한 곳에서만 계산하고 signup, login, `/users/me`, 역할 변경이 함께 쓴다.
-
-| 상태 | nextStep |
-| --- | --- |
-| `USER` | `ROLE_SELECT` |
-| `OWNER`, `profileRegistered=false` | `PROFILE_OWNER` |
-| `OWNER`, `profileRegistered=true` | `OWNER_HOME` |
-| `CARETAKER`, `profileRegistered=false` | `PROFILE_CARE` |
-| `CARETAKER`, `profileRegistered=true` | `CARE_TODAY` |
-| `ADMIN` | `null` |
-
 ## 인증 흐름
 
 ```
