@@ -1134,7 +1134,7 @@ community.likelion.growwithusserver/
 | 순서 | 경로 | 권한 |
 | --- | --- | --- |
 | 1 | `/swagger-ui/**`, `/v3/api-docs/**`, `/swagger-resources/**`, `/webjars/**` | 공개 |
-| 2 | GET `/actuator/health`, GET `/uploads/**` | 공개 (배포 헬스체크, 로컬 저장소 파일) |
+| 2 | GET `/actuator/health`, GET `/uploads/**`, GET `/images/caretaker-default.svg`, GET `/local-demo`, `/local-demo/app.js` | 공개 (배포 헬스체크, 로컬 저장소 파일, 기본 아바타, local-demo 시연 화면) |
 | 3 | `/internal/**` | SYSTEM (`X-Service-Key` 헤더) |
 | 4 | `/demo/**` | ADMIN 토큰 + `X-Demo-Mode: true` 헤더 |
 | 5 | POST `/auth/signup`, `/auth/login`, `/auth/refresh`, GET `/auth/username-check` | 공개 |
