@@ -455,19 +455,15 @@ Refresh Token도 새로 발급하고 이전 토큰은 무효가 된다. 에러: 
 {
   "items": [
     {
-      "diaryId": "dry_12",
       "type": "CARE_LOG",
       "date": "2026-11-10",
       "careLogId": "cl_8",
-      "eventId": null,
       "taskTypes": ["CHECK"],
       "transcript": "잎과 흙을 살펴봤어요. 잎에 작은 점이 보였어요.",
       "summary": "잎과 흙을 살폈어요. 잎의 작은 점은 다시 확인할게요.",
       "photoUrl": "...",
       "caretakerName": "박순자",
       "hearted": false,
-      "fromStage": null,
-      "toStage": null,
       "createdAt": "2026-11-10T10:21:00+09:00"
     },
     {
