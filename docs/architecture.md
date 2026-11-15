@@ -1,19 +1,5 @@
 # 현재 구조
 
-## 로컬 실행
-
-```bash
-cp .env.example .env   # 필요하면 값 수정
-docker run -d -p 3306:3306 -e MARIADB_ROOT_PASSWORD=root -e MARIADB_DATABASE=growwithus-server mariadb:11
-docker run -d -p 6379:6379 redis:7
-./gradlew bootRun
-```
-
-- 컴파일만: `./gradlew compileJava`
-- DB 없이 빌드: `./gradlew build -x test` (`contextLoads` 테스트가 실제 MariaDB를 요구)
-- DB 없이 도는 단위 테스트만: `./gradlew test --tests 'community.likelion.growwithusserver.common.*'` (도메인 단위 테스트는 `common` 자리에 `notification`, `harvest`, `weather`, `demo`)
-- Swagger: http://localhost:8080/swagger-ui.html
-
 ## 알려진 이슈 / 결정 대기
 
 | 항목 | 현재 상태 | 영향 |
