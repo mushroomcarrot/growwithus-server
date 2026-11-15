@@ -36,4 +36,28 @@ public class StreakService {
 
         return new StreakCheckResponseDto(broken);
     }
+
+    // 스트릭이 이어지는 중인데 오늘 아직 응원하지 않은 주인에게 STREAK_RISK 알림을 보낸다. 같은 날 다시 실행해도 한 번만 보낸다.
+    @Transactional
+    public StreakRemindResponseDto remind() {
+        LocalDate today = LocalDate.now();
+        int reminded = 0;
+        for (Garden garden : gardenRepository.findStreaksAtRisk(today)) {
+            if (notificationService.hasSentSince(garden.getOwner(), NotificationType.STREAK_RISK, today.atStartOfDay())) {
+                continue;
+            }
+            notificationService.send(NotificationSendDto.builder()
+                    .receiver(garden.getOwner())
+                    .type(NotificationType.STREAK_RISK)
+                    .title("오늘 응원을 아직 안 했어요")
+                    .body(garden.getStreakDays() + "일째 이어 온 응원이 오늘 밤에 끊겨요. " + garden.getCharacterName() + "를 응원해 주세요.")
+                    .targetScreen("DT_HOME")
+                    .targetId(IdPrefix.GARDEN.format(garden.getId()))
+                    .build());
+            reminded++;
+        }
+        log.info("[remind] 스트릭 위험 알림: {} (주인 {}명)", today, reminded);
+
+        return new StreakRemindResponseDto(reminded);
+    }
 }
