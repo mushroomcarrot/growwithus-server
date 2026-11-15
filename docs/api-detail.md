@@ -449,7 +449,7 @@ Refresh Token도 새로 발급하고 이전 토큰은 무효가 된다. 에러: 
 
 `GET /gardens/{gardenId}/diary?filter=ALL&cursor=&limit=20` | 권한 OWNER | 화면 DT_DIARY
 
-`filter`: `ALL`, `PHOTO`, `STAGE`. 본인 소유 텃밭만 조회한다. 최신 저장 순으로 반환하며 `limit`은 1~50이다. `nextCursor`는 `dry_숫자` 형식의 불투명 커서다. 날짜 대신 응답 커서를 그대로 보낸다.
+`filter`: `ALL` (기본), `PHOTO`, `STAGE`. 본인 소유 텃밭만 조회한다. 텃밭을 시작한 날부터 오늘까지를 날짜 단위로 최신순으로 준다. `limit`은 1~50이다.
 
 ```json
 {
