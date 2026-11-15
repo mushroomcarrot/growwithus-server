@@ -28,6 +28,12 @@ public class GameBatchController {
         return GlobalResponse.ok(streakService.check(streakCheckRequestDto == null ? null : streakCheckRequestDto.getDate()));
     }
 
+    @PostMapping("/streaks/remind")
+    @Operation(summary = "스트릭 위험 알림 (오늘 응원이 없는 주인)")
+    public GlobalResponse<community.likelion.growwithusserver.game.data.dto.StreakRemindResponseDto> remindStreaks() {
+        return GlobalResponse.ok(streakService.remind());
+    }
+
     @PostMapping("/leagues/settle")
     @Operation(summary = "주간 리그 정산, 새 리그와 퀘스트 생성")
     public GlobalResponse<LeagueSettleResponseDto> settleLeagues(@RequestBody(required = false) LeagueSettleRequestDto leagueSettleRequestDto) {

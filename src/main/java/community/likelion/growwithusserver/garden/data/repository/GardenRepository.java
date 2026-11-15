@@ -44,6 +44,11 @@ public interface GardenRepository extends JpaRepository<Garden, Long> {
     @Query("select distinct p.farm.id from Garden g join g.plot p")
     List<Long> findFarmIdsWithGarden();
 
+    // 스트릭이 이어지는 중인데 그날 아직 응원하지 않은 텃밭 (스트릭 위험 알림 대상)
+    @Query("select g from Garden g join fetch g.owner where g.streakDays > 0 "
+            + "and (g.lastCheeredOn is null or g.lastCheeredOn < :date) order by g.id asc")
+    List<Garden> findStreaksAtRisk(LocalDate date);
+
     // 전날 응원이 없는 텃밭의 스트릭을 끊는다. date보다 앞서 마지막으로 응원한 텃밭이 대상이다
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("update Garden g set g.streakDays = 0, g.mood = :mood "

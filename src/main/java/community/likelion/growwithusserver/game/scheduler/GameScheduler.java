@@ -19,6 +19,12 @@ public class GameScheduler {
         streakService.check(null);
     }
 
+    // 매일 20:00. 오늘 아직 응원하지 않은 주인에게 스트릭이 끊길 수 있다고 알린다
+    @Scheduled(cron = "0 0 20 * * *")
+    public void remindStreaks() {
+        streakService.remind();
+    }
+
     // 매주 월요일 00:10. 지난주 리그를 정산하고 이번 주 리그와 퀘스트를 만든다
     @Scheduled(cron = "0 10 0 * * MON")
     public void settleLeagues() {

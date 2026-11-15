@@ -232,7 +232,7 @@ class QuestServiceTest {
 
     @Test
     void 스트릭_배치는_전날_응원이_없는_텃밭을_시무룩하게_한다() {
-        StreakService streakService = new StreakService(gardenRepository);
+        StreakService streakService = new StreakService(gardenRepository, org.mockito.Mockito.mock(community.likelion.growwithusserver.notification.service.NotificationService.class));
         when(gardenRepository.breakStreaks(LocalDate.now().minusDays(1), CharacterMood.SAD)).thenReturn(2);
         when(gardenRepository.breakStreaks(LocalDate.of(2026, 11, 9), CharacterMood.SAD)).thenReturn(1);
 
