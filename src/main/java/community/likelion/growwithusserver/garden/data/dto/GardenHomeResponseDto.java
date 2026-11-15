@@ -39,6 +39,8 @@ public class GardenHomeResponseDto {
     @AllArgsConstructor
     public static class CharacterDto {
         private String name;
+        // 작물 이름 (예: 방울토마토)
+        private String cropName;
         private GrowthStage stage;
         private int level;
         private CharacterMood mood;
@@ -80,6 +82,8 @@ public class GardenHomeResponseDto {
     @AllArgsConstructor
     public static class RecentCareLogDto {
         private String careLogId;
+        // 이 기록에 묶인 작업 종류
+        private java.util.List<String> taskTypes;
         private String summary;
         private String photoUrl;
         private OffsetDateTime createdAt;

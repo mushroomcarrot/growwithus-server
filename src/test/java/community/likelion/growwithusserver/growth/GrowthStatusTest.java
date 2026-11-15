@@ -54,7 +54,8 @@ class GrowthStatusTest {
     private HarvestService harvest(HarvestGarden original) {
         var reader = new HarvestGardenService(id -> Optional.of(original));
         var outings = FakeRepository.of(OutingRepository.class, (method, args) -> { throw new AssertionError(method); });
-        return new HarvestService(reader, outings, growth);
+        return new HarvestService(reader, outings, growth, FakeRepository.of(
+                community.likelion.growwithusserver.harvest.data.repository.VisitRepository.class, (method, args) -> Optional.empty()));
     }
     @Test void harvestUsesNewForecastWithoutMutatingDomainOrDeclaringRipeness() {
         var original = HarvestGarden.builder().gardenId(1L).ownerUsername("owner").characterName("crop")

@@ -197,7 +197,7 @@
 1. `GET /caretaker/tasks/today`로 카드를 받는다.
 2. (선택) `POST .../photos`로 인증 사진을 올린다.
 3. (선택) `POST .../voice-memos` 후 `POST .../confirm`으로 음성 메모를 확정한다.
-4. `POST .../complete`로 돌봄 기록을 만들고 가족에게 알린다.
+4. `POST .../complete`로 돌봄 기록을 만들고 가족에게 알린다. 같은 날 같은 텃밭에서 사진과 음성 없이 이어서 완료한 작업은 앞의 돌봄 기록에 묶고 알림을 다시 보내지 않는다.
 5. `stageCheck.required`가 true면 `POST /gardens/{gardenId}/stage-checks`를 호출한다.
 
 ### 온보딩 흐름

@@ -60,6 +60,10 @@ class CareServiceTest {
         case "save" -> { var t = (Task) args[0]; t.setId((long) stored.size() + 1); stored.add(t); yield t; }
         case "findById", "findForUpdate" -> stored.stream().filter(t -> t.getId().equals(args[0])).findFirst();
         case "findAllByCaretakerUsernameAndDateOrderByIdAsc" -> stored.stream().filter(t -> t.getCaretakerUsername().equals(args[0]) && t.getDate().equals(args[1])).toList();
+        case "findBundled" -> stored.stream().filter(t -> t.getGardenId().equals(args[0]) && t.getCaretakerUsername().equals(args[1])
+                && t.getDate().equals(args[2]) && t.getArchiveNumber() == 0 && t.getCareLogId() != null)
+                .sorted(Comparator.comparing(Task::getCompletedAt).thenComparing(Task::getId).reversed()).toList();
+        case "findAllByCareLogIdOrderByIdAsc" -> stored.stream().filter(t -> args[0].equals(t.getCareLogId())).toList();
         case "existsByGardenIdAndDate" -> stored.stream().anyMatch(t -> t.getGardenId().equals(args[0]) && t.getDate().equals(args[1]));
         default -> throw new AssertionError(method);
     });
@@ -130,6 +134,35 @@ class CareServiceTest {
         assertEquals("owner", ((CareCompleted) events.getFirst()).ownerUsername());
         assertThrows(VoiceMemoException.class, () -> service.complete("care", 1L, null));
         assertEquals(1, records.size()); assertEquals(1, events.size());
+    }
+
+    @Test void laterPlainCompletionsJoinTheSameGardenRecordWithoutAnotherNotification() {
+        addGarden(1); store().save("care", LocalDate.now(), List.of(prepared(1)));
+        tasks.save(Task.builder().gardenId(1L).caretakerUsername("care").date(LocalDate.now()).type(TaskRules.Type.CHECK)
+                .title("check").description("look").minutes(10).sourceId("verified:test").status(TaskStatus.TODO)
+                .createdAt(LocalDateTime.now()).build());
+        var records = new ArrayList<CareLog>(); var events = new ArrayList<Object>();
+        var logs = FakeRepository.of(CareLogRepository.class, (method, args) -> switch (method) {
+            case "save" -> { var log = (CareLog) args[0]; log.setId((long) records.size() + 1); records.add(log); yield log; }
+            case "findById" -> records.stream().filter(l -> l.getId().equals(args[0])).findFirst();
+            default -> throw new AssertionError(method);
+        });
+        var photo = TaskPhoto.builder().id(1L).taskId(1L).caretakerUsername("care").url("https://example.test/photo.png").build();
+        var photos = FakeRepository.of(TaskPhotoRepository.class, (method, args) -> Optional.of(photo));
+        var growth = new GrowthStatusService(FakeRepository.of(
+                GrowthStateRepository.class, (method, args) -> Optional.empty()));
+        TaskContextFactory both = (garden, date) -> new TaskRules.Context(date, garden.stage(), true, false, garden.guidance(), List.of());
+        var service = new TaskWriteService(access, tasks, photos, logs, null, new TaskVisibility(gardens, both), events::add, growth);
+        var first = service.complete("care", 1L, new TaskDtos.CompleteRequest("pht_1", null));
+        var second = service.complete("care", 2L, new TaskDtos.CompleteRequest(null, null));
+        assertEquals(1, records.size()); assertEquals(first.getCareLogId(), second.getCareLogId());
+        assertEquals(photo.getUrl(), records.getFirst().getPhotoUrl());
+        assertEquals(1L, stored.get(1).getCareLogId()); assertEquals(TaskStatus.DONE, stored.get(1).getStatus());
+        assertEquals(1, events.stream().filter(CareCompleted.class::isInstance).count());
+        var extended = (CareLogExtended) events.getLast();
+        assertEquals(List.of("WATER", "CHECK"), extended.taskTypes());
+        assertEquals(records.getFirst().getSummary(), extended.summary());
+        assertTrue(extended.summary().contains("check"));
     }
 
     @Test void confirmedVoiceAndPhotoReachCareLogThroughRealTaskReader() {

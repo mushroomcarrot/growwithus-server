@@ -30,7 +30,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final JwtTokenProvider tokenProvider;
     private final community.likelion.growwithusserver.caretaker.data.repository.CaretakerProfileRepository caretakerProfiles;
-    private final community.likelion.growwithusserver.care.data.repository.CareLogRepository careLogs;
+    private final community.likelion.growwithusserver.care.data.repository.TaskRepository careTasks;
     private final community.likelion.growwithusserver.user.profile.OwnerSummaryReader ownerProfiles;
 
     public User getUserForUpdate(String username) {
@@ -82,7 +82,8 @@ public class UserService {
             caretaker = caretakerProfiles.findByUsername(username).map(p -> UserMeResponseDto.CaretakerSummary.builder()
                     .caretakerId(community.likelion.growwithusserver.common.id.IdPrefix.CARETAKER.format(p.getId()))
                     .name(p.getName()).farmId(community.likelion.growwithusserver.common.id.IdPrefix.FARM.format(p.getFarmId()))
-                    .avatarUrl(p.getAvatarUrl()).completedTasks(careLogs.countByCaretakerUsername(username)).build()).orElse(null);
+                    .avatarUrl(p.getAvatarUrl()).completedTasks(careTasks.countByCaretakerUsernameAndStatus(username,
+                            community.likelion.growwithusserver.care.data.enums.TaskStatus.DONE)).build()).orElse(null);
         }
 
         return GlobalResponse.ok(UserMeResponseDto.builder()
