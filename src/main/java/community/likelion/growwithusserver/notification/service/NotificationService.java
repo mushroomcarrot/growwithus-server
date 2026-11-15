@@ -9,6 +9,7 @@ import community.likelion.growwithusserver.notification.data.dto.NotificationLis
 import community.likelion.growwithusserver.notification.data.dto.NotificationReadResponseDto;
 import community.likelion.growwithusserver.notification.data.dto.NotificationSendDto;
 import community.likelion.growwithusserver.notification.data.entity.Notification;
+import community.likelion.growwithusserver.notification.data.enums.NotificationType;
 import community.likelion.growwithusserver.notification.data.exception.NotificationNotFoundException;
 import community.likelion.growwithusserver.notification.data.repository.NotificationRepository;
 import community.likelion.growwithusserver.user.data.entity.User;
@@ -53,6 +54,12 @@ public class NotificationService {
         log.info("[send] 알림 저장: {} ({})", receiver.getUsername(), notification.getType());
 
         return notification;
+    }
+
+    // 하루 한 번만 보내는 알림이 중복되지 않도록, 그 시각 이후에 같은 종류를 이미 보냈는지 확인한다
+    @Transactional(readOnly = true)
+    public boolean hasSentSince(User receiver, NotificationType type, LocalDateTime since) {
+        return notificationRepository.existsByUserAndTypeAndCreatedAtGreaterThanEqual(receiver, type, since);
     }
 
     @Transactional(readOnly = true)

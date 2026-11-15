@@ -23,6 +23,7 @@ public class CaretakerService {
     private final CaretakerProfileRepository profiles;
     private final CaretakerFarmReader farms;
     private final CareLogRepository logs;
+    private final community.likelion.growwithusserver.care.data.repository.TaskRepository tasks;
     private final community.likelion.growwithusserver.garden.data.repository.CareLogHeartRepository hearts;
     @Value("${care.allowance-per-task:0}") private long allowancePerTask;
     @Value("${file.base-url}") private String fileBaseUrl;
@@ -64,15 +65,18 @@ public class CaretakerService {
         if (allowancePerTask < 0 || allowancePerTask > 1_000_000) throw new IllegalStateException("수당 가정 단가 설정이 유효하지 않습니다.");
         var records = logs.findAllByCaretakerUsernameAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(username,
                 selected.atDay(1).atStartOfDay(), selected.plusMonths(1).atDay(1).atStartOfDay());
+        // 기록은 텃밭 방문 단위라서 완료한 작업 수와 수당은 작업에서 센다
+        long completed = tasks.countCompleted(username, community.likelion.growwithusserver.care.data.enums.TaskStatus.DONE,
+                selected.atDay(1).atStartOfDay(), selected.plusMonths(1).atDay(1).atStartOfDay());
         LocalDate today = LocalDate.now();
-        return GlobalResponse.ok(CaretakerDtos.Summary.builder().month(selected.toString()).completedTasks(records.size())
+        return GlobalResponse.ok(CaretakerDtos.Summary.builder().month(selected.toString()).completedTasks(completed)
                 .gardenCount(records.stream().map(r -> r.getGardenId()).distinct().count())
                 .workDays(records.stream().map(r -> r.getCreatedAt().toLocalDate()).distinct().count())
                 .heartsReceived(hearts.countByCaretakerUsernameAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(username,
                         selected.atDay(1).atStartOfDay(), selected.plusMonths(1).atDay(1).atStartOfDay()))
                 .heartsReceivedToday(hearts.countByCaretakerUsernameAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(username,
                         today.atStartOfDay(), today.plusDays(1).atStartOfDay()))
-                .expectedAllowance(Math.multiplyExact((long) records.size(), allowancePerTask))
+                .expectedAllowance(Math.multiplyExact(completed, allowancePerTask))
                 .allowanceNote("가정치예요. 실제 수당과 다를 수 있어요.").build());
     }
 }

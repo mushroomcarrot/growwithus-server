@@ -358,7 +358,7 @@ Refresh Token도 새로 발급하고 이전 토큰은 무효가 된다. 에러: 
 { "text": "오늘은 B-14 텃밭에 지지대를 세워 주세요.", "speed": 0.9 }
 ```
 
-응답은 `GlobalResponse`가 아니라 `audio/mpeg` 바이너리다. `text`는 300자 이하, `speed`는 0.5~1.5 (기본 0.9). 같은 문장은 캐시한다.
+응답은 `GlobalResponse`가 아니라 `audio/mpeg` 바이너리다. `text`는 300자 이하, `speed`는 0.5~1.5 (기본 0.9). 같은 문장은 캐시한다. ElevenLabs를 쓰면 서버가 구역 번호와 숫자를 한국어 발음으로 풀어 읽으므로 (`B-14`는 "비 십사 구역") 프론트는 화면 문장을 그대로 보낸다.
 
 ## 4. Home, Diary, Game
 
@@ -374,6 +374,7 @@ Refresh Token도 새로 발급하고 이전 토큰은 무효가 된다. 에러: 
   "nickname": "민지네",
   "character": {
     "name": "토순이",
+    "cropName": "방울토마토",
     "stage": "FLOWER",
     "level": 3,
     "mood": "HAPPY",
@@ -387,6 +388,7 @@ Refresh Token도 새로 발급하고 이전 토큰은 무효가 된다. 에러: 
   "caretaker": { "caretakerId": "crt_soonja", "name": "박순자", "avatarUrl": "..." },
   "recentCareLog": {
     "careLogId": "cl_1110_01",
+    "taskTypes": ["SUPPORT", "PRUNE"],
     "summary": "지지대를 세우고 곁순을 정리했어요",
     "photoUrl": "...",
     "createdAt": "2026-11-10T10:20:00+09:00",
@@ -447,49 +449,44 @@ Refresh Token도 새로 발급하고 이전 토큰은 무효가 된다. 에러: 
 
 `GET /gardens/{gardenId}/diary?filter=ALL&cursor=&limit=20` | 권한 OWNER | 화면 DT_DIARY
 
-`filter`: `ALL`, `PHOTO`, `STAGE`. 본인 소유 텃밭만 조회한다. 최신 저장 순으로 반환하며 `limit`은 1~50이다. `nextCursor`는 `dry_숫자` 형식의 불투명 커서다. 날짜 대신 응답 커서를 그대로 보낸다.
+`filter`: `ALL` (기본), `PHOTO`, `STAGE`. 본인 소유 텃밭만 조회한다. 텃밭을 시작한 날부터 오늘까지를 날짜 단위로 최신순으로 준다. `limit`은 1~50이다.
 
 ```json
 {
   "items": [
     {
-      "diaryId": "dry_12",
       "type": "CARE_LOG",
       "date": "2026-11-10",
       "careLogId": "cl_8",
-      "eventId": null,
       "taskTypes": ["CHECK"],
       "transcript": "잎과 흙을 살펴봤어요. 잎에 작은 점이 보였어요.",
       "summary": "잎과 흙을 살폈어요. 잎의 작은 점은 다시 확인할게요.",
       "photoUrl": "...",
       "caretakerName": "박순자",
       "hearted": false,
-      "fromStage": null,
-      "toStage": null,
       "createdAt": "2026-11-10T10:21:00+09:00"
     },
+    { "type": "REST_DAY", "date": "2026-11-09", "message": "오늘은 쉬는 날이었어요" },
     {
-      "diaryId": "dry_11",
       "type": "STAGE_CHANGE",
       "date": "2026-11-05",
-      "careLogId": null,
       "eventId": "evt_3",
-      "taskTypes": [],
-      "transcript": null,
-      "summary": "작물이 다음 단계로 자랐어요.",
-      "photoUrl": null,
-      "caretakerName": null,
-      "hearted": false,
       "fromStage": "SPROUT",
       "toStage": "FLOWER",
       "createdAt": "2026-11-05T09:00:00+09:00"
     }
   ],
-  "nextCursor": "dry_11"
+  "nextCursor": "2026-11-05"
 }
 ```
 
-돌봄 완료와 단계 상승 시 원래 저장 트랜잭션 안에서 일기 스냅샷을 추가한다. `transcript`는 확정 메모의 STT 원문이며 없으면 `null`이다. `summary`는 확정 정리문 또는 작업 완료 문구다. `PHOTO`는 사진이 있는 항목, `STAGE`는 성장 항목만 반환한다. `hearted`는 연결된 돌봄 기록의 현재 하트 수를 반영한다. 하트 전송 API, REST_DAY 생성, 과거 기록의 일괄 이관은 아직 구현하지 않았다. 새 테이블 준비는 `db/manual/diary.sql`을 확인한다.
+1. 종류마다 쓰는 필드가 다르고, 값이 없는 필드는 응답에서 빠진다. `CARE_LOG`와 `STAGE_CHANGE`에는 기록 시각 `createdAt`이 있다. `CARE_LOG`는 `careLogId`, `taskTypes`, `summary`, `transcript`, `photoUrl`, `caretakerName`, `hearted`, `STAGE_CHANGE`는 `eventId`, `fromStage`, `toStage`, `REST_DAY`는 `message`다.
+2. `transcript`는 확정한 음성 메모의 STT 원문이고 없으면 빠진다. `summary`는 확정한 정리문 또는 작업 완료 문구다.
+3. `PHOTO`는 사진이 있는 돌봄 기록만, `STAGE`는 단계 변화만 준다. `REST_DAY`는 `ALL`에서만 나오며, 기록이 없던 날을 한 건으로 채운다. 오늘과 텃밭을 시작한 날은 채우지 않는다.
+4. `nextCursor`는 이번 페이지에 담은 마지막 날짜 (`YYYY-MM-DD`)다. 그대로 `cursor`로 보내면 그 전날부터 이어서 준다. 더 없으면 `null`이다. 하루를 페이지 사이에서 나누지 않으므로 한 페이지가 `limit`보다 조금 많을 수 있다.
+5. `hearted`는 그 돌봄 기록에 감사 하트를 보냈는지다 (`POST /care-logs/{careLogId}/hearts`).
+6. 에러: `C002` 커서가 날짜 형식이 아님, `C403` 남의 텃밭, `C404` 텃밭 없음
+7. local-demo 프로필의 시연 화면만 예전 형식 (`diaryId`, `dry_숫자` 커서)을 쓴다. 운영 API와는 다르다.
 
 ### 4.6 미확인 진화 이벤트
 
@@ -608,9 +605,12 @@ Refresh Token도 새로 발급하고 이전 토큰은 무효가 된다. 에러: 
   "daysCaredTogether": 46,
   "careLogCount": 21,
   "caretakerName": "박순자",
-  "message": "11월 28일쯤 토순이를 만나러 오세요"
+  "message": "11월 28일쯤 토순이를 만나러 오세요",
+  "visit": { "visitId": "vst_1128_b14", "date": "2026-11-28", "startTime": "10:00", "status": "RESERVED" }
 }
 ```
+
+`visit`은 오늘 이후의 가장 가까운 방문 예약이다. 없으면 `null`이다. 화면은 이 값으로 기존 예약을 보여 주고 `visitId`로 취소한다.
 
 ### 5.2 방문 가능 시간
 
@@ -775,7 +775,7 @@ STT로 받아 적고 LLM이 가족용 문장으로 정리한다. `issues`는 다
 }
 ```
 
-돌봄 기록을 만들고 가족에게 알린다. 에러: `C403` 담당 작업 아님, `C4095` 이미 완료함
+돌봄 기록을 만들고 가족에게 알린다. 돌봄 기록은 텃밭 방문 단위다. `photoId`와 `voiceMemoId` 없이 완료하면 같은 날 같은 텃밭에 이미 만든 돌봄 기록에 작업을 묶고, 그 기록의 `careLogId`를 그대로 돌려준다. 이때 가족 알림은 다시 보내지 않는다. 묶을 기록이 없거나 사진, 음성이 있으면 새 기록을 만든다. 에러: `C403` 담당 작업 아님, `C4095` 이미 완료함
 
 ### 6.6 성장 단계 확인
 
@@ -844,12 +844,14 @@ STT로 받아 적고 LLM이 가족용 문장으로 정리한다. `issues`는 다
 | `POST /internal/ai/growth-simulation` | 매일 06:00 | `{ "date": "2026-11-10" }` | `{ "updated": 3, "stageChanged": 1 }` |
 | `POST /internal/streaks/check` | 매일 00:05 | `{ "date": "2026-11-09" }` | `{ "broken": 2 }` |
 | `POST /internal/leagues/settle` | 매주 월 00:10 | `{ "weekStart": "2026-11-02" }` | `{ "settledLeagues": 4, "createdQuests": 12 }` |
-| `POST /internal/farms/sync` | 매주 월 03:00 | 없음 | `{ "created": 2, "updated": 10 }` |
+| `POST /internal/farms/sync` | 매주 월 03:00 | 없음 | `{ "totalFarms": 8, "addedFarms": 2, "updatedFarms": 1, "skippedFarms": [] }` |
+| `POST /internal/streaks/remind` | 매일 20:00 | 없음 | `{ "reminded": 2 }` |
 
 1. `daily-tasks`의 `fallback`은 LLM 실패로 규칙 기반 작업을 쓴 텃밭 수다.
 2. 대상을 비워 두면 전체를 처리한다.
 3. 에러: `C4014` 서비스 키 불일치
 4. 성장 시뮬레이션의 실제 스케줄은 매일 04:00이다. 05:00의 작업 생성이 갱신된 성장 단계를 쓰도록 앞에 둔다. 실제 응답은 `{ "updated": 3, "failed": 0 }`이다.
+5. `streaks/remind`는 스트릭이 이어지는 중인데 오늘 응원하지 않은 주인에게 `STREAK_RISK` 알림을 하루 한 번 보낸다. `reminded`는 이번 실행으로 알림을 받은 주인 수다.
 
 ### 8.1 칸 관리 (운영자용)
 

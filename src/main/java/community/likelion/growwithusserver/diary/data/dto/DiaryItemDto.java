@@ -20,6 +20,8 @@ import java.util.List;
 public class DiaryItemDto {
     private DiaryItemType type;
     private LocalDate date;
+    // 기록 시각. CARE_LOG와 STAGE_CHANGE에만 있다
+    private java.time.OffsetDateTime createdAt;
 
     // CARE_LOG
     private String careLogId;

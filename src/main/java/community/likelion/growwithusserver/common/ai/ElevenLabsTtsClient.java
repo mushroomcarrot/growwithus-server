@@ -32,8 +32,9 @@ public final class ElevenLabsTtsClient implements TtsClient {
         if (properties.getApiKey() == null || properties.getApiKey().isBlank()
                 || properties.getApiKey().contains("\n") || properties.getApiKey().contains("\r")
                 || properties.getVoiceId() == null || !properties.getVoiceId().matches("[A-Za-z0-9]{20}")
-                || properties.getModel() == null || !properties.getModel().matches("eleven_[a-z0-9_]{1,60}")) {
-            throw new IllegalArgumentException("ElevenLabs 키, 목소리 ID와 모델 설정을 확인하세요.");
+                || properties.getModel() == null || !properties.getModel().matches("eleven_[a-z0-9_]{1,60}")
+                || !Double.isFinite(properties.getSpeedScale()) || properties.getSpeedScale() < 0.5 || properties.getSpeedScale() > 2.0) {
+            throw new IllegalArgumentException("ElevenLabs 키, 목소리 ID, 모델과 속도 배율 설정을 확인하세요.");
         }
         this.properties = properties;
         this.offline = offline;
@@ -49,9 +50,17 @@ public final class ElevenLabsTtsClient implements TtsClient {
         if (speed < 0.7 || speed > 1.2) return offline.synthesize(text, speed);
         if (!slots.tryAcquire()) throw new AiClientException();
         try {
-            byte[] payload = mapper.writeValueAsBytes(Map.of("text", text, "model_id", properties.getModel(),
-                    "voice_settings", Map.of("stability", 0.6, "similarity_boost", 0.75,
-                            "style", 0.0, "speed", speed, "use_speaker_boost", true)));
+            // 요청 속도는 화면 기준값이다. 이 목소리는 말이 느려 배율을 곱한 뒤 제공자 범위로 맞춘다.
+            double pace = Math.round(Math.max(0.7, Math.min(1.2, speed * properties.getSpeedScale())) * 100) / 100.0;
+            var body = new java.util.LinkedHashMap<String, Object>();
+            // 구역 번호, 숫자와 영문 약어는 한국어 발음으로 풀어 보낸다.
+            body.put("text", KoreanSpeechText.normalize(text));
+            body.put("model_id", properties.getModel());
+            // 언어 지정은 v2.5 계열만 받는다. 다른 모델에 보내면 요청이 거절된다.
+            if (properties.getModel().matches("eleven_(flash|turbo)_v2_5")) body.put("language_code", "ko");
+            body.put("voice_settings", Map.of("stability", 0.5, "similarity_boost", 0.75,
+                    "style", 0.0, "speed", pace, "use_speaker_boost", true));
+            byte[] payload = mapper.writeValueAsBytes(body);
             return client.post().uri("/v1/text-to-speech/{voice}?output_format=mp3_44100_128", properties.getVoiceId())
                     .header("xi-api-key", properties.getApiKey()).contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.valueOf("audio/mpeg")).contentLength(payload.length).body(payload)

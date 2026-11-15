@@ -23,6 +23,7 @@ class DiaryListenerTest {
     private boolean fail;
     private final DiaryRepository entries = FakeRepository.of(DiaryRepository.class, (method, args) -> {
         if (fail) throw new IllegalStateException("storage failed");
+        if (method.equals("findByTypeAndSourceId")) return saved.stream().filter(e -> e.getType() == args[0] && e.getSourceId().equals(args[1])).findFirst();
         saved.add((DiaryEntry) args[0]); return args[0];
     });
     private final CareLog log = CareLog.builder().id(1L).gardenId(1L).taskId(2L).caretakerUsername("care")
@@ -41,6 +42,12 @@ class DiaryListenerTest {
         assertEquals(DiaryEntry.Type.CARE_LOG, entry.getType()); assertEquals(1L, entry.getSourceId());
         assertEquals(log.getTranscript(), entry.getTranscript()); assertEquals(log.getSummary(), entry.getSummary());
         assertEquals(log.getPhotoUrl(), entry.getPhotoUrl()); assertEquals("CHECK", entry.getTaskTypes());
+    }
+    @Test void bundledTasksUpdateTheExistingEntryInsteadOfAddingOne() {
+        listener().onCare(new CareCompleted("owner", "summary", "cl_1"));
+        listener().onExtended(new community.likelion.growwithusserver.care.service.CareLogExtended(1L, List.of("CHECK", "WATER"), "both done"));
+        assertEquals(1, saved.size());
+        assertEquals("CHECK,WATER", saved.getFirst().getTaskTypes()); assertEquals("both done", saved.getFirst().getSummary());
     }
     @Test void addsStageChangeEntryAndPropagatesStorageFailure() {
         listener().onGrowth(new GrowthChanged("owner", "stage changed", "evt_5"));

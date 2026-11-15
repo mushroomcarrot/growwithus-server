@@ -32,6 +32,14 @@ public class DiaryListener {
                 .photoUrl(log.getPhotoUrl()).caretakerName(name).createdAt(log.getCreatedAt()).build());
     }
 
+    // 기록에 작업이 더 묶이면 일기 사본의 작업 종류와 정리문만 맞춘다.
+    @EventListener @Transactional(propagation = Propagation.MANDATORY)
+    public void onExtended(community.likelion.growwithusserver.care.service.CareLogExtended event) {
+        entries.findByTypeAndSourceId(DiaryEntry.Type.CARE_LOG, event.careLogId()).ifPresent(entry -> {
+            entry.setTaskTypes(String.join(",", event.taskTypes())); entry.setSummary(event.summary());
+        });
+    }
+
     @EventListener @Transactional(propagation = Propagation.MANDATORY)
     public void onGrowth(GrowthChanged event) {
         var growth = growthEvents.findById(IdPrefix.EVENT.parse(event.eventId())).orElseThrow();

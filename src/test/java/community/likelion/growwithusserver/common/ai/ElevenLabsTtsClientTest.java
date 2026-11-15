@@ -29,11 +29,28 @@ class ElevenLabsTtsClientTest {
                     var json = new tools.jackson.databind.ObjectMapper().readTree(
                             ((org.springframework.mock.http.client.MockClientHttpRequest) request).getBodyAsString(java.nio.charset.StandardCharsets.UTF_8));
                     assertEquals("오늘 텃밭에 물을 줬어요.", json.path("text").asText());
-                    assertEquals("eleven_flash_v2_5", json.path("model_id").asText());
-                    assertEquals(0.9, json.path("voice_settings").path("speed").asDouble());
+                    assertEquals("eleven_multilingual_v2", json.path("model_id").asText());
+                    assertTrue(json.path("language_code").isMissingNode());
+                    assertEquals(1.08, json.path("voice_settings").path("speed").asDouble());
                 })
                 .andRespond(withSuccess(AUDIO, MediaType.valueOf("audio/mpeg")));
         assertArrayEquals(AUDIO, client(builder).synthesize("오늘 텃밭에 물을 줬어요.")); server.verify();
+    }
+
+    @Test void sendsSpokenKoreanForPlotCodesAndClampsScaledSpeedAndSetsLanguageOnlyForV25Models() {
+        var builder = RestClient.builder(); var server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(anything()).andExpect(request -> {
+            var json = new tools.jackson.databind.ObjectMapper().readTree(
+                    ((org.springframework.mock.http.client.MockClientHttpRequest) request).getBodyAsString(java.nio.charset.StandardCharsets.UTF_8));
+            assertEquals("비 십삼 구역, 토마토.", json.path("text").asText());
+            assertEquals("ko", json.path("language_code").asText());
+            assertEquals(1.2, json.path("voice_settings").path("speed").asDouble());
+        }).andRespond(withSuccess(AUDIO, MediaType.valueOf("audio/mpeg")));
+        var p = properties(); p.setModel("eleven_flash_v2_5");
+        var client = new ElevenLabsTtsClient(builder.build(), p, text -> { throw new AssertionError(); });
+        assertArrayEquals(AUDIO, client.synthesize("B-13 밭, 토마토.", 1.2)); server.verify();
+        p.setSpeedScale(3.0);
+        assertThrows(IllegalArgumentException.class, () -> new ElevenLabsTtsClient(RestClient.create(), p, text -> AUDIO));
     }
 
     @Test void providerErrorsAreNotRetriedAndDoNotExposeResponseSecrets() {

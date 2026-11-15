@@ -21,5 +21,8 @@ public interface VisitRepository extends JpaRepository<Visit, Long> {
 
     long countByFarmIdAndVisitDateAndStartTimeAndStatus(Long farmId, LocalDate visitDate, LocalTime startTime, VisitStatus status);
 
+    // 오늘 이후의 가장 가까운 예약
+    Optional<Visit> findFirstByGardenIdAndStatusAndVisitDateGreaterThanEqualOrderByVisitDateAscStartTimeAsc(
+            Long gardenId, VisitStatus status, LocalDate from);
     boolean existsByGardenIdAndVisitDateAndStatus(Long gardenId, LocalDate visitDate, VisitStatus status);
 }
