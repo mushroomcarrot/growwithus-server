@@ -1405,7 +1405,12 @@ ADMIN은 RoleHierarchy로 USER, OWNER, CARETAKER 권한을 갖는다. SYSTEM은 
 | `WeatherFarmReader` (weather) | 날씨 수집 | `FarmWeatherFarmReader` (farm) |
 | `OwnerSummaryReader` (user) | `/users/me`의 `owner` | `GardenOwnerSummaryReader` (garden) |
 | `FarmCaretakerReader` (farm) | 칸 미리보기, 홈, 일기의 관리사 프로필 (`caretakerId`, `avatarUrl`) | `StoredFarmCaretakerReader` (caretaker). 프로필이 없는 관리사는 이름만 나간다 |
-| `GardenCareLogReader` (garden) | 홈의 최근 돌봄, 하트, 일기, 수확의 돌봄 횟수 | 없음. 돌봄 기록 도메인(#7)이 등록한다. 그 전에는 돌봄 기록이 없는 것으로 동작한다 |
+| `GardenCareLogReader` (garden) | 홈의 최근 돌봄, 하트, 일기, 수확의 돌봄 횟수 | `StoredGardenCareLogReader` (care) |
+| `CareGardenReader` (care) | 작업 생성, 성장 계산이 쓰는 텃밭, 작물 기준, 담당 관리사 | `GardenCareReader` (garden) |
+| `GrowthProjection` (growth) | 성장 계산 결과를 텃밭의 단계, GDD, 수확 예정일에 반영 | `GardenGrowthProjection` (garden) |
+| `CaretakerFarmReader` (caretaker) | 관리사 프로필 등록 때 농장 확인 | `StoredCaretakerFarmReader` (caretaker) |
+| `VoiceTaskReader` (voice) | 음성 메모의 작업과 담당자 확인 | `TaskVoiceReader` (care) |
+| `PlotGardenLink` (farm) | 분양된 칸에 관리사를 배정할 때 텃밭에도 반영 | `GardenPlotLink` (garden) |
 
 ### 농장, 칸, 작물
 
