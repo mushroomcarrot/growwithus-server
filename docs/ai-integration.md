@@ -57,7 +57,7 @@
 | 이상 징후 한글 문구 | [voice-api.md](voice-api.md)의 고정 표 사용 |
 | 관리사 돌봄 횟수 | `/users/me`의 `caretaker.completedTasks` |
 | 일기 원문과 요약 | CareLog와 가족 일기에 분리 저장, 일기 API에도 원문과 요약 반환 |
-| AI 아바타 | 기본 SVG 사용, 생성 및 폴링 API 미구현 |
+| AI 아바타 | 생성 요청과 폴링 API 구현. 이미지 모델이 없거나 실패하면 FAILED와 기본 SVG |
 | CORS, HTTPS, demo 보안 | 기준 코드 설정 유지. 실제 배포 주소, 인증 및 브라우저 검증 필요 |
 | CHEOIN, familySize, 방문 headcount | 주인 및 방문 도메인 사항, 이번 변경에서 확정하지 않음 |
 | API 접두어 | `/api/v1` 없음 |
