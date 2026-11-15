@@ -1,30 +1,5 @@
 # 현재 구조
 
-## 에러 코드
-
-| ErrorCode | code | HTTP | 메시지 | 사용처 |
-| --- | --- | --- | --- | --- |
-| `INVALID_REQUEST` | C001 | 400 | 잘못된 요청입니다. | 미사용 |
-| `INVALID_PARAMETER` | C002 | 400 | 유효하지 않은 파라미터입니다. | `@Valid` 검증 실패, 읽을 수 없는 본문 (잘못된 enum 값 포함), 필수 쿼리 누락, 쿼리와 경로 값의 형식 오류 (날짜 등), `RoleNotAllowedException`, `InvalidIdException` (슬롯 ID 포함), `VisitSlotNotBookableException`, `DemoWeatherNotAllowedException` |
-| `FILE_NOT_SUPPORTED` | C4001 | 400 | 지원하지 않는 파일입니다. | `FileNotSupportedException` (형식, 크기, 길이 위반), multipart 상한 초과 |
-| `PORTRAIT_CONSENT_REQUIRED` | C4003 | 400 | 초상권 동의가 필요합니다. | `CaretakerException` (AI 아바타 요청에 초상권 동의가 없음) |
-| `CANCEL_DEADLINE_PASSED` | C4005 | 400 | 취소 기한이 지났습니다. | `VisitCancelDeadlinePassedException` |
-| `VERIFICATION_INVALID` | C4011 | 401 | 인증 정보가 유효하지 않습니다. | EntryPoint (미인증 접근), `AuthenticationInfoException` |
-| `PASSWORD_INVALID` | C4012 | 401 | 비밀번호가 일치하지 않습니다. | `PasswordInvalidException` |
-| `TOKEN_INVALID` | C4013 | 401 | 유효하지 않은 토큰입니다. | `TokenInvalidException` |
-| `SERVICE_KEY_INVALID` | C4014 | 401 | 서비스 키가 유효하지 않습니다. | `InternalServiceKeyFilter` |
-| `ACCESS_DENIED` | C403 | 403 | 승인되지 않은 사용자입니다. | AccessDeniedHandler (권한 부족), `GardenAccessDeniedException`, `VisitAccessDeniedException` |
-| `ROLE_NOT_SELECTED` | C4031 | 403 | 역할을 먼저 선택해야 합니다. | AccessDeniedHandler (역할 선택 전 `USER`의 접근) |
-| `DEMO_MODE_REQUIRED` | C4032 | 403 | 시연 모드에서만 사용할 수 있습니다. | `DemoModeFilter` (헤더 없음 또는 비활성화) |
-| `USER_DATA_NOT_FOUND` | C4041 | 404 | 사용자를 찾을 수 없습니다. | `UserNotFoundException` |
-| `DATA_NOT_FOUND` | C404 | 404 | 정보를 불러올 수 없습니다. | 매핑되지 않은 경로 (`NoResourceFoundException`), `NotificationNotFoundException`, `GardenNotFoundException`, `VisitNotFoundException`, `VoiceMemoException` (메모 또는 담당 작업 없음) |
-| `USERNAME_DUPLICATION` | C4092 | 409 | 이미 사용 중인 아이디입니다. | `UsernameDuplicationException` |
-| `ALREADY_PROCESSED` | C4095 | 409 | 이미 처리된 요청입니다. | `VisitAlreadyReservedException` (같은 날 예약 있음), `VisitAlreadyCanceledException`. 응원, 하트 등 다른 도메인도 이 코드를 쓴다 |
-| `VISIT_SLOT_FULL` | C4096 | 409 | 예약이 마감된 시간입니다. | `VisitSlotFullException` |
-| `UNKNOWN_ERROR` | C500 | 500 | 오류가 발생하였습니다. | 처리되지 않은 모든 예외 |
-| `FILE_UPLOAD_FAILED` | C5001 | 500 | 파일 저장에 실패했습니다. | `FileUploadFailedException` |
-| `EXTERNAL_API_ERROR` | C502 | 502 | 외부 서비스 호출에 실패했습니다. | `AiClientException`, `KmaApiException` (수집 배치 안에서 잡으므로 응답으로 나가지는 않는다) |
-
 ## 설정
 
 | 파일 | 내용 |
