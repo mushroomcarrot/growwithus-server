@@ -1,16 +1,5 @@
 # 현재 구조
 
-## 배포 (Docker, GitHub Actions)
-
-1. `Dockerfile`: 멀티 스테이지 빌드. 실행 이미지는 비루트 사용자(appuser), 헬스체크용 curl, `/app/uploads` 폴더, `-Duser.timezone=Asia/Seoul`을 쓴다.
-2. `docker-compose.yml`: app, mariadb(11.4), redis(7.4), nginx, certbot. app은 mariadb와 redis가 healthy가 된 뒤 뜨고, 업로드 파일은 uploads 볼륨(`/app/uploads`)에 남는다. 8080은 외부에 열지 않고 nginx가 `grow-api.yuns.kr`의 443을 app:8080으로 넘긴다.
-3. `.github/workflows/ci.yml`: develop push와 develop, main으로 향하는 PR에서 `./gradlew bootJar testClasses`와 Docker 이미지 빌드(push 없음)를 확인한다. DB가 필요한 테스트는 돌리지 않는다.
-4. `.github/workflows/deploy.yml`: main push에서 GHCR에 `<sha>` 태그 이미지를 올리고, SSH로 서버 `~/growwithus-server`에 compose 파일과 `deploy/nginx`를 복사한 뒤 app을 교체한다. `/actuator/health`가 healthy가 아니면 로그 100줄을 출력하고 직전 이미지로 되돌린다. 성공하면 `deploy/nginx/init-letsencrypt.sh`가 인증서가 없을 때만 Let's Encrypt 인증서를 발급한다.
-5. 헬스체크: `spring-boot-starter-actuator`를 추가했고 `management.endpoints.web.exposure.include=health`, `show-details=never`로 health만 공개한다. `SecurityConfiguration`에서 GET `/actuator/health`를 공개한다.
-6. 서버 `.env`는 `.env.prod.example`을 복사해 채운다. 새 DB에 처음 배포할 때만 `JPA_DDL_AUTO=update`로 테이블을 만들고 이후 `validate`로 되돌린다.
-7. 로컬 AI 클라이언트는 loopback 주소만 허용하므로 compose의 app 컨테이너는 호스트의 `compose.ai-workers.json` 작업자에 닿지 않는다. 이 구성에서는 `AI_LOCAL_ENABLED`, `AI_LOCAL_STT_ENABLED`를 false로 둔다.
-8. GitHub Secrets: `SERVER_HOST`, `SERVER_USER`, `SSH_PRIVATE_KEY`. 서버 사용자는 비밀번호 없이 `sudo docker`를 쓸 수 있어야 한다. 실제 서버 배포는 아직 실행하지 않았다.
-
 ## 화면 연동 응답 확장 (#36)
 
 1. PUT /demo/stage는 ADMIN 토큰과 X-Demo-Mode 헤더가 필요하다. 요청은 stage (SEED, SPROUT, FLOWER, FRUIT)이고 응답은 빨리 감기와 같은 DemoFastForwardResponseDto (stage, eventId, expectedHarvestDate)다. stage가 없거나 enum이 아니면 C002다. minji, 시연 농장 demo:theme, B-14가 모두 일치하는 텃밭만 변경한다.
