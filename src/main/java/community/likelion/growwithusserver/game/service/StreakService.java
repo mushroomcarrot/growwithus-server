@@ -16,12 +16,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 
-// 스트릭 끊김 배치 (매일 00:05). 전날 응원하지 않은 텃밭의 스트릭을 0으로 돌리고 캐릭터를 시무룩하게 한다.
+// 스트릭 배치. 끊김 처리 (매일 00:05)는 전날 응원하지 않은 텃밭의 스트릭을 0으로 돌리고 캐릭터를 시무룩하게 한다.
+// 위험 알림 (매일 20:00)은 오늘 아직 응원하지 않은 주인에게 하루 한 번 알린다.
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class StreakService {
     private final GardenRepository gardenRepository;
+    private final NotificationService notificationService;
 
     /**
      * @param date 응원했는지 확인할 날. null이면 어제. 그날이나 그 뒤에 응원한 텃밭은 건드리지 않는다
